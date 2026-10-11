@@ -1149,28 +1149,59 @@ export default function App() {
   };
 
 
+  // Open the code-oss workbench (Struct) directly, instead of the hand-rolled
+  // IDE window. We start the bundled code-server for the current workspace and
+  // point a native window at it. The {ide} button + Ctrl+Shift+E both call this.
   const launchIdeWindow = async () => {
     try {
+      // Resolve a workspace: current selection, persisted choice, or prompt.
+      let root = workspaceRoot ?? localStorage.getItem(SHARED_WS_KEY);
+      if (!root) {
+        const picked = await pickFolder();
+        if (!picked.length) {
+          setError("Open a workspace folder before launching Struct.");
+          return;
+        }
+        root = picked[0];
+        localStorage.setItem(SHARED_WS_KEY, root);
+        setWorkspaceRoot(root);
+      }
+
+      // If a workbench window is already open, just focus it.
       const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-      const existing = await WebviewWindow.getByLabel("ide");
+      const existing = await WebviewWindow.getByLabel("struct-workbench");
       if (existing) {
         await existing.setFocus();
         return;
       }
-      const ideWin = new WebviewWindow("ide", {
-        url: "index.html?window=ide",
-        title: "IDE",
+
+      // Start the code-server (the bundled Struct code-oss in
+      // src-tauri/resources/code-oss; generic code-server only as fallback).
+      // Returns the base URL.
+      const baseUrl = await invoke<string>("compatible_ide_start", { workspace: root });
+
+      // Open the real workbench in its own native window, titled "Struct".
+      //
+      // Native decorations (unlike Neo's frameless main window) are required
+      // here: this window hosts the code-server page, not Neo's React tree, so
+      // Neo's custom titlebar with min/max/close buttons cannot be rendered —
+      // without native decorations the window would have no controls at all.
+      const url = new URL(baseUrl);
+      url.searchParams.set("folder", root);
+      const win = new WebviewWindow("struct-workbench", {
+        url: url.toString(),
+        title: "Struct",
         width: 1280,
         height: 820,
         minWidth: 720,
         minHeight: 480,
-        decorations: false,
+        decorations: true,
       });
-      ideWin.once("tauri://error", (e) => {
-        setError(`Failed to open IDE window: ${e.payload}`);
+      win.once("tauri://error", (e) => {
+        setError(`Failed to open Struct workbench: ${e.payload}`);
       });
     } catch (e) {
-      setError(`Failed to open IDE window: ${e instanceof Error ? e.message : String(e)}`);
+      setError(`Failed to open Struct workbench: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
 
@@ -2851,7 +2882,7 @@ MCP call rules:
             // },
             {
               id: "open-ide-window",
-              label: "Open IDE Window",
+              label: "Open Struct",
               category: "View",
               shortcut: "Ctrl+Shift+E",
               action: () => launchIdeWindowRef.current(),

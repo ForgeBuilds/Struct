@@ -1950,11 +1950,48 @@ fn mcp_stdio_stop(state: tauri::State<'_, McpState>, id: String) -> Result<(), S
     Ok(())
 }
 
+/// Locate the bundled Struct code-oss server (`server-main.js`) that ships
+/// inside Neo at `resources/code-oss/`. Search order:
+///  1. `STRUCT_IDE_SERVER` env override (explicit path to server-main.js).
+///  2. Resource dir next to the running app (production bundle on Linux/
+///     Windows; `Contents/Resources` inside a macOS .app).
+///  3. Next to the executable itself (portable/unzipped layouts).
+///  4. The crate root's `resources/code-oss/` (compile-time path — exact
+///     location used during `tauri dev` on the build machine).
+fn resolve_struct_server_main(app: &tauri::AppHandle) -> Option<PathBuf> {
+    if let Ok(p) = std::env::var("STRUCT_IDE_SERVER") {
+        let p = PathBuf::from(p);
+        if p.is_file() {
+            return Some(p);
+        }
+    }
+    const REL: &str = "code-oss/out/server-main.js";
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    if let Ok(dir) = app.path().resource_dir() {
+        candidates.push(dir.join("code-oss/out/server-main.js"));
+        candidates.push(dir.join("resources").join(REL));
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            candidates.push(dir.join(REL));
+            candidates.push(dir.join("../resources").join(REL));
+            candidates.push(dir.join("../Resources").join(REL));
+        }
+    }
+    candidates.push(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("resources")
+            .join(REL),
+    );
+    candidates.into_iter().find(|p| p.is_file())
+}
+
 /// Start code-server on an ephemeral loopback-only port for the current
 /// workspace. Its own extension host and Open VSX integration provide the
 /// compatible workbench; Neo never executes downloaded extensions itself.
 #[tauri::command]
 fn compatible_ide_start(
+    app: tauri::AppHandle,
     state: tauri::State<'_, CompatibleIdeState>,
     workspace: String,
 ) -> Result<String, String> {
@@ -1998,27 +2035,66 @@ fn compatible_ide_start(
         .build()
         .map_err(|e| format!("Cannot create workbench health check: {e}"))?;
     let bind_addr = format!("127.0.0.1:{port}");
-    let (program, front_args) = resolve_command("code-server");
-    let mut command = Command::new(program);
-    let mut child = command
-        .args(front_args)
-        .args([
+
+    // Launch command for the embedded workbench. Two modes:
+    //
+    //  • Struct (default when the bundled code-oss is found): our rebranded
+    //    code-server bundle at `resources/code-oss/`, launched as
+    //    `node <server-main.js> --port <p> --host 127.0.0.1
+    //    --without-connection-token --accept-server-license-terms
+    //    --default-folder <workspace>`. Override the location with
+    //    STRUCT_IDE_SERVER (and STRUCT_IDE_NODE for the node binary).
+    //  • Legacy: coder's generic `code-server` on PATH (--bind-addr/--auth none).
+    let mut command = if let Some(server_main) = resolve_struct_server_main(&app) {
+        // APP_ROOT = server_main/../../ — the bundle resolves node_modules and
+        // extensions relative to it, so run the server from there.
+        let app_root = server_main
+            .parent()
+            .and_then(|out| out.parent())
+            .map(Path::to_path_buf);
+        let node = std::env::var("STRUCT_IDE_NODE").unwrap_or_else(|_| "node".to_string());
+        let (program, front_args) = resolve_command(&node);
+        let mut c = Command::new(program);
+        // server-main.js opens the folder via --default-folder (positional args
+        // are deprecated upstream), so the workspace is a flag, not a positional.
+        c.args(front_args).arg(server_main).args([
+            "--port",
+            &port.to_string(),
+            "--host",
+            "127.0.0.1",
+            "--without-connection-token",
+            "--accept-server-license-terms",
+            "--default-folder",
+            &workspace.to_string_lossy(),
+        ]);
+        if let Some(root) = app_root {
+            c.current_dir(root);
+        }
+        c
+    } else {
+        let (program, front_args) = resolve_command("code-server");
+        let mut c = Command::new(program);
+        c.args(front_args).args([
             "--bind-addr",
             &bind_addr,
             "--auth",
             "none",
             "--disable-telemetry",
             "--disable-update-check",
-        ])
-        .arg(&workspace)
+        ]).arg(&workspace);
+        c
+    };
+
+    let mut child = command
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
         .map_err(|e| {
             format!(
-                "Could not start code-server ({e}). Install code-server from \
-                 https://code-server.dev/install, then restart Neo."
+                "Could not start the workbench ({e}). The bundled Struct code-oss \
+                 was not found in resources/code-oss — reinstall Neo, or install \
+                 code-server from https://code-server.dev/install as a fallback."
             )
         })?;
 
