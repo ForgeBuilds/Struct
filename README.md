@@ -127,6 +127,12 @@ Ctrl + Shift + E
   <img src="src/assets/images/IDE.png" alt="Struct integrated code editor" width="900" />
 </p>
 
+## VS Code-Compatible Extensions Workbench
+
+The IDE can open the current workspace in a companion [code-server](https://code-server.dev/) workbench. This uses code-server's extension host for real extensions and its default Open VSX extension gallery; extensions run with the permissions of the current user.
+
+Install code-server separately and make its `code-server` command available on `PATH`. Then open a workspace in Struct and select **Extensions workbench** from the IDE activity bar. The workbench is not bundled with Struct yet and opens in your default browser. Only extensions available from the configured gallery and compatible with code-server can be installed.
+
 ---
 
 # Change Review

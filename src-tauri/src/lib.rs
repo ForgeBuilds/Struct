@@ -2,17 +2,18 @@
  * Author: madhusudhan
  * Check the LICENSE in the GitHub repo (https://github.com/Lumorix-studios/Struct) for more information on permissions to use this code.
  */
+use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
 use std::collections::HashMap;
 use std::fs;
 use std::io::Read;
 use std::io::Write;
+use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::Mutex;
 use std::thread;
-use std::time::UNIX_EPOCH;
-use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
+use std::time::{Duration, UNIX_EPOCH};
 use tauri::{Emitter, Manager};
 
 /// Windows-only: CREATE_NO_WINDOW stops child processes from flashing or
@@ -112,6 +113,15 @@ enum TrackedServer {
 
 /// Track the Ollama server we are responsible for so we can stop it later.
 struct ServerState(Mutex<Option<TrackedServer>>);
+
+/// The optional Code OSS-compatible workbench process managed by Neo.
+struct CompatibleIdeProcess {
+    child: Child,
+    url: String,
+    workspace: PathBuf,
+}
+
+struct CompatibleIdeState(Mutex<Option<CompatibleIdeProcess>>);
 
 /// Set while `start_ollama_server` spawns + waits, so concurrent callers
 /// (the local-models panel and the model-switch guard) can't double-spawn:
@@ -1940,6 +1950,123 @@ fn mcp_stdio_stop(state: tauri::State<'_, McpState>, id: String) -> Result<(), S
     Ok(())
 }
 
+/// Start code-server on an ephemeral loopback-only port for the current
+/// workspace. Its own extension host and Open VSX integration provide the
+/// compatible workbench; Neo never executes downloaded extensions itself.
+#[tauri::command]
+fn compatible_ide_start(
+    state: tauri::State<'_, CompatibleIdeState>,
+    workspace: String,
+) -> Result<String, String> {
+    let workspace = PathBuf::from(&workspace)
+        .canonicalize()
+        .map_err(|e| format!("Cannot open workspace \"{workspace}\": {e}"))?;
+    if !workspace.is_dir() {
+        return Err(format!("Workspace is not a directory: {}", workspace.display()));
+    }
+
+    let mut guard = state
+        .0
+        .lock()
+        .map_err(|e| format!("Compatible workbench state lock error: {e}"))?;
+    if let Some(process) = guard.as_mut() {
+        match process.child.try_wait() {
+            Ok(None) if process.workspace == workspace => return Ok(process.url.clone()),
+            Ok(None) => {
+                if let Some(mut old) = guard.take() {
+                    let _ = old.child.kill();
+                    let _ = old.child.wait();
+                }
+            }
+            Ok(Some(_)) => {
+                guard.take();
+            }
+            Err(e) => return Err(format!("Could not check code-server process: {e}")),
+        }
+    }
+
+    let listener = TcpListener::bind(("127.0.0.1", 0))
+        .map_err(|e| format!("Cannot reserve a local workbench port: {e}"))?;
+    let port = listener
+        .local_addr()
+        .map_err(|e| format!("Cannot determine the local workbench port: {e}"))?
+        .port();
+    drop(listener);
+
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(1))
+        .build()
+        .map_err(|e| format!("Cannot create workbench health check: {e}"))?;
+    let bind_addr = format!("127.0.0.1:{port}");
+    let (program, front_args) = resolve_command("code-server");
+    let mut command = Command::new(program);
+    let mut child = command
+        .args(front_args)
+        .args([
+            "--bind-addr",
+            &bind_addr,
+            "--auth",
+            "none",
+            "--disable-telemetry",
+            "--disable-update-check",
+        ])
+        .arg(&workspace)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|e| {
+            format!(
+                "Could not start code-server ({e}). Install code-server from \
+                 https://code-server.dev/install, then restart Neo."
+            )
+        })?;
+
+    let url = format!("http://127.0.0.1:{port}");
+    for _ in 0..200 {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                return Err(format!(
+                    "code-server exited during startup with status {status}. Check its installation and try again."
+                ));
+            }
+            Err(e) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(format!("Could not check code-server startup: {e}"));
+            }
+            Ok(None) => {}
+        }
+        if client.get(&url).send().is_ok() {
+            *guard = Some(CompatibleIdeProcess {
+                child,
+                url: url.clone(),
+                workspace,
+            });
+            return Ok(url);
+        }
+        thread::sleep(Duration::from_millis(100));
+    }
+
+    let _ = child.kill();
+    let _ = child.wait();
+    Err("code-server did not become ready within 20 seconds.".to_string())
+}
+
+/// Stop the compatible workbench if it is running.
+#[tauri::command]
+fn compatible_ide_stop(state: tauri::State<'_, CompatibleIdeState>) -> Result<(), String> {
+    let mut guard = state
+        .0
+        .lock()
+        .map_err(|e| format!("Compatible workbench state lock error: {e}"))?;
+    if let Some(mut process) = guard.take() {
+        let _ = process.child.kill();
+        let _ = process.child.wait();
+    }
+    Ok(())
+}
+
 // ─── LSP stdio transport ─────────────────────────────────────────────────────
 //
 // Transport for Language Server Protocol servers (clangd, rust-analyzer,
@@ -2381,6 +2508,7 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(ServerState(Mutex::new(None)))
+        .manage(CompatibleIdeState(Mutex::new(None)))
         .manage(TerminalState::default())
         .manage(McpState(Mutex::new(HashMap::new())))
         .manage(LspState(Mutex::new(HashMap::new())))
@@ -2423,6 +2551,8 @@ pub fn run() {
             mcp_stdio_send,
             mcp_stdio_read,
             mcp_stdio_stop,
+            compatible_ide_start,
+            compatible_ide_stop,
             lsp_start,
             lsp_write,
             lsp_stop,
@@ -2496,6 +2626,16 @@ pub fn run() {
                     }
                 }
                 clear_pid_record(app_handle);
+
+                // The optional VS Code-compatible workbench is a child process
+                // and must not outlive Neo.
+                let compatible_ide = app_handle.state::<CompatibleIdeState>();
+                if let Ok(mut guard) = compatible_ide.0.lock() {
+                    if let Some(mut process) = guard.take() {
+                        let _ = process.child.kill();
+                        let _ = process.child.wait();
+                    }
+                }
 
                 // Language servers are long-lived children too — stop them so
                 // no orphan keeps holding indexes/ports after the app closes.

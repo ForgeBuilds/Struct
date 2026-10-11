@@ -1312,7 +1312,8 @@ Rules:
         <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
           {settings.model} 
         </span>
-        <button
+        {/*Was used to open the agent settings but it isnt needed anymore*/}
+        {/* <button
           type="button"
           onClick={onOpenSettings}
           title={t("ide.openAiSettings")}
@@ -1324,7 +1325,7 @@ Rules:
             }`}
           />
           <span className="max-w-[150px] truncate">{settings.model || spec.label}</span>
-        </button>
+        </button> */}
         {messages.length > 0 && !busy && (
           <button
             type="button"
@@ -1371,21 +1372,28 @@ Rules:
         ))}
       </div>
 
-      {/* ── Message feed ───────────────────────────────────────────────────── */}
+      {/* ── Message feed ─*/}
       <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-y-auto">
         {messages.length === 0 ? (
           <div className="flex min-h-full flex-col items-center justify-center px-5 pb-6 text-center">
             <p className="mt-1 max-w-[280px] text-[11.5px] leading-5 text-[var(--text-muted)]" />
-            {!configured && (
+            {/*Already has a configure an api key to start warning so more arent needed. 
+            it would be over stimulating*/}
+
+            {/* {!configured && (
               <button
                 type="button"
                 onClick={onOpenSettings}
-                className="mt-4 rounded-md border border-(--border-strong) bg-(--fill-1) px-3 py-1.5 text-[11.5px] text-[var(--text-primary)] transition hover:bg-(--fill-2)"
+                className="mt-4 m-4 rounded-md border border-(--border-strong) bg-(--fill-1) px-3 py-1.5 text-[11.5px] text-[var(--text-primary)] transition hover:bg-(--fill-2)"
               >
-                {t("agent.configureApiKey")} →
+              onfigure to start
               </button>
-            )}
-            {/*you can tell what this is lol its what makes the uh Ready to start working animation inside the agent panel inside the IDE */}
+            )} */}
+            
+            {/*you can tell what this is lol its what makes the uh 
+            Ready to start working animation inside the agent panel 
+            inside the IDE */}
+            
             <BlurText
               text={t("agent.ready")}
               delay={70}
@@ -1398,7 +1406,8 @@ Rules:
               
               {suggestions.map((sg) => (
             
-                
+                //Credits to reactbits.dev for this component. i didnt create it, 
+                // but i did modif it in some way
               <StarBorder
                 as="button"
                 type="button"
@@ -1407,14 +1416,14 @@ Rules:
                 }
                 disabled={!configured}
                 color="purple"
-                speed="5s"
-                thickness={1}
-                backgroundColor="rgba(255, 255, 255, 0.02)"
-                borderColor="rgba(255, 255, 255, 0.08)"
+                speed="7s"
+                thickness={2}
+                backgroundColor="root"
+                borderColor="gray"
                 className="w-full rounded-[4px] transition hover:bg-(--fill-1)"
                 innerClassName="px-3 py-2.5 text-left"
               >
-                  <IoAdd/>
+                  <IoAdd className = "bg-black rounded-2xl"/>
                   <span className="text-[11.5px] text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]">
                     {sg.label}
                   </span>

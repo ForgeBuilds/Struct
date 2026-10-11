@@ -9,7 +9,7 @@ import { lazy, useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo,
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
-import {IoChatboxEllipsesOutline, IoFolderOpenOutline, IoGitBranch, IoSearch, IoSettingsOutline, IoTerminal,  } from "react-icons/io5";
+import {IoAlertCircle, IoChatboxEllipsesOutline, IoCodeSlash, IoExtensionPuzzleOutline, IoFolderOpenOutline, IoGitBranch, IoSearch, IoSettingsOutline, IoTerminal,  } from "react-icons/io5";
 import WindowControls from "../../components/WindowControls";
 import IdeMenuBar from "../components/IdeMenuBar";
 import { clearAllHistories } from "../components/editorHistory";
@@ -412,6 +412,10 @@ export default function IdeWindowApp() {
   // --- bottom panel (terminal etc.) ----------------------------------------
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [panelTab, setPanelTab] = useState<PanelTab>("terminal");
+  const [compatibleIdeOpening, setCompatibleIdeOpening] = useState(false);
+  const [compatibleIdeUrl, setCompatibleIdeUrl] = useState<string | null>(null);
+  const [compatibleIdeLoadError, setCompatibleIdeLoadError] = useState<string | null>(null);
+  const compatibleIdeOpeningRef = useRef(false);
 
   // --- status bar state (git branch + caret position) ------------------------
   const [gitBranch, setGitBranch] = useState<string | null>(null);
@@ -865,6 +869,52 @@ export default function IdeWindowApp() {
   const activeDirty =
     editorTabs.find((t) => t.path === activeEditorPath)?.dirty ?? false;
 
+  const openExtensionsWorkbench = async () => {
+    if (!workspaceRoot) {
+      setError("Open a workspace folder before launching the extensions workbench.");
+      return;
+    }
+    if (compatibleIdeOpeningRef.current) return;
+    compatibleIdeOpeningRef.current = true;
+    setCompatibleIdeOpening(true);
+    let runtimeStarted = false;
+    try {
+      const baseUrl = await invoke<string>("compatible_ide_start", {
+        workspace: workspaceRoot,
+      });
+      runtimeStarted = true;
+      const workbenchUrl = new URL(baseUrl);
+      workbenchUrl.searchParams.set("folder", workspaceRoot);
+      setCompatibleIdeLoadError(null);
+      setCompatibleIdeUrl(workbenchUrl.toString());
+    } catch (e) {
+      let message = e instanceof Error ? e.message : String(e);
+      if (runtimeStarted) {
+        try {
+          await invoke("compatible_ide_stop");
+        } catch (stopError) {
+          message += `; the workbench process could not be stopped: ${
+            stopError instanceof Error ? stopError.message : String(stopError)
+          }`;
+        }
+      }
+      setError(`Could not launch extensions workbench: ${message}`);
+    } finally {
+      compatibleIdeOpeningRef.current = false;
+      setCompatibleIdeOpening(false);
+    }
+  };
+
+  const closeExtensionsWorkbench = async () => {
+    setCompatibleIdeUrl(null);
+    setCompatibleIdeLoadError(null);
+    try {
+      await invoke("compatible_ide_stop");
+    } catch (e) {
+      setError(`Could not stop extensions workbench: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
   /** Persist a batch of paths. An effect event so the debounce effect below can
    *  stay keyed on the tab list and delay settings only, instead of restarting
    *  on every render because `saveEditorFile` is re-created each time. */
@@ -981,6 +1031,16 @@ export default function IdeWindowApp() {
             >
               <IoSettingsOutline size={19} />
             </RailButton>
+            <RailButton
+              active={!!compatibleIdeUrl || compatibleIdeOpening}
+              title={compatibleIdeUrl ? "Return to Neo editor" : compatibleIdeOpening ? "Starting extensions workbench…" : "Open VS Code-compatible extensions"}
+              onClick={() => {
+                if (compatibleIdeUrl) void closeExtensionsWorkbench();
+                else void openExtensionsWorkbench();
+              }}
+            >
+              {compatibleIdeUrl ? <IoCodeSlash size={19} /> : <IoExtensionPuzzleOutline size={19} />}
+            </RailButton>
           </div>
           <div className="w-full">
             <RailButton
@@ -990,6 +1050,26 @@ export default function IdeWindowApp() {
               onClick={() => setPaletteOpen(true)}
             >
               <IoSearch size={19} />
+            </RailButton>
+            <RailButton
+              active={terminalOpen && panelTab === "problems"}
+              title="Problems"
+              onClick={() => {
+                setPanelTab("problems");
+                setTerminalOpen(true);
+              }}
+            >
+              <IoAlertCircle size={19} />
+            </RailButton>
+            <RailButton
+              active={terminalOpen && panelTab === "debug"}
+              title="Debug Console"
+              onClick={() => {
+                setPanelTab("debug");
+                setTerminalOpen(true);
+              }}
+            >
+              <IoCodeSlash size={19} />
             </RailButton>
             <RailButton active={terminalOpen} title="Terminal" titleKey="ide.toggleTerminal" onClick={() => setTerminalOpen((v) => !v)}>
               <IoTerminal size={19} />
@@ -1021,19 +1101,49 @@ export default function IdeWindowApp() {
           </>
         )}
 
-        <CodeEditor
-          tabs={editorTabs}
-          activePath={activeEditorPath}
-          onSelect={setActiveEditorPath}
-          onClose={closeEditorTab}
-          onChange={updateEditorContent}
-          onSave={handleEditorSave}
-          onCloseAll={closeAllEditorTabs}
-          reveal={revealLine}
-          prefs={editorPrefs}
-          onCursorChange={setCursorPos}
-          emptyState={editorEmptyState}
-        />
+        {compatibleIdeUrl ? (
+          <section className="relative flex min-w-0 flex-1 flex-col bg-[var(--bg-editor)]">
+            {compatibleIdeLoadError ? (
+              <div className="m-4 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
+                <p className="font-medium">The extensions workbench could not be displayed.</p>
+                <p className="mt-1 break-words text-xs text-red-200/80">{compatibleIdeLoadError}</p>
+                <button
+                  type="button"
+                  onClick={() => void openExtensionsWorkbench()}
+                  className="mt-3 rounded bg-red-500/20 px-3 py-1.5 text-xs hover:bg-red-500/30"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : (
+              <iframe
+                key={compatibleIdeUrl}
+                title="VS Code-compatible Extensions Workbench"
+                src={compatibleIdeUrl}
+                allow="clipboard-read; clipboard-write"
+                allowFullScreen
+                onError={() => setCompatibleIdeLoadError(
+                  "The embedded workbench failed to load. Check that code-server is still running and reload the workspace."
+                )}
+                className="h-full w-full flex-1 border-0 bg-[var(--bg-editor)]"
+              />
+            )}
+          </section>
+        ) : (
+          <CodeEditor
+            tabs={editorTabs}
+            activePath={activeEditorPath}
+            onSelect={setActiveEditorPath}
+            onClose={closeEditorTab}
+            onChange={updateEditorContent}
+            onSave={handleEditorSave}
+            onCloseAll={closeAllEditorTabs}
+            reveal={revealLine}
+            prefs={editorPrefs}
+            onCursorChange={setCursorPos}
+            emptyState={editorEmptyState}
+          />
+        )}
 
         {gitOpen && workspaceRoot && (
           <GitPanel
@@ -1120,6 +1230,15 @@ export default function IdeWindowApp() {
             shortcut: "Ctrl+I",
             action: () => setAgentOpen((v) => !v),
           },
+          {
+            id: "extensions-workbench",
+            label: compatibleIdeUrl ? "Return to Neo Editor" : "Open Extensions Workbench",
+            category: "Extensions",
+            action: () => {
+              if (compatibleIdeUrl) void closeExtensionsWorkbench();
+              else void openExtensionsWorkbench();
+            },
+          },
           ...recentFiles.map((p) => ({
             id: `recent-${p}`,
             label: p.split(/[\\/]/).pop() ?? p,
@@ -1174,6 +1293,24 @@ export default function IdeWindowApp() {
             label: "Toggle Git Panel",
             category: "View",
             action: () => setGitOpen((v) => !v),
+          },
+          {
+            id: "problems",
+            label: "Show Problems",
+            category: "View",
+            action: () => {
+              setPanelTab("problems");
+              setTerminalOpen(true);
+            },
+          },
+          {
+            id: "debug-console",
+            label: "Show Debug Console",
+            category: "View",
+            action: () => {
+              setPanelTab("debug");
+              setTerminalOpen(true);
+            },
           },
           {
             id: "terminal",
