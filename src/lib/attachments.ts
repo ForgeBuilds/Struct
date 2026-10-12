@@ -3,8 +3,7 @@
  * Lets users attach files/folders from PromptBar's source menu and inlines
  * their contents so the model can analyze them even without agent tools.
  */
-import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
+import { invoke } from "../native";
 
 const MAX_FILE_CHARS = 40_000;
 const MAX_TOTAL_CHARS = 160_000;
@@ -12,7 +11,8 @@ const MAX_TOTAL_CHARS = 160_000;
 /** File-picker for PromptBar's "Photos & files" source. */
 export async function pickFiles(): Promise<string[]> {
   try {
-    const picked = await open({ multiple: true, directory: false });
+    if (!window.neoDesktop) return [];
+    const picked = await window.neoDesktop.openDialog({ multiple: true, directory: false });
     if (!picked) return [];
     return Array.isArray(picked) ? picked : [picked];
   } catch {
@@ -23,7 +23,8 @@ export async function pickFiles(): Promise<string[]> {
 /** Folder-picker for PromptBar's "Folder" source. */
 export async function pickFolder(): Promise<string[]> {
   try {
-    const picked = await open({ multiple: false, directory: true });
+    if (!window.neoDesktop) return [];
+    const picked = await window.neoDesktop.openDialog({ multiple: false, directory: true });
     if (!picked) return [];
     return Array.isArray(picked) ? picked : [picked];
   } catch {

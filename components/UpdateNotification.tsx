@@ -1,5 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { invoke } from "../src/native";
+import { openExternalUrl as openUrl } from "../src/lib/external";
 import { useCallback, useState } from "react";
 import { IoClose, IoDownload, IoOpenOutline } from "react-icons/io5";
 import type { UpdateCheckResult } from "../src/lib/updateCheck";

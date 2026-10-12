@@ -2,11 +2,10 @@
 //all the menu items are defined here and the actions are passed as props to this component
 
 
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternalUrl as openUrl } from "../src/lib/external";
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import { useErrorHandler } from "../src/errorContext";
-import WindowControls from "./WindowControls";
-import { IoChevronForward, IoSearch } from "react-icons/io5";
+import { IoSearch } from "react-icons/io5";
 import appIcon from "../src/assets/images/icon.jpeg";
 import { useTranslation } from "../src/i18n";
 
@@ -16,13 +15,9 @@ interface TopMenuProps {
   onOpenTab2: () => void;
   onOpenAiSettings: () => void;
   onOpenChatHistory: () => void;
-  onOpenIde: () => void;
-  // onOpenTerminal: () => void;
   onOpenSettings?: () => void;
   /** Opens the command palette from the title-bar "command center" pill. */
   onOpenCommandPalette?: () => void;
-  /** Opens the full IDE in its own window (Cursor-style "IDE →"). */
-  onOpenIdeWindow?: () => void;
   /** Fires a background check for a newer release and, when one is found,
    *  causes the app to show the in-app update notification. */
   onCheckForUpdates?: () => void;
@@ -51,11 +46,9 @@ export default function TopMenu({
   onOpenTab2,
   onOpenAiSettings,
   onOpenChatHistory,
-  onOpenIde,
   // onOpenTerminal,
   onOpenSettings,
   onOpenCommandPalette,
-  onOpenIdeWindow,
   onAnalyzeProject,
   onSaveSession,
   onPinFile,
@@ -127,7 +120,7 @@ const openPrivacyPolicy = async () => {
       label: t("app.file"),
       items: [
         { label: t("app.newChat"), action: onOpenChatHistory, shortcut: "Ctrl+Shift+H" },
-        { label: t("app.openEditor"), action: onOpenIde, shortcut: "Ctrl+Shift+E" },
+        { label: t("app.chatHistory"), action: onOpenChatHistory, shortcut: "Ctrl+H" },
       ],
     },
     {
@@ -168,23 +161,19 @@ const openPrivacyPolicy = async () => {
     <nav
       ref={menuRef}
       className="relative z-50 flex h-[35px] shrink-0 items-center border-b border-(--border) bg-[var(--bg-panel)] pl-3 pr-2"
-      data-tauri-drag-region="deep"
     >
       {/* Left: brand + menus */}
       <div className="flex min-w-0 flex-1 items-center justify-start gap-1">
-        <div
-          className="mr-1.5 flex items-center gap-2 select-none"
-          data-tauri-drag-region="deep"
-        >
+        <div className="mr-1.5 flex items-center gap-2 select-none">
           <span className="relative flex h-6 w-6 items-center justify-center">
             <img
               src={appIcon}
-              alt="Struct"
+              alt="Neo"
               className="h-5 w-5 rounded-md"
             />
           </span>
           <span className="text-[12.5px] font-semibold tracking-tight text-[var(--text-primary)]">
-            Struct
+            Neo
           </span>
         </div>
 
@@ -228,17 +217,6 @@ const openPrivacyPolicy = async () => {
             </div>
           ))}
         </div>
-        {onOpenIdeWindow && (
-          <button
-            type="button"
-            onClick={onOpenIdeWindow}
-            title="Open IDE"
-            className="ml-1.5 flex items-center gap-1 rounded-[4px] bg-(--fill-2) px-2 py-[3px] text-[11.5px] font-medium text-[var(--text-primary)] transition-colors hover:bg-(--fill-3) hover:text-[var(--text-primary)]"
-          >
-            IDE
-            <IoChevronForward size={10} />
-          </button>
-        )}
       </div>
       {/* Center: command-palette pill — in-flow between two equal flex columns
           so it stays truly centered while the left/right groups shrink
@@ -256,10 +234,9 @@ const openPrivacyPolicy = async () => {
           </button>
         </div>
       )}
-      {/* Right: provider/model pill + window controls */}
+      {/* Right: provider/model pill */}
       <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
         {right && <div className="flex min-w-0 items-center gap-2">{right}</div>}
-        <WindowControls />
       </div>
     </nav>
   );

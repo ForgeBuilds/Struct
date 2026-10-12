@@ -179,17 +179,9 @@ export function checkSupabaseHealth(): Promise<AuthHealth> {
           if (timer) clearTimeout(timer);
         });
       };
-      // Prefer the same native-fetch transport the client uses: raw
-      // `window.fetch` may throw in the Tauri webview (WebKitGTK TLS) while
-      // the project is perfectly reachable.
+      // Prefer plain fetch: Electron's Chromium stack handles TLS directly.
       try {
         const doFetch = async (): Promise<Response> => {
-          if (sb) {
-            const { fetch: tauriFetch } = await import("@tauri-apps/plugin-http");
-            return (await tauriFetch(`${supabaseUrl}/auth/v1/settings`, {
-              headers: { apikey: supabaseAnonKey },
-            })) as unknown as Response;
-          }
           return window.fetch(`${supabaseUrl}/auth/v1/settings`, {
             headers: { apikey: supabaseAnonKey },
           });

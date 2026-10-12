@@ -2,7 +2,7 @@
  * Author: madhusudhan
  * Check the LICENSE in the GitHub repo (https://github.com/Lumorix-studios/Struct) for more information on permissions to use this code.
  */
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "./native";
 
 export interface LocalModelInfo {
   name: string;
@@ -45,8 +45,7 @@ export interface OllamaStopStatus {
 }
 
 function inTauri(): boolean {
-  const win = window as unknown as { __TAURI_INTERNALS__?: unknown };
-  return !!win.__TAURI_INTERNALS__;
+  return Boolean(window.neoDesktop);
 }
 
 /**

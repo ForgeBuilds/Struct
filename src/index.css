@@ -51,17 +51,7 @@
   }
 }
 
-:root[data-neo-shell="electron"] [data-tauri-drag-region="deep"] {
-  -webkit-app-region: drag;
-}
-
-:root[data-neo-shell="electron"] [data-tauri-drag-region="deep"] button,
-:root[data-neo-shell="electron"] [data-tauri-drag-region="deep"] input,
-:root[data-neo-shell="electron"] [data-tauri-drag-region="deep"] a,
-:root[data-neo-shell="electron"] [data-tauri-drag-region="deep"] [role="button"],
-:root[data-neo-shell="electron"] [data-tauri-drag-region="false"] {
-  -webkit-app-region: no-drag;
-}
+/* Native OS frame: no drag regions, the system draws the title bar. */
 
 :root {
   --bg-base: #0d0d0d;        /* Deep black-grey */

@@ -9,6 +9,7 @@ ipcRenderer.on('neo:event', (_event, message) => {
   for (const handler of [...handlers]) handler(event)
 })
 
+// Native frame: the OS draws min/max/close. No custom window controls.
 const desktop = Object.freeze({
   platform: process.platform,
   invoke: (command, args) => ipcRenderer.invoke('neo:native-invoke', command, args),
@@ -25,10 +26,6 @@ const desktop = Object.freeze({
     }
   },
   emit: (event, payload) => ipcRenderer.invoke('neo:event:emit', event, payload),
-  minimize: () => ipcRenderer.invoke('neo:window:minimize'),
-  toggleMaximize: () => ipcRenderer.invoke('neo:window:toggle-maximize'),
-  isMaximized: () => ipcRenderer.invoke('neo:window:is-maximized'),
-  close: () => ipcRenderer.invoke('neo:window:close'),
   openExternal: (url) => ipcRenderer.invoke('neo:open-external', url),
   openDialog: (options) => ipcRenderer.invoke('neo:dialog:open', options),
   saveDialog: (options) => ipcRenderer.invoke('neo:dialog:save', options),
@@ -44,3 +41,4 @@ contextBridge.exposeInMainWorld('neoDesktop', desktop)
 window.addEventListener('DOMContentLoaded', () => {
   document.documentElement.dataset.neoShell = 'electron'
 })
+

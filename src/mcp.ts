@@ -14,8 +14,7 @@
  *              MCP stdio transport (one JSON-RPC message per line), managed
  *              by the Rust backend (mcp_stdio_* commands).
  */
-import { invoke } from "@tauri-apps/api/core";
-import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
+import { invoke } from "./native";
 
 export interface McpServerConfig {
   id: string;
@@ -323,14 +322,12 @@ async function rpc(
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const inTauri = Boolean((window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
-    const request = {
+    const res = await fetch(url, {
       method: "POST",
       headers: allHeaders,
       body: JSON.stringify(body),
       signal: controller.signal,
-    };
-    const res = inTauri ? await tauriFetch(url, request) : await fetch(url, request);
+    });
     if (!res.ok) {
       let detail = `HTTP ${res.status}`;
       try {

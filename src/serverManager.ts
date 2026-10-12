@@ -2,10 +2,10 @@
  * Author: madhusudhan
  * Check the LICENSE in the GitHub repo (https://github.com/Lumorix-studios/Struct) for more information on permissions to use this code.
  */
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "./native";
 
 function inTauri(): boolean {
-  return !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+  return Boolean(window.neoDesktop);
 }
 
 /**

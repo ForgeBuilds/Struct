@@ -1,5 +1,5 @@
 
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternalUrl as openUrl } from "../src/lib/external";
 import { IoClose } from "react-icons/io5";
 interface ErrorTabProps {
   isOpen: boolean;

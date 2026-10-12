@@ -1,436 +1,591 @@
-const { app, BrowserWindow, dialog, ipcMain, Menu, shell } = require('electron')
-const { createServer } = require('node:http')
+
+/* Neo - Electron main. Pure chat shell, native OS frame. */
+const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron')
 const { spawn } = require('node:child_process')
-const { timingSafeEqual } = require('node:crypto')
-const { existsSync } = require('node:fs')
-const { realpath, readFile, rename, mkdir, writeFile } = require('node:fs/promises')
+const { existsSync, statSync, createWriteStream } = require('node:fs')
+const { copyFile, mkdir, readdir, readFile, rename, rm, stat, writeFile } = require('node:fs/promises')
 const { homedir } = require('node:os')
-const { dirname, join } = require('node:path')
-const { once } = require('node:events')
+const { basename, dirname, join } = require('node:path')
+const { pipeline } = require('node:stream/promises')
 
 const APP_PROTOCOL = 'agenticcoder'
 let mainWindow
 let deepLinkReady = false
 const pendingDeepLinks = []
-let chatSnapshot = {
-  sessionId: null,
-  messages: [],
-  isLoading: false,
-  models: [],
-}
-let authSnapshot = { user: null, accessToken: null }
-let bridgeServer
-
 const APP_DATA_ID = 'com.lumorixstudios.agenticcoder'
-const appDataRoot =
-  process.platform === 'linux'
-    ? process.env.XDG_DATA_HOME || join(homedir(), '.local', 'share')
-    : app.getPath('appData')
+const appDataRoot = process.platform === 'linux'
+  ? process.env.XDG_DATA_HOME || join(homedir(), '.local', 'share')
+  : app.getPath('appData')
 app.setPath('userData', join(appDataRoot, APP_DATA_ID))
 
 function emitToRenderer(event, payload) {
-  for (const window of BrowserWindow.getAllWindows()) {
-    if (!window.isDestroyed()) window.webContents.send('neo:event', { event, payload })
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (!w.isDestroyed()) w.webContents.send('neo:event', { event, payload })
   }
 }
-
 function sendDeepLink(url) {
-  if (!mainWindow || mainWindow.isDestroyed()) {
-    pendingDeepLinks.push(url)
-    return
-  }
+  if (!mainWindow || mainWindow.isDestroyed()) { pendingDeepLinks.push(url); return }
   if (mainWindow.isMinimized()) mainWindow.restore()
   mainWindow.focus()
   if (deepLinkReady) mainWindow.webContents.send('neo:deep-link', url)
   else pendingDeepLinks.push(url)
 }
-
 function flushDeepLinks(event) {
-  for (const url of pendingDeepLinks.splice(0)) {
-    event.sender.send('neo:deep-link', url)
-  }
+  for (const url of pendingDeepLinks.splice(0)) event.sender.send('neo:deep-link', url)
 }
-
 function handleDeepLink(argv) {
-  const url = argv.find((value) => value.startsWith(`${APP_PROTOCOL}://`))
+  const url = (argv || []).find((v) => typeof v === 'string' && v.indexOf(APP_PROTOCOL + '://') === 0)
   if (url) sendDeepLink(url)
 }
-
-function sendJson(response, statusCode, value) {
-  const body = JSON.stringify(value)
-  response.writeHead(statusCode, {
-    'content-type': 'application/json; charset=utf-8',
-    'content-length': Buffer.byteLength(body),
-    'cache-control': 'no-store',
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1220, height: 820, minWidth: 720, minHeight: 480, show: false,
+    frame: true, autoHideMenuBar: true, backgroundColor: '#101014', title: 'Neo',
+    webPreferences: { preload: join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   })
-  response.end(body)
-}
-
-async function readJsonBody(request, limit = 64 * 1024) {
-  const chunks = []
-  let length = 0
-  for await (const chunk of request) {
-    length += chunk.length
-    if (length > limit) throw new Error('Request body is too large')
-    chunks.push(chunk)
-  }
-  if (!length) return {}
-  return JSON.parse(Buffer.concat(chunks).toString('utf8'))
-}
-
-function isAuthorized(request, token) {
-  const actual = Buffer.from(request.headers.authorization ?? '')
-  const expected = Buffer.from(`Bearer ${token}`)
-  return actual.length === expected.length && timingSafeEqual(actual, expected)
-}
-
-async function startAgentBridge(token) {
-  await stopAgentBridge()
-  const server = createServer((request, response) => {
-    void (async () => {
-      if (!isAuthorized(request, token)) return sendJson(response, 401, { error: 'Unauthorized' })
-      const path = new URL(request.url ?? '/', 'http://127.0.0.1').pathname
-      if (request.method === 'GET' && path === '/state') return sendJson(response, 200, chatSnapshot)
-      if (request.method === 'GET' && path === '/auth-session') return sendJson(response, 200, authSnapshot)
-      if (request.method === 'POST' && path === '/prompt') {
-        if (chatSnapshot.isLoading) {
-          return sendJson(response, 409, { error: 'Neo is already responding' })
-        }
-        const body = await readJsonBody(request)
-        if (typeof body.text !== 'string' || !body.text.trim()) {
-          return sendJson(response, 400, { error: 'Prompt cannot be empty' })
-        }
-        if (typeof body.requestId !== 'string' || !body.requestId || body.requestId.length > 128) {
-          return sendJson(response, 400, { error: 'Invalid request id' })
-        }
-        emitToRenderer('neo:agent-panel-prompt', {
-          text: body.text,
-          requestId: body.requestId,
-        })
-        return sendJson(response, 202, { accepted: true })
-      }
-      if (request.method === 'POST' && path === '/models') {
-        const body = await readJsonBody(request)
-        if (
-          (body.provider !== undefined &&
-            (typeof body.provider !== 'string' || !body.provider || body.provider.length > 64)) ||
-          (body.model !== undefined &&
-            (typeof body.model !== 'string' || !body.model || body.model.length > 256)) ||
-          (body.provider === undefined) !== (body.model === undefined)
-        ) {
-          return sendJson(response, 400, { error: 'Invalid model selection' })
-        }
-        const selection =
-          typeof body.provider === 'string' && typeof body.model === 'string'
-            ? { provider: body.provider, model: body.model }
-            : undefined
-        emitToRenderer('neo:agent-panel-models', selection)
-        return sendJson(response, 202, { accepted: true })
-      }
-      if (request.method === 'POST' && path === '/account') {
-        emitToRenderer('neo:agent-panel-account')
-        return sendJson(response, 202, { accepted: true })
-      }
-      if (request.method === 'POST' && path === '/signout') {
-        emitToRenderer('neo:agent-panel-signout')
-        return sendJson(response, 202, { accepted: true })
-      }
-      return sendJson(response, 404, { error: 'Not found' })
-    })().catch((error) => {
-      if (!response.headersSent) sendJson(response, 400, { error: error.message })
-      else response.destroy(error)
-    })
+  mainWindow.once('ready-to-show', () => { if (mainWindow) mainWindow.show() })
+  mainWindow.webContents.on('did-start-loading', () => { deepLinkReady = false })
+  mainWindow.on('closed', () => { mainWindow = undefined })
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    openExternal(url).catch((e) => console.error('[electron] openExternal:', e))
+    return { action: 'deny' }
   })
-
-  await new Promise((resolveListen, reject) => {
-    server.once('error', reject)
-    server.listen(0, '127.0.0.1', () => {
-      server.removeListener('error', reject)
-      resolveListen()
-    })
-  })
-  bridgeServer = server
-  const address = server.address()
-  if (!address || typeof address === 'string') {
-    await stopAgentBridge()
-    throw new Error('Neo chat bridge did not bind to a TCP port')
-  }
-  return `http://127.0.0.1:${address.port}`
+  const devUrl = process.env.NEO_DEV_SERVER_URL
+  if (devUrl) mainWindow.loadURL(devUrl).catch((e) => console.error('[electron] load:', e))
+  else mainWindow.loadFile(join(__dirname, '..', 'dist', 'index.html')).catch((e) => console.error('[electron] load file:', e))
+}
+async function openExternal(value) {
+  if (typeof value !== 'string') throw new Error('External URL must be a string')
+  let url
+  try { url = new URL(value) } catch { throw new Error('Invalid external URL') }
+  if (['https:', 'http:', 'mailto:'].indexOf(url.protocol) < 0) throw new Error('Unsupported URL scheme: ' + url.protocol)
+  await shell.openExternal(url.href)
 }
 
-async function stopAgentBridge() {
-  if (!bridgeServer) return
-  const server = bridgeServer
-  bridgeServer = undefined
-  await new Promise((resolveClose, reject) => {
-    server.close((error) => (error ? reject(error) : resolveClose()))
-  })
-}
 
-async function launchIde(workspace, bridgeToken) {
-  const root = await realpath(workspace)
-  if (!statSyncIsDirectory(root)) throw new Error(`Workspace is not a directory: ${root}`)
-  if (typeof bridgeToken !== 'string' || bridgeToken.length < 16) {
-    throw new Error('Invalid CODE-OSS bridge token')
-  }
-
-  const ideCandidates = [
-    process.env.STRUCT_IDE_ELECTRON,
-    join(app.getAppPath(), '..', 'Vector', '.build', 'electron', 'struct'),
-    join(process.resourcesPath, 'ide', 'struct'),
-  ].filter(Boolean)
-  const idePath = ideCandidates.find((candidate) => existsSync(candidate))
-  if (!idePath) throw new Error('CODE-OSS was not found. Set STRUCT_IDE_ELECTRON to its Electron executable.')
-
-  const extensionPath = app.isPackaged
-    ? join(process.resourcesPath, 'neo-chat-bridge')
-    : join(app.getAppPath(), 'src-tauri', 'resources', 'neo-chat-bridge')
-  if (!existsSync(join(extensionPath, 'package.json'))) {
-    throw new Error(`Neo CODE-OSS chat bridge is missing at ${extensionPath}`)
-  }
-
-  const bridgeUrl = await startAgentBridge(bridgeToken)
-  const profile = join(app.getPath('userData'), 'code-oss')
-  const ideRoot = process.env.STRUCT_IDE_APP_ROOT || dirname(dirname(idePath))
-  await mkdir(profile, { recursive: true })
-  const child = spawn(
-    idePath,
-    [
-      '.',
-      root,
-      `--user-data-dir=${profile}`,
-      `--extensionDevelopmentPath=${extensionPath}`,
-      '--disable-extension=struct.struct-agent',
-      '--disable-extension=GitHub.copilot',
-      '--disable-extension=GitHub.copilot-chat',
-      '--enable-proposed-api=lumorix.neo-chat-bridge',
-      '--new-window',
-    ],
-    {
-      cwd: ideRoot,
-      detached: true,
-      stdio: 'ignore',
-      env: {
-        ...process.env,
-        VSCODE_AGENT_HOST_COPILOT_AGENT_ENABLED: 'false',
-        STRUCT_NEO_BRIDGE_URL: bridgeUrl,
-        STRUCT_NEO_BRIDGE_TOKEN: bridgeToken,
-      },
-    },
-  )
-  await Promise.race([
-    once(child, 'spawn'),
-    once(child, 'error').then(([error]) => Promise.reject(error)),
-  ])
-  child.unref()
-}
-
-function statSyncIsDirectory(path) {
-  try {
-    return require('node:fs').statSync(path).isDirectory()
-  } catch {
-    return false
-  }
-}
-
+/* --- state + fs helpers --- */
 function stateFile(key) {
-  if (typeof key !== 'string' || !key || key.includes('..') || /[\\/:]/.test(key)) {
-    throw new Error('Invalid state key')
-  }
-  return join(app.getPath('userData'), `${key}.json`)
+  if (typeof key !== 'string' || !key || key.indexOf('..') >= 0 || /[\\/:]/.test(key)) throw new Error('Invalid state key')
+  return join(app.getPath('userData'), key + '.json')
 }
-
 async function readState(key) {
-  try {
-    return await readFile(stateFile(key), 'utf8')
-  } catch (error) {
-    if (error.code === 'ENOENT') return ''
-    throw error
-  }
+  try { return await readFile(stateFile(key), 'utf8') }
+  catch (e) { if (e && e.code === 'ENOENT') return ''; throw e }
 }
-
 async function writeState(key, value) {
   if (typeof value !== 'string') throw new Error('State value must be a string')
   const file = stateFile(key)
   await mkdir(dirname(file), { recursive: true })
-  const temp = `${file}.tmp`
-  await writeFile(temp, value, { mode: 0o600 })
-  await rename(temp, file)
+  const tmp = file + '.tmp'
+  await writeFile(tmp, value, { mode: 0o600 })
+  await rename(tmp, file)
 }
-
-const hasSingleInstanceLock = app.requestSingleInstanceLock()
-if (!hasSingleInstanceLock) {
-  app.quit()
-} else {
-  app.on('second-instance', (_event, argv) => handleDeepLink(argv))
-  app.on('open-url', (event, url) => {
-    event.preventDefault()
-    sendDeepLink(url)
-  })
+function metaToEntry(full, st) {
+  return { name: basename(full) || full, path: full, is_dir: st ? st.isDirectory() : false, size: st ? st.size : null, modified: st && st.mtimeMs ? Math.floor(st.mtimeMs / 1000) : null }
 }
-
-function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 850,
-    minWidth: 660,
-    minHeight: 400,
-    show: false,
-    frame: false,
-    backgroundColor: '#0e0e0e',
-    webPreferences: {
-      preload: join(__dirname, 'preload.cjs'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-    },
-  })
-
-  mainWindow.once('ready-to-show', () => mainWindow?.show())
-  mainWindow.webContents.on('did-start-loading', () => {
-    deepLinkReady = false
-  })
-  mainWindow.on('closed', () => {
-    mainWindow = undefined
-  })
-
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    void openExternal(url).catch((error) => console.error('[electron] Open external URL failed:', error))
-    return { action: 'deny' }
-  })
-
-  const devUrl = process.env.NEO_DEV_SERVER_URL
-  if (devUrl) {
-    void mainWindow.loadURL(devUrl).catch((error) => {
-      console.error(`[electron] Could not load ${devUrl}:`, error)
-    })
-  } else {
-    void mainWindow.loadFile(join(__dirname, '..', 'dist', 'index.html')).catch((error) => {
-      console.error('[electron] Could not load the packaged Neo UI:', error)
-    })
+const SKIP = { node_modules: 1, '.git': 1, target: 1, dist: 1, '.next': 1, build: 1, __pycache__: 1, '.venv': 1, venv: 1 }
+const SEARCH_LIMIT = 500
+async function searchRec(root, pattern, inContent, out) {
+  if (out.length >= SEARCH_LIMIT) return
+  let entries
+  try { entries = await readdir(root, { withFileTypes: true }) } catch { return }
+  const pat = String(pattern).toLowerCase()
+  for (const en of entries) {
+    if (out.length >= SEARCH_LIMIT) return
+    const full = join(root, en.name)
+    if (en.isDirectory()) { if (!SKIP[en.name]) await searchRec(full, pattern, inContent, out) }
+    else if (inContent) {
+      let st = null
+      try { st = await stat(full) } catch { continue }
+      if (st.size > 1000000) continue
+      let text = null
+      try { text = await readFile(full, 'utf8') } catch { continue }
+      const lines = text.split('\n')
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].toLowerCase().indexOf(pat) >= 0) {
+          out.push(full + ':' + (i + 1) + ': ' + lines[i].trim())
+          if (out.length >= SEARCH_LIMIT) break
+        }
+      }
+    } else if (full.toLowerCase().indexOf(pat) >= 0) out.push(full)
   }
 }
+function expandEnv(input) {
+  if (typeof input !== 'string') return input
+  return input
+    .replace(/%([^%]+)%/g, (m, n) => (process.env[n] !== undefined ? process.env[n] : m))
+    .replace(/\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*)/g, (m, b, p) => {
+      const n = b !== undefined ? b : p
+      return process.env[n] !== undefined ? process.env[n] : m
+    })
+}
+const RUN_CAP = 128 * 1024
+function capOut(t) {
+  const s = String(t || '')
+  return s.length <= RUN_CAP ? s : s.slice(0, RUN_CAP) + '...[truncated]'
+}
+function runCommand(a) {
+  const command = String(a.command || '')
+  const cwd = typeof a.cwd === 'string' && a.cwd ? a.cwd : undefined
+  let tsec = Number(a.timeoutSecs !== undefined ? a.timeoutSecs : a.timeout_secs !== undefined ? a.timeout_secs : 120) || 120
+  tsec = Math.min(Math.max(tsec, 1), 900)
+  return new Promise((resolveP, reject) => {
+    const bin = process.platform === 'win32' ? 'powershell.exe' : 'sh'
+    const sargs = process.platform === 'win32'
+      ? ['-NoProfile', '-Command', '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; ' + command]
+      : ['-c', command]
+    let child
+    try { child = spawn(bin, sargs, { cwd, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }) }
+    catch (e) { reject(new Error('Failed to spawn command: ' + e.message)); return }
+    let out = '', err = '', done = false
+    child.stdout.on('data', (c) => { if (out.length < RUN_CAP + 4096) out += c.toString('utf8') })
+    child.stderr.on('data', (c) => { if (err.length < RUN_CAP + 4096) err += c.toString('utf8') })
+    const timer = setTimeout(() => { try { child.kill() } catch {} }, tsec * 1000)
+    const start = Date.now()
+    child.on('error', (e) => { if (done) return; done = true; clearTimeout(timer); reject(new Error('Failed to spawn command: ' + e.message)) })
+    child.on('close', (code) => {
+      if (done) return; done = true; clearTimeout(timer)
+      const timed = code === null ? true : Date.now() - start >= tsec * 1000 - 60
+      resolveP({ exitCode: code, timedOut: timed, stdout: capOut(out), stderr: capOut(err) })
+    })
+  })
+}
 
-async function openExternal(value) {
-  if (typeof value !== 'string') throw new Error('External URL must be a string')
-  let url
+
+/* --- terminals via node-pty --- */
+let ptyMod = null
+function pty() {
+  if (!ptyMod) {
+    try { ptyMod = require('node-pty') }
+    catch (e) { throw new Error('Terminal backend unavailable (node-pty): ' + e.message) }
+  }
+  return ptyMod
+}
+function defShell() {
+  if (process.platform === 'win32') return 'powershell.exe'
+  const cands = [process.env.SHELL, '/bin/bash', '/usr/bin/bash', '/bin/zsh', '/usr/bin/zsh', '/bin/sh'].filter(Boolean)
+  for (const c of cands) { try { if (existsSync(c)) return c } catch {} }
+  return '/bin/sh'
+}
+const terms = new Map()
+let nextTermId = 0
+function termCreate(a) {
+  const o = a || {}
+  const id = nextTermId++
+  const proc = pty().spawn(defShell(), [], {
+    name: 'xterm-256color', cols: 80, rows: 24,
+    cwd: typeof o.cwd === 'string' && o.cwd ? o.cwd : require('node:os').homedir(),
+    env: process.env,
+  })
+  terms.set(id, proc)
+  proc.onData((d) => emitToRenderer('neo:terminal-data', { id, data: String(d) }))
+  proc.onExit((info) => { terms.delete(id); emitToRenderer('neo:terminal-exit', { id, exitCode: info ? info.exitCode : null }) })
+  return id
+}
+
+
+/* --- ollama proxy + lifecycle --- */
+let ollamaChild = null
+function ollUrl(raw) {
+  let p
+  try { p = new URL(String(raw)) } catch { throw new Error('Invalid Ollama URL: ' + raw) }
+  const port = p.port || (p.protocol === 'https:' ? '443' : '80')
+  if ((p.hostname !== '127.0.0.1' && p.hostname !== 'localhost') || port !== '11434') throw new Error('Ollama requests must target localhost:11434.')
+  return p
+}
+function ollHttp(o) {
+  const p = ollUrl(o.url)
+  const lib = p.protocol === 'https:' ? require('node:https') : require('node:http')
+  return new Promise((resolveP, reject) => {
+    const req = lib.request(p, { method: o.method || 'GET', headers: { 'Content-Type': 'application/json' }, timeout: 600000 }, (res) => {
+      let t = ''
+      res.setEncoding('utf8')
+      res.on('data', (c) => { t += c })
+      res.on('end', () => resolveP({ status: res.statusCode || 0, body: t }))
+    })
+    req.on('timeout', () => req.destroy(new Error('Ollama request timed out')))
+    req.on('error', reject)
+    if (o.body) req.write(o.body)
+    req.end()
+  })
+}
+async function ollAlive() {
   try {
-    url = new URL(value)
-  } catch {
-    throw new Error('Invalid external URL')
+    const r = await ollHttp({ url: 'http://127.0.0.1:11434/api/version', method: 'GET' })
+    return r.status >= 200 && r.status < 500
+  } catch { return false }
+}
+function ollBin() {
+  for (const p of ['/usr/local/bin/ollama', '/opt/homebrew/bin/ollama', '/usr/bin/ollama']) {
+    try { if (existsSync(p)) return p } catch {}
   }
-
-  if (!['https:', 'http:', 'mailto:'].includes(url.protocol)) {
-    throw new Error(`Unsupported external URL scheme: ${url.protocol}`)
+  return 'ollama'
+}
+function ollInstalled() {
+  try {
+    require('node:child_process').execFileSync(ollBin(), ['--version'], { stdio: 'ignore', windowsHide: true })
+    return true
+  } catch { return false }
+}
+async function startOllama() {
+  if (await ollAlive()) return { running: true, alreadyRunning: true, owned: false, adopted: false }
+  try {
+    ollamaChild = spawn(ollBin(), ['serve'], { stdio: 'ignore', windowsHide: true })
+    ollamaChild.on('exit', () => { ollamaChild = null })
+    if (ollamaChild.unref) ollamaChild.unref()
+  } catch (e) { throw new Error('Failed to start Ollama: ' + e.message) }
+  const deadline = Date.now() + 20000
+  for (;;) {
+    if (await ollAlive()) break
+    if (Date.now() >= deadline) {
+      try { if (ollamaChild) ollamaChild.kill() } catch {}
+      ollamaChild = null
+      throw new Error('Ollama did not answer on port 11434 after starting.')
+    }
+    await new Promise((r) => setTimeout(r, 250))
   }
-  await shell.openExternal(url.href)
+  return { running: true, alreadyRunning: false, owned: true, adopted: false }
+}
+async function stopOllama() {
+  if (ollamaChild && !ollamaChild.killed) {
+    try { ollamaChild.kill() } catch {}
+    ollamaChild = null
+    return { stopped: true, stillRunningExternal: await ollAlive() }
+  }
+  return { stopped: false, stillRunningExternal: await ollAlive() }
+}
+async function ollTags() {
+  const r = await ollHttp({ url: 'http://127.0.0.1:11434/api/tags', method: 'GET' })
+  if (r.status < 200 || r.status >= 300) throw new Error('Ollama tags failed (HTTP ' + r.status + ')')
+  try { return JSON.parse(r.body).models || [] } catch { return [] }
+}
+async function ollPull(name) {
+  const r = await ollHttp({ url: 'http://127.0.0.1:11434/api/pull', method: 'POST', body: JSON.stringify({ name, stream: false }) })
+  return r.status >= 200 && r.status < 300
+}
+async function ollDel(name) {
+  const r = await ollHttp({ url: 'http://127.0.0.1:11434/api/delete', method: 'DELETE', body: JSON.stringify({ name }) })
+  return r.status >= 200 && r.status < 300
 }
 
-function requireMainWindow() {
-  if (!mainWindow || mainWindow.isDestroyed()) {
-    throw new Error('Neo window is not available')
+
+/* --- mcp stdio + discovery --- */
+const mcpProcs = new Map()
+function mcpCands(root) {
+  const hits = [], seen = new Set()
+  const push = (p, src) => {
+    if (!p || seen.has(p)) return
+    seen.add(p)
+    try { if (existsSync(p) && statSync(p).isFile()) hits.push({ path: p, source: src }) } catch {}
   }
+  if (root) {
+    push(join(root, '.mcp.json'), 'workspace')
+    push(join(root, '.vscode', 'mcp.json'), 'workspace-vscode')
+    push(join(root, 'mcp.json'), 'workspace-root')
+  }
+  const h = require('node:os').homedir()
+  push(join(h, '.config', 'neo', 'mcp.json'), 'user')
+  push(join(h, '.neo', 'mcp.json'), 'user-legacy')
+  if (process.platform === 'win32' && process.env.APPDATA) push(join(process.env.APPDATA, 'neo', 'mcp.json'), 'user-windows')
+  return hits
+}
+function mcpStart(o) {
+  const id = String(o.id || '')
+  if (!id || !o.command) throw new Error('MCP server id and command are required')
+  try { mcpStopSync(id) } catch {}
+  const cmd = String(o.command).trim()
+  let prog = cmd, fargs = []
+  if (process.platform === 'win32' && /\.(bat|cmd)$/i.test((cmd.split(' ')[0] || ''))) { prog = 'cmd.exe'; fargs = ['/d', '/s', '/c', cmd] }
+  const alist = fargs.concat(((o.args) || []).map((x) => expandEnv(String(x))))
+  const envOut = Object.assign({}, process.env)
+  const ex = o.env || {}
+  for (const k of Object.keys(ex)) envOut[k] = expandEnv(String(ex[k]))
+  let cwdV = undefined
+  if (o.cwd) { const e2 = expandEnv(String(o.cwd)); try { if (existsSync(e2)) cwdV = e2 } catch {} }
+  const child = spawn(prog, alist, { cwd: cwdV, env: envOut, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
+  const st = { child, buf: '', queue: [], waiters: [], tail: [] }
+  mcpProcs.set(id, st)
+  child.stdout.setEncoding('utf8')
+  child.stdout.on('data', (c) => {
+    st.buf += c
+    let i = st.buf.indexOf('\n')
+    while (i >= 0) {
+      const line = st.buf.slice(0, i).trim()
+      st.buf = st.buf.slice(i + 1)
+      if (line) { if (st.waiters.length > 0) st.waiters.shift()(line); else st.queue.push(line) }
+      i = st.buf.indexOf('\n')
+    }
+  })
+  child.stderr.setEncoding('utf8')
+  child.stderr.on('data', (c) => { st.tail.push(String(c)); if (st.tail.length > 40) st.tail.shift() })
+  child.on('exit', () => {
+    const e = new Error('MCP server "' + id + '" exited. ' + st.tail.join('').slice(-2000))
+    while (st.waiters.length > 0) st.waiters.shift()(null, e)
+  })
+  return { started: true }
+}
+function mcpStopSync(id) {
+  const st = mcpProcs.get(String(id))
+  if (!st) return
+  mcpProcs.delete(String(id))
+  try { st.child.kill() } catch {}
+}
+function mcpSend(o) {
+  const st = mcpProcs.get(String(o.id))
+  if (!st || st.child.killed) throw new Error('MCP server "' + o.id + '" is not running')
+  st.child.stdin.write(String(o.line) + '\n')
+  return { sent: true }
+}
+function mcpRead(o) {
+  const id = String(o.id)
+  const st = mcpProcs.get(id)
+  if (!st) throw new Error('MCP server "' + id + '" is not running')
+  if (st.queue.length > 0) return Promise.resolve(st.queue.shift())
+  let tms = Number(o.timeoutMs || 30000) || 30000
+  tms = Math.min(Math.max(tms, 1000), 120000)
+  return new Promise((resolveP, reject) => {
+    const onL = (line, e) => { clearTimeout(t); if (e) reject(e); else resolveP(line) }
+    const t = setTimeout(() => {
+      const i = st.waiters.indexOf(onL)
+      if (i >= 0) st.waiters.splice(i, 1)
+      reject(new Error('Timed out waiting for MCP server "' + id + '"'))
+    }, tms)
+    st.waiters.push(onL)
+  })
+}
+async function mcpStop(o) {
+  const id = String(o.id)
+  if (!mcpProcs.get(id)) return { stopped: false }
+  mcpStopSync(id)
+  return { stopped: true }
+}
+
+
+/* --- invoke router A: state + fs --- */
+async function invoke(cmd, a) {
+  a = a || {}
+  if (cmd === 'get_app_version') return app.getVersion()
+  if (cmd === 'load_state') return readState(a.key)
+  if (cmd === 'save_state') { if (typeof a.value !== 'string') throw new Error('State value must be a string'); return writeState(a.key, a.value) }
+  if (cmd === 'fs_read_file') return readFile(String(a.path), 'utf8').catch((e) => { throw new Error('Failed to read ' + a.path + ': ' + e.message) })
+  if (cmd === 'fs_read_file_range') {
+    const c = await readFile(String(a.path), 'utf8').catch((e) => { throw new Error('Failed to read: ' + e.message) })
+    const lines = c.split('\n')
+    const sN = Number(a.startLine !== undefined ? a.startLine : a.start_line !== undefined ? a.start_line : 1) || 1
+    const start = Math.max(sN - 1, 0)
+    if (start >= lines.length) return ''
+    const eN = Number(a.endLine !== undefined ? a.endLine : a.end_line !== undefined ? a.end_line : 0) || 0
+    const end = eN === 0 ? lines.length : Math.min(eN, lines.length)
+    return lines.slice(start, end).join('\n')
+  }
+  if (cmd === 'fs_write_file') {
+    const p = String(a.path)
+    await mkdir(dirname(p), { recursive: true })
+    await writeFile(p, String(a.content !== undefined ? a.content : ''))
+    return true
+  }
+  if (cmd === 'fs_append_file') {
+    const p = String(a.path)
+    await mkdir(dirname(p), { recursive: true })
+    await writeFile(p, String(a.content !== undefined ? a.content : ''), { flag: 'a' })
+    return true
+  }
+  if (cmd === 'fs_replace_in_file') {
+    const p = String(a.path)
+    const c = await readFile(p, 'utf8').catch((e) => { throw new Error('Failed to read: ' + e.message) })
+    const s = String(a.search !== undefined ? a.search : '')
+    if (c.indexOf(s) < 0) throw new Error('Search text not found in ' + p)
+    const r = String(a.replace !== undefined ? a.replace : '')
+    await writeFile(p, a.all === true ? c.split(s).join(r) : c.replace(s, r))
+    return true
+  }
+  if (cmd === 'fs_write_file_range') {
+    const p = String(a.path)
+    const c = await readFile(p, 'utf8').catch((e) => { throw new Error('Failed to read: ' + e.message) })
+    const lines = c.split('\n')
+    const sN = Number(a.startLine !== undefined ? a.startLine : a.start_line !== undefined ? a.start_line : 1) || 1
+    const start = Math.max(sN - 1, 0)
+    const eN = Number(a.endLine !== undefined ? a.endLine : a.end_line !== undefined ? a.end_line : 0) || 0
+    const end = eN === 0 ? lines.length : Math.min(eN, lines.length)
+    const rep = String(a.content !== undefined ? a.content : '').split('\n')
+    const next = lines.slice(0, start).concat(rep).concat(lines.slice(end))
+    await writeFile(p, next.join('\n'))
+    return next.join('\n').length
+  }
+  if (cmd === 'fs_delete_file') { await rm(String(a.path)).catch((e) => { throw new Error('Failed to delete: ' + e.message) }); return true }
+  if (cmd === 'fs_delete_dir') { await rm(String(a.path), { recursive: true, force: false }).catch((e) => { throw new Error('Failed to delete: ' + e.message) }); return true }
+  if (cmd === 'fs_create_dir') { await mkdir(String(a.path), { recursive: true }).catch((e) => { throw new Error('Failed to create: ' + e.message) }); return true }
+  if (cmd === 'fs_list_dir') {
+    const dir = String(a.path)
+    const entries = await readdir(dir, { withFileTypes: true }).catch((e) => { throw new Error('Failed to list: ' + e.message) })
+    const out = []
+    for (const en of entries) {
+      const full = join(dir, en.name)
+      let st = null
+      try { st = await stat(full) } catch { st = null }
+      out.push(metaToEntry(full, st))
+    }
+    out.sort((x, y) => Number(y.is_dir) - Number(x.is_dir) || x.name.toLowerCase().localeCompare(y.name.toLowerCase()))
+    return out
+  }
+  if (cmd === 'fs_search_files') {
+    const out = []
+    await searchRec(String(a.path), String(a.pattern !== undefined ? a.pattern : ''), a.content === true, out)
+    if (out.length >= SEARCH_LIMIT) out.push('... truncated at ' + SEARCH_LIMIT + ' matches')
+    return out
+  }
+  return invokeB(cmd, a)
+}
+
+
+/* --- invoke router B: meta, procs, terms, ollama, mcp, updater --- */
+async function invokeB(cmd, a) {
+  if (cmd === 'fs_stat') {
+    const p = String(a.path)
+    const st = await stat(p).catch((e) => { throw new Error('Failed to stat: ' + e.message) })
+    return { path: p, isDir: st.isDirectory(), size: st.size, modified: Math.floor(st.mtimeMs / 1000) }
+  }
+  if (cmd === 'fs_copy_file') {
+    const to = String(a.newPath !== undefined ? a.newPath : a.new_path !== undefined ? a.new_path : '')
+    if (!to) throw new Error('Destination path is required')
+    await mkdir(dirname(to), { recursive: true })
+    await copyFile(String(a.path), to).catch((e) => { throw new Error('Failed to copy: ' + e.message) })
+    return true
+  }
+  if (cmd === 'fs_rename') {
+    const to = String(a.newPath !== undefined ? a.newPath : a.new_path !== undefined ? a.new_path : '')
+    if (!to) throw new Error('Destination path is required')
+    await rename(String(a.path), to).catch((e) => { throw new Error('Failed to rename: ' + e.message) })
+    return true
+  }
+  if (cmd === 'run_command') return runCommand(a)
+  if (cmd === 'terminal_create') return termCreate(a)
+  if (cmd === 'terminal_write') {
+    const pr = terms.get(Number(a.id))
+    if (!pr) throw new Error('Terminal ' + a.id + ' is not running')
+    pr.write(String(a.data !== undefined ? a.data : ''))
+    return null
+  }
+  if (cmd === 'terminal_resize') {
+    const pr = terms.get(Number(a.id))
+    if (!pr) throw new Error('Terminal ' + a.id + ' is not running')
+    try { pr.resize(Number(a.cols) || 80, Number(a.rows) || 24) } catch {}
+    return null
+  }
+  if (cmd === 'terminal_kill') {
+    const pr = terms.get(Number(a.id))
+    if (pr) { terms.delete(Number(a.id)); try { pr.kill() } catch {} }
+    return null
+  }
+  if (cmd === 'check_ollama_installed') return ollInstalled()
+  if (cmd === 'check_ollama_running') return ollAlive()
+  if (cmd === 'ollama_request') {
+    const r = await ollHttp({ url: String(a.url), method: String(a.method || 'GET'), body: a.body !== undefined ? a.body : undefined })
+    return { status: r.status, body: r.body }
+  }
+  if (cmd === 'start_ollama_server') return startOllama()
+  if (cmd === 'stop_ollama_server') return stopOllama()
+  if (cmd === 'list_local_models') return ollTags()
+  if (cmd === 'pull_local_model') return ollPull(String(a.modelName !== undefined ? a.modelName : a.model_name !== undefined ? a.model_name : ''))
+  if (cmd === 'delete_local_model') return ollDel(String(a.modelName !== undefined ? a.modelName : a.model_name !== undefined ? a.model_name : ''))
+  if (cmd === 'mcp_discover_configs') {
+    const r = a.workspaceRoot !== undefined ? a.workspaceRoot : a.workspace_root
+    return mcpCands(r !== undefined ? r : null)
+  }
+  if (cmd === 'expand_env_string') return expandEnv(String(a.input !== undefined ? a.input : ''))
+  if (cmd === 'mcp_stdio_start') return mcpStart(a)
+  if (cmd === 'mcp_stdio_send') return mcpSend(a)
+  if (cmd === 'mcp_stdio_read') return mcpRead(a)
+  if (cmd === 'mcp_stdio_stop') return mcpStop(a)
+  if (cmd === 'download_file') return dlFile(String(a.url || ''))
+  if (cmd === 'launch_downloaded') return launchDl(a)
+  throw new Error('Electron native command is not implemented: ' + cmd)
+}
+
+
+/* --- updater download + ipc + lifecycle --- */
+function dlFile(url) {
+  let parsed
+  try { parsed = new URL(url) } catch { throw new Error('Invalid download URL: ' + url) }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') throw new Error('Unsupported URL scheme')
+  const fetch1 = (target, depth) => {
+    if (depth > 5) throw new Error('Too many redirects')
+    const lib = target.protocol === 'https:' ? require('node:https') : require('node:http')
+    return new Promise((resolveP, reject) => {
+      const req = lib.get(target.href, { headers: { 'User-Agent': 'Neo-Updater' } }, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          req.destroy()
+          fetch1(new URL(res.headers.location, target.href), depth + 1).then(resolveP, reject)
+          return
+        }
+        if (res.statusCode < 200 || res.statusCode >= 300) { reject(new Error('Download server returned ' + res.statusCode)); return }
+        const nm = basename(target.pathname) || 'neo-update.bin'
+        const dest = join(app.getPath('temp'), 'neo-' + Date.now() + '-' + nm)
+        pipeline(res, createWriteStream(dest)).then(() => resolveP(dest), () => reject(new Error('Download failed')))
+      })
+      req.on('error', () => reject(new Error('Download failed: connection error')))
+    })
+  }
+  return fetch1(parsed, 0)
+}
+function launchDl(a) {
+  const t = String(a.path || '')
+  if (!t || !existsSync(t)) throw new Error('Downloaded file not found')
+  const child = spawn(t, [], { detached: true, stdio: 'ignore', windowsHide: true, shell: /\.(msi|bat|cmd|ps1)$/i.test(t) })
+  if (child.unref) child.unref()
+  setTimeout(() => app.quit(), 1500)
+  return null
+}
+function needWin() {
+  if (!mainWindow || mainWindow.isDestroyed()) throw new Error('Neo window is not available')
   return mainWindow
 }
-
-ipcMain.handle('neo:window:minimize', () => requireMainWindow().minimize())
-ipcMain.handle('neo:native-invoke', async (_event, command, args = {}) => {
-  if (typeof command !== 'string') throw new Error('Native command name must be a string')
-  switch (command) {
-    case 'get_app_version':
-      return app.getVersion()
-    case 'load_state': {
-      return readState(args.key)
-    }
-    case 'save_state':
-      if (typeof args.value !== 'string') throw new Error('State value must be a string')
-      return writeState(args.key, args.value)
-    case 'struct_agent_bridge_publish': {
-      if (typeof args.snapshot !== 'string' || Buffer.byteLength(args.snapshot) > 4 * 1024 * 1024) {
-        throw new Error('Neo chat snapshot is too large or invalid')
-      }
-      const snapshot = JSON.parse(args.snapshot)
-      if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
-        throw new Error('Neo chat snapshot must be a JSON object')
-      }
-      chatSnapshot = snapshot
-      return null
-    }
-    case 'struct_agent_bridge_publish_auth': {
-      if (typeof args.snapshot !== 'string' || Buffer.byteLength(args.snapshot) > 64 * 1024) {
-        throw new Error('Neo account session is too large or invalid')
-      }
-      const snapshot = JSON.parse(args.snapshot)
-      if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
-        throw new Error('Neo account session must be a JSON object')
-      }
-      authSnapshot = snapshot
-      return null
-    }
-    case 'struct_ide_launch':
-      await launchIde(args.workspace, args.bridgeToken)
-      return null
-    default:
-      throw new Error(`Electron native command is not implemented yet: ${command}`)
-  }
+ipcMain.handle('neo:native-invoke', async (_e, cmd, a) => {
+  if (typeof cmd !== 'string') throw new Error('Native command name must be a string')
+  return invoke(cmd, a || {})
 })
-ipcMain.handle('neo:event:emit', (_event, event, payload) => {
-  if (typeof event !== 'string' || !/^[\w:/-]+$/.test(event)) {
-    throw new Error('Invalid event name')
-  }
-  emitToRenderer(event, payload)
+ipcMain.handle('neo:event:emit', (_e, ev, payload) => {
+  if (typeof ev !== 'string' || !/^[\w:/-]+$/.test(ev)) throw new Error('Invalid event name')
+  emitToRenderer(ev, payload)
 })
-ipcMain.on('neo:deep-link:ready', (event) => {
-  if (event.sender === mainWindow?.webContents) {
-    deepLinkReady = true
-    flushDeepLinks(event)
-  }
+ipcMain.on('neo:deep-link:ready', (ev) => {
+  if (ev.sender === (mainWindow && mainWindow.webContents)) { deepLinkReady = true; flushDeepLinks(ev) }
 })
-ipcMain.handle('neo:window:toggle-maximize', () => {
-  const window = requireMainWindow()
-  if (window.isMaximized()) window.unmaximize()
-  else window.maximize()
-  return window.isMaximized()
+ipcMain.handle('neo:open-external', (_e, url) => openExternal(url))
+ipcMain.handle('neo:dialog:open', async (_e, o) => {
+  o = o || {}
+  const props = []
+  if (o.directory) props.push('openDirectory')
+  else props.push('openFile')
+  if (o.multiple) props.push('multiSelections')
+  const r = await dialog.showOpenDialog(needWin(), { title: o.title, defaultPath: o.defaultPath, properties: props, filters: o.filters })
+  if (r.canceled) return null
+  return o.multiple ? r.filePaths : r.filePaths[0] || null
 })
-ipcMain.handle('neo:window:is-maximized', () => requireMainWindow().isMaximized())
-ipcMain.handle('neo:window:close', () => requireMainWindow().close())
-ipcMain.handle('neo:open-external', (_event, url) => openExternal(url))
-ipcMain.handle('neo:dialog:open', async (_event, options = {}) => {
-  const result = await dialog.showOpenDialog(requireMainWindow(), {
-    properties: options.directory ? ['openDirectory'] : ['openFile'],
-    filters: options.filters,
-  })
-  return result.canceled ? null : options.multiple ? result.filePaths : result.filePaths[0] ?? null
+ipcMain.handle('neo:dialog:save', async (_e, o) => {
+  o = o || {}
+  const r = await dialog.showSaveDialog(needWin(), { title: o.title, defaultPath: o.defaultPath, filters: o.filters })
+  return r.canceled ? null : r.filePath || null
 })
-ipcMain.handle('neo:dialog:save', async (_event, options = {}) => {
-  const result = await dialog.showSaveDialog(requireMainWindow(), {
-    defaultPath: options.defaultPath,
-    filters: options.filters,
-  })
-  return result.canceled ? null : result.filePath ?? null
-})
-
-if (hasSingleInstanceLock) {
-  app.whenReady()
-    .then(() => {
-      Menu.setApplicationMenu(null)
-      app.setAsDefaultProtocolClient(APP_PROTOCOL)
-      handleDeepLink(process.argv)
-      createWindow()
-
-      app.on('activate', () => {
-        if (BrowserWindow.getAllWindows().length === 0) createWindow()
-      })
-    })
-    .catch((error) => {
-      console.error('[electron] Neo failed to start:', error)
-      app.quit()
-    })
-
-  app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') app.quit()
-  })
+const gotLock = app.requestSingleInstanceLock()
+if (!gotLock) app.quit()
+else {
+  app.on('second-instance', (_e, argv) => handleDeepLink(argv))
+  app.on('open-url', (ev, url) => { ev.preventDefault(); sendDeepLink(url) })
+}
+if (gotLock) {
+  app.whenReady().then(() => {
+    app.setAsDefaultProtocolClient(APP_PROTOCOL)
+    handleDeepLink(process.argv)
+    createWindow()
+    app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })
+  }).catch((e) => { console.error('[electron] Neo failed to start:', e); app.quit() })
+  app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit() })
   app.on('before-quit', () => {
-    void stopAgentBridge().catch((error) => console.error('[electron] Could not stop the Neo bridge:', error))
+    for (const kv of terms) { try { kv[1].kill() } catch {} }
+    terms.clear()
+    for (const k of Array.from(mcpProcs.keys())) { try { mcpStopSync(k) } catch {} }
+    if (ollamaChild && !ollamaChild.killed) { try { ollamaChild.kill() } catch {} }
   })
 }
+

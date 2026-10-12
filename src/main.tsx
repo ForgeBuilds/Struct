@@ -7,21 +7,15 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import { ErrorProvider } from './errorContext'
 
-// The dedicated IDE window loads the same bundle with ?window=ide (Cursor-style
-// "IDE →" separate window); everything else renders the normal chat app.
-const isIdeWindow =
-  new URLSearchParams(window.location.search).get("window") === "ide"
-
-// Keep the chat and IDE entry points out of each other's initial bundle. The
-// same HTML entry is used by both windows, but each window only needs one app.
+// Single-window chat app. Electron draws the native frame; the renderer is
+// only ever the chat interface.
 const App = lazy(() => import('./App.tsx'))
-const IdeWindowApp = lazy(() => import('./ide/IdeWindowApp.tsx'))
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorProvider>
       <Suspense fallback={null}>
-        {isIdeWindow ? <IdeWindowApp /> : <App />}
+        <App />
       </Suspense>
     </ErrorProvider>
   </StrictMode>,

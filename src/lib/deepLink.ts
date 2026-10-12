@@ -3,13 +3,12 @@
  * Check the LICENSE in the GitHub repo (https://github.com/Lumorix-studios/Struct) for more information on permissions to use this code.
  */
 import { useEffect } from "react";
-import { isTauri } from "@tauri-apps/api/core";
 import { broadcastAuthError, handleOAuthRedirect } from "./auth";
 
-/** Deep-link scheme registered in `src-tauri/tauri.conf.json > plugins.deep-link`. */
+/** Deep-link scheme registered as the OS protocol handler (agenticcoder://). */
 const SCHEME = "agenticcoder://";
 
-/** Event emitted by the Rust single-instance handler for a second launch. */
+/** Event emitted by the Electron single-instance handler for a second launch. */
 const SINGLE_INSTANCE_EVENT = "neo:deep-link";
 
 /**
@@ -45,30 +44,25 @@ function consume(url: string): void {
  */
 export function useDeepLinkAuth(): void {
   useEffect(() => {
-    if (!isTauri()) return;
+    if (!window.neoDesktop) return;
     let disposed = false;
     const unlisteners: Array<() => void> = [];
 
-    const register = (urls: string[] | null) => {
-      if (disposed) return;
-      for (const url of urls ?? []) consume(url);
-    };
-
     // Cold start from a deep link, plus live links while the app is open.
-    void import("@tauri-apps/plugin-deep-link")
-      .then(async ({ getCurrent, onOpenUrl }) => {
-        if (disposed) return;
-        register(await getCurrent());
-        // `onOpenUrl` fires only on macOS; Windows/Linux deliver the URL as a
-        // new process, which the single-instance plugin forwards to us below.
-        unlisteners.push(await onOpenUrl(register));
-      })
-      .catch(() => undefined);
-
-    void import("@tauri-apps/api/event")
-      .then(async ({ listen }) => {
-        if (disposed) return;
-        unlisteners.push(await listen<string>(SINGLE_INSTANCE_EVENT, (e) => consume(e.payload)));
+    // The preload exposes `onDeepLink` (single-instance forwards here) and
+    // re-broadcasts OS links over the `neo:deep-link` event channel.
+    const offLink = window.neoDesktop.onDeepLink((url) => {
+      if (!disposed) consume(url);
+    });
+    unlisteners.push(offLink);
+    void window.neoDesktop
+      .listen<string>(SINGLE_INSTANCE_EVENT, (e) => consume(e.payload))
+      .then((off) => {
+        if (disposed) {
+          off();
+          return;
+        }
+        unlisteners.push(off);
       })
       .catch(() => undefined);
 

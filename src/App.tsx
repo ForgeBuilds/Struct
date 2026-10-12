@@ -8,10 +8,6 @@
 //also cant assure you this will always stay opensource
 //       last modified : 9/24/26
 import { lazy, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
-import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
-import { save as saveDialog } from "@tauri-apps/plugin-dialog";
-import { emit as tauriEmit, listen as tauriListen } from "@tauri-apps/api/event";
-import { invoke } from "@tauri-apps/api/core";
 import StarBorder from "../components/StarBorder";
 import TopMenu from "../components/TopMenu";
 import ChatHistorySidebar from "../components/ChatHistorySidebar.tsx";
@@ -66,7 +62,6 @@ import {
 import { useDeepLinkAuth } from "./lib/deepLink";
 import * as byok from "./lib/byok";
 import { isSupabaseConfigured } from "./lib/supabase";
-import { isTauri } from "@tauri-apps/api/core";
 import {
   getProviderSpec,
   buildAuthHeaders,
@@ -106,9 +101,7 @@ import {
 import { computeLineDiff } from "./diff";
 import { checkRateLimit, estimateTokens, recordUsage } from "./tokenUsage";
 import { resolveFsPath } from "./agentic";
-import type { EditorTab } from "./components/CodeEditor";
 import { ensureOllamaReady } from "./localModels";
-/* GitPanel removed — moved to IDE window only */
 import BlurText from "../components/BlurText";
 import type { SectionId } from "./components/SettingsPanel";
 import {
@@ -124,31 +117,35 @@ import {
 import { getActiveLanguage, setActiveLanguage } from "./i18n";
 import { IoAdd, IoAlertSharp, /*IoBarChartOutline, IoBugOutline*/ IoCheckmark, IoCopyOutline, IoFolderOutline, /*IoSparkles*/ /*IoTerminal,*/ IoThumbsDownSharp, IoThumbsUpSharp, IoSettings, /*IoInformation*/ IoPersonCircleOutline } from "react-icons/io5";
 import { shortPath } from "./utils";
-// import IdeMenuBar from "./components/IdeMenuBar.tsx";
 
 const SettingsPanel = lazy(() => import("./components/SettingsPanel"));
-const nativeInvoke = window.neoDesktop?.invoke.bind(window.neoDesktop) ?? invoke;
+// Electron owns the window: native commands go through the preload bridge.
+// Outside Electron (browser preview) fall back to no-op event stubs so the UI
+// still renders and chat works over plain fetch.
+const nativeInvoke = window.neoDesktop
+  ? window.neoDesktop.invoke.bind(window.neoDesktop)
+  : (async () => {
+      throw new Error("Native command unavailable outside Electron");
+    }) as <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
 const browserEvents = new EventTarget();
-const listen = window.neoDesktop?.listen.bind(window.neoDesktop) ??
-  (isTauri()
-    ? tauriListen
-    : async <T,>(event: string, callback: (value: { event: string; id: number; payload: T }) => void) => {
-        const handler = (value: Event) => {
-          callback({
-            event,
-            id: 0,
-            payload: (value as CustomEvent<T>).detail,
-          });
-        };
-        browserEvents.addEventListener(event, handler);
-        return () => browserEvents.removeEventListener(event, handler);
-      });
-const emit = window.neoDesktop?.emit.bind(window.neoDesktop) ??
-  (isTauri()
-    ? tauriEmit
-    : async (event: string, payload?: unknown) => {
-        browserEvents.dispatchEvent(new CustomEvent(event, { detail: payload }));
-      });
+const listen = window.neoDesktop
+  ? window.neoDesktop.listen.bind(window.neoDesktop)
+  : (async <T,>(event: string, callback: (value: { event: string; id: number; payload: T }) => void) => {
+      const handler = (value: Event) => {
+        callback({
+          event,
+          id: 0,
+          payload: (value as CustomEvent<T>).detail,
+        });
+      };
+      browserEvents.addEventListener(event, handler);
+      return () => browserEvents.removeEventListener(event, handler);
+    });
+const emit = window.neoDesktop
+  ? window.neoDesktop.emit.bind(window.neoDesktop)
+  : (async (event: string, payload?: unknown) => {
+      browserEvents.dispatchEvent(new CustomEvent(event, { detail: payload }));
+    });
 
 type JsonDict = Record<string, unknown>;
 
@@ -184,21 +181,16 @@ const MAX_TOOL_OUTPUT = 24000;
 
 
 async function platformFetch(url: string, init: RequestInit): Promise<Response> {
-  const win = window as unknown as { __TAURI_INTERNALS__?: unknown };
-  const inTauri = !!win.__TAURI_INTERNALS__;
-
-  if (inTauri) {
+  // Inside Electron, loopback Ollama traffic goes through the main process so
+  // a locked-down OLLAMA_ORIGINS never 403s the packaged origin.
+  if (window.neoDesktop) {
     try {
-      // Packaged WebViews identify themselves as tauri://localhost. Ollama
-      // installations with a restricted OLLAMA_ORIGINS setting reject that
-      // origin with 403, while browser/dev requests use localhost. Send the
-      // same trusted local origin for loopback Ollama requests only.
       const parsed = new URL(url);
       if (
         (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost") &&
         parsed.port === "11434"
       ) {
-        const native = await invoke<{ status: number; body: string }>("ollama_request", {
+        const native = await nativeInvoke<{ status: number; body: string }>("ollama_request", {
           url,
           method: init.method ?? "GET",
           body: typeof init.body === "string" ? init.body : null,
@@ -208,10 +200,9 @@ async function platformFetch(url: string, init: RequestInit): Promise<Response> 
           headers: { "Content-Type": "application/json" },
         });
       }
-      return await tauriFetch(url, init);
     } catch (e) {
       throw new Error(
-        `Tauri HTTP request failed: ${e instanceof Error ? e.message : String(e)}`,
+        `Electron native request failed: ${e instanceof Error ? e.message : String(e)}`,
         { cause: e }
       );
     }

@@ -3,8 +3,7 @@
  * Check the LICENSE in the GitHub repo (https://github.com/Lumorix-studios/Struct) for more information on permissions to use this code.
  */
 
-import { invoke } from "@tauri-apps/api/core";
-import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
+import { invoke } from "./native";
 
 export type ToolName =
   | "read_file"
@@ -553,9 +552,9 @@ async function browserFallback(name: string, args: Record<string, unknown>): Pro
   }
 }
 
-/** Tauri-aware fetch: routes through the Rust HTTP plugin inside the desktop
- * app (bypassing webview CORS), plain fetch in the browser. Used by the
- * web_fetch / web_search tools. */
+/** Desktop-aware fetch: loopback Ollama requests go through the Electron main
+ * process (bypassing webview CORS / origin policy), everything else uses
+ * plain fetch. Used by the web_fetch / web_search tools. */
 async function platformFetch(url: string, init?: RequestInit): Promise<Response> {
   if (inTauri()) {
     try {
@@ -566,12 +565,12 @@ async function platformFetch(url: string, init?: RequestInit): Promise<Response>
       ) {
         const headers = new Headers(init?.headers);
         headers.set("Origin", "http://localhost");
-        return await tauriFetch(url, { ...init, headers });
+        return await fetch(url, { ...init, headers });
       }
-      return await tauriFetch(url, init);
+      return await fetch(url, init);
     } catch (e) {
       throw new Error(
-        `Tauri HTTP request failed: ${e instanceof Error ? e.message : String(e)}`,
+        `Desktop HTTP request failed: ${e instanceof Error ? e.message : String(e)}`,
         { cause: e }
       );
     }

@@ -1,4 +1,4 @@
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternalUrl as openUrl } from "../src/lib/external";
 import { useErrorHandler } from "../src/errorContext";
 import { IoClose, IoInformationCircle, IoInformationCircleOutline,  IoOpenOutline } from "react-icons/io5";
 
