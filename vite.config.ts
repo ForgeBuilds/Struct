@@ -4,6 +4,8 @@ import babel from '@rolldown/plugin-babel'
 import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
+// Relative asset URLs: Electron loads dist/index.html from the filesystem via
+// a file:// URL, so absolute "/assets/..." paths would not resolve.
 export default defineConfig({
   base: './',
   plugins: [
@@ -13,15 +15,9 @@ export default defineConfig({
   ],
   clearScreen: false,
   server: {
-    // Must match `build.devUrl` in src-tauri/tauri.conf.json.
-    // strictPort: false allows Vite to automatically pick the next available port if 5173 is taken.
+    // Read by scripts/electron-dev.mjs, which spawns Electron with this URL.
+    // strictPort: false lets Vite pick the next free port if 5173 is taken.
     port: 5173,
     strictPort: false,
-    watch: {
-      // Tauri and Android builds can generate hundreds of thousands of files
-      // under the repository root. They are not web sources and watching
-      // them makes Vite spend CPU rescanning build output.
-      ignored: ['**/src-tauri/target/**', '**/src-tauri/gen/**'],
-    },
   },
 })

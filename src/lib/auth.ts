@@ -16,30 +16,25 @@ import {
   supabaseUrl,
   supabaseAnonKey,
 } from "./supabase";
+import { emit } from "../native";
 
 export type AuthProvider = "github" | "google";
 
 /**
- * Tauri event broadcast when the auth session changes (sign-in / sign-out /
- * OAuth redirect completion). Other webview windows (e.g. the IDE panel)
- * listen for this so they can re-bootstrap their own session — each Tauri
- * webview has its own supabase-js client instance, so onAuthStateChange in
- * one window does NOT fire in another even though they share localStorage.
+ * Native event broadcast when the auth session changes (sign-in / sign-out /
+ * OAuth redirect completion). Listeners re-bootstrap their own session — each
+ * window has its own supabase-js client instance, so onAuthStateChange in one
+ * window does NOT fire in another even though they share localStorage.
  */
 export const AUTH_CHANGED_EVENT = "neo:auth-changed";
 
 /** Fire-and-forget broadcast of an auth-state change to sibling windows. */
 export async function broadcastAuthChange(): Promise<void> {
-  try {
-    const { emit } = await import("@tauri-apps/api/event");
-    await emit(AUTH_CHANGED_EVENT);
-  } catch {
-    /* not in Tauri or emit unavailable — no-op */
-  }
+  await emit(AUTH_CHANGED_EVENT);
 }
 
 /**
- * Tauri event + in-memory broadcast for auth-callback failures (OAuth /
+ * Native event + in-memory broadcast for auth-callback failures (OAuth /
  * recovery links Supabase rejected, expired PKCE codes, …). These used to be
  * silently swallowed and the user just stayed signed out with no message —
  * the classic "login always fails" report.
@@ -73,10 +68,9 @@ export async function broadcastAuthError(message: string): Promise<void> {
     }
   }
   try {
-    const { emit } = await import("@tauri-apps/api/event");
     await emit(AUTH_ERROR_EVENT, message);
   } catch {
-    /* not in Tauri or emit unavailable — no-op */
+    /* event system unavailable — no-op */
   }
 }
 
@@ -168,7 +162,6 @@ export function checkSupabaseHealth(): Promise<AuthHealth> {
   }
   if (!healthPromise) {
     healthPromise = (async (): Promise<AuthHealth> => {
-      const sb = supabase();
       // (No `<T>` generics here — they break the parser in some build setups.)
       const withTimeout = (p: Promise<any>, ms: number, label: string): Promise<any> => {
         let timer: ReturnType<typeof setTimeout> | undefined;

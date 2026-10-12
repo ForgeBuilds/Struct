@@ -59,14 +59,14 @@ interface LocalByokStore {
   [provider: string]: string;
 }
 
-function inTauri(): boolean {
+function inDesktop(): boolean {
   return isNativeRuntime();
 }
 
 async function readLocalStore(): Promise<LocalByokStore> {
   try {
     let raw: string | null = null;
-    if (inTauri()) {
+    if (inDesktop()) {
       raw = await invoke<string>("load_state", { key: LOCAL_BYOK_STATE_KEY });
       // Migrate the old WebView-local store into the desktop app-data store.
       if (!raw) raw = localStorage.getItem(LOCAL_BYOK_KEY);
@@ -83,13 +83,13 @@ async function readLocalStore(): Promise<LocalByokStore> {
 async function writeLocalStore(store: LocalByokStore): Promise<void> {
   try {
     const raw = JSON.stringify(store);
-    if (inTauri()) {
+    if (inDesktop()) {
       await invoke("save_state", { key: LOCAL_BYOK_STATE_KEY, value: raw });
     } else {
       localStorage.setItem(LOCAL_BYOK_KEY, raw);
     }
   } catch {
-    if (!inTauri()) {
+    if (!inDesktop()) {
       try {
         localStorage.setItem(LOCAL_BYOK_KEY, JSON.stringify(store));
       } catch {

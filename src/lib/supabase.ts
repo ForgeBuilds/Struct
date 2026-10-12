@@ -28,8 +28,8 @@ export const isSupabaseConfigured = supabaseUrl.length > 0 && supabaseAnonKey.le
  * Fetch impl for supabase-js.
  *
  * Electron's Chromium network stack handles TLS itself, so plain
- * `window.fetch` is correct everywhere. (The old Tauri/WebKitGTK workaround
- * is gone with the Tauri shell.)
+ * `window.fetch` is correct everywhere. The wrapper stays so the client keeps
+ * a single place to add retries without touching call sites.
  */
 async function resilientFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   return window.fetch(input, init);
@@ -44,14 +44,12 @@ if (isSupabaseConfigured) {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: false, // deep-link/token handling is done manually
-      // Sessions are persisted in the WebView's localStorage under the
+      // Sessions are persisted in the renderer's localStorage under the
       // supabase-js storage key, so sign-in survives app restarts.
     },
     global: {
-      // Route every Auth/PostgREST/Functions call through the native client
-      // inside Tauri (see resilientFetch). This is THE fix for "Couldn't
-      // reach the Supabase project" on machines where curl works but the
-      // webview's own fetch throws.
+      // Single fetch path for Auth/PostgREST/Functions calls (resilientFetch),
+      // so future retry/timeout behaviour applies everywhere at once.
       fetch: resilientFetch as typeof fetch,
     },
   });

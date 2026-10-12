@@ -7,7 +7,7 @@
  * with high-level architectural context without needing to read every file.
  */
 
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "./native";
 
 export interface ProjectNode {
   name: string;

@@ -112,7 +112,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
 
 const UI_SETTINGS_KEY = "neo.ui-settings.v1";
 
-function inTauri(): boolean {
+function inDesktop(): boolean {
   return isNativeRuntime();
 }
 
@@ -135,7 +135,7 @@ async function diskWrite(key: string, value: string): Promise<boolean> {
 }
 
 export async function loadUiSettings(): Promise<UiSettings> {
-  const raw = inTauri() ? await diskRead(UI_SETTINGS_KEY) : localStorage.getItem(UI_SETTINGS_KEY);
+  const raw = inDesktop() ? await diskRead(UI_SETTINGS_KEY) : localStorage.getItem(UI_SETTINGS_KEY);
   if (!raw) return DEFAULT_UI_SETTINGS;
   try {
     const merged = { ...DEFAULT_UI_SETTINGS, ...JSON.parse(raw) };
@@ -155,7 +155,7 @@ export async function loadUiSettings(): Promise<UiSettings> {
 
 export async function saveUiSettings(s: UiSettings): Promise<void> {
   const raw = JSON.stringify(s);
-  if (inTauri()) {
+  if (inDesktop()) {
     const ok = await diskWrite(UI_SETTINGS_KEY, raw);
     if (!ok) localStorage.setItem(UI_SETTINGS_KEY, raw);
   } else {

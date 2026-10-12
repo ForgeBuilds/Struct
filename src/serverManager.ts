@@ -4,7 +4,7 @@
  */
 import { invoke } from "./native";
 
-function inTauri(): boolean {
+function inNativeShell(): boolean {
   return Boolean(window.neoDesktop);
 }
 
@@ -15,7 +15,7 @@ function inTauri(): boolean {
 
 export async function checkServerHealth(baseUrl: string): Promise<{ online: boolean; status: number }> {
   if (
-    inTauri() &&
+    inNativeShell() &&
     /^https?:\/\/(?:127\.0\.0\.1|localhost):11434\/?$/i.test(baseUrl.trim())
   ) {
     try {
@@ -61,13 +61,13 @@ export async function findAvailableOllamaPort(startPort = 11434, maxTries = 5): 
 
 /**
  * Attempts to "wake up" or suggest the starting of a server.
- * In a full Tauri implementation, this would call a Rust command to execute 'ollama serve'.
+ * In a full native implementation, this would call a main-process command to execute 'ollama serve'.
  */
 export async function ensureServerRunning(settings: { baseUrl: string }) {
   const health = await checkServerHealth(settings.baseUrl);
   if (!health.online) {
     console.warn(`Server at ${settings.baseUrl} is not responding.`);
-    // Here we could trigger a Tauri command to start the process
+    // Here we could trigger a native command to start the process
     // Example: await invoke('start_ollama_server');
     return false;
   }

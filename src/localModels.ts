@@ -44,7 +44,7 @@ export interface OllamaStopStatus {
   stillRunningExternal: boolean;
 }
 
-function inTauri(): boolean {
+function inDesktop(): boolean {
   return Boolean(window.neoDesktop);
 }
 
@@ -52,7 +52,7 @@ function inTauri(): boolean {
  * Check if Ollama is installed on the system.
  */
 export async function checkOllamaInstalled(): Promise<boolean> {
-  if (!inTauri()) return false;
+  if (!inDesktop()) return false;
   try {
     return await invoke<boolean>("check_ollama_installed");
   } catch {
@@ -64,7 +64,7 @@ export async function checkOllamaInstalled(): Promise<boolean> {
  * Check if the Ollama server is currently running.
  */
 export async function checkOllamaRunning(): Promise<boolean> {
-  if (!inTauri()) return false;
+  if (!inDesktop()) return false;
   try {
     return await invoke<boolean>("check_ollama_running");
   } catch {
@@ -81,7 +81,7 @@ export async function checkOllamaRunning(): Promise<boolean> {
  * session) is *reused*, never duplicated, and reported as not owned.
  */
 export async function startOllamaServer(): Promise<OllamaStartStatus | null> {
-  if (!inTauri()) return null;
+  if (!inDesktop()) return null;
   try {
     return await invoke<OllamaStartStatus>("start_ollama_server");
   } catch (e) {
@@ -97,7 +97,7 @@ export async function startOllamaServer(): Promise<OllamaStartStatus | null> {
  * listening — the UI should tell the user to stop it from its own tray.
  */
 export async function stopOllamaServer(): Promise<OllamaStopStatus | null> {
-  if (!inTauri()) return null;
+  if (!inDesktop()) return null;
   try {
     return await invoke<OllamaStopStatus>("stop_ollama_server");
   } catch {
@@ -109,7 +109,7 @@ export async function stopOllamaServer(): Promise<OllamaStopStatus | null> {
  * List installed local models via the Ollama API.
  */
 export async function listLocalModels(): Promise<LocalModelInfo[]> {
-  if (!inTauri()) return [];
+  if (!inDesktop()) return [];
   try {
     const models = await invoke<LocalModelInfo[]>("list_local_models");
     return models ?? [];
@@ -122,7 +122,7 @@ export async function listLocalModels(): Promise<LocalModelInfo[]> {
  * Pull a model from the Ollama registry.
  */
 export async function pullLocalModel(modelName: string): Promise<boolean> {
-  if (!inTauri()) return false;
+  if (!inDesktop()) return false;
   try {
     return await invoke<boolean>("pull_local_model", { modelName });
   } catch {
@@ -134,7 +134,7 @@ export async function pullLocalModel(modelName: string): Promise<boolean> {
  * Delete a local model.
  */
 export async function deleteLocalModel(modelName: string): Promise<boolean> {
-  if (!inTauri()) return false;
+  if (!inDesktop()) return false;
   try {
     return await invoke<boolean>("delete_local_model", { modelName });
   } catch {

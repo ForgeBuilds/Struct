@@ -27,6 +27,7 @@ import {
 } from "../lib/auth";
 import { isSupabaseConfigured } from "../lib/supabase";
 import { deleteAllCloudData } from "../lib/cloudSync";
+import { listen } from "../native";
 import { IoLogoGithub, IoLogoGoogle, IoTrash, IoExit } from "react-icons/io5";
 
 interface AccountSectionProps {
@@ -333,14 +334,11 @@ function SignInUp() {
       if (alive) setCallbackError(msg);
     });
     let unlisten: (() => void) | null = null;
-    void import("@tauri-apps/api/event")
-      .then(async ({ listen }) => {
-        if (!alive) return;
-        unlisten = await listen<string>(AUTH_ERROR_EVENT, (e) => {
-          if (alive) setCallbackError(typeof e.payload === "string" ? e.payload : String(e.payload));
-        });
-      })
-      .catch(() => undefined);
+    void listen<string>(AUTH_ERROR_EVENT, (e) => {
+      if (alive) setCallbackError(typeof e.payload === "string" ? e.payload : String(e.payload));
+    }).then((un) => {
+      unlisten = un;
+    });
     return () => {
       alive = false;
       off();

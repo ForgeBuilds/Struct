@@ -522,17 +522,18 @@ export function agenticSystemPrompt(
   return `${AGENTIC_PROMPT}\\n\\n${ws}${ed}${mcp}`;
 }
 
-function inTauri(): boolean {
-  const win = window as unknown as { __TAURI_INTERNALS__?: unknown };
-  return !!win.__TAURI_INTERNALS__;
+/** True when running inside the Electron desktop shell (native bridge present). */
+function inNativeShell(): boolean {
+  const win = window as unknown as { neoDesktop?: unknown };
+  return !!win.neoDesktop;
 }
 
-/** Browser fallback for non-Tauri (dev in plain browser) — read-only ops only. */
+/** Browser fallback for non-native (dev in plain browser) — read-only ops only. */
 async function browserFallback(name: string, args: Record<string, unknown>): Promise<ToolResult> {
   switch (name) {
     case "list_dir": {
       // Can't list a real directory in the browser; return a helpful message.
-      return { ok: true, output: "Directory listing is only available in the desktop app (Tauri)." };
+      return { ok: true, output: "Directory listing is only available in the desktop app (the Neo desktop app)." };
     }
     case "read_file": {
       const path = String(args.path ?? "");
@@ -547,7 +548,7 @@ async function browserFallback(name: string, args: Record<string, unknown>): Pro
     default:
       return {
         ok: false,
-        output: `Tool "${name}" is only available in the desktop app (Tauri).`,
+        output: `Tool "${name}" is only available in the desktop app (the Neo desktop app).`,
       };
   }
 }
@@ -556,7 +557,7 @@ async function browserFallback(name: string, args: Record<string, unknown>): Pro
  * process (bypassing webview CORS / origin policy), everything else uses
  * plain fetch. Used by the web_fetch / web_search tools. */
 async function platformFetch(url: string, init?: RequestInit): Promise<Response> {
-  if (inTauri()) {
+  if (inNativeShell()) {
     try {
       const parsed = new URL(url);
       if (
@@ -570,7 +571,7 @@ async function platformFetch(url: string, init?: RequestInit): Promise<Response>
       return await fetch(url, init);
     } catch (e) {
       throw new Error(
-        `Desktop HTTP request failed: ${e instanceof Error ? e.message : String(e)}`,
+        `Native HTTP request failed: ${e instanceof Error ? e.message : String(e)}`,
         { cause: e }
       );
     }
@@ -800,7 +801,7 @@ async function executeToolUncached(
     resolved.new_path = resolveFsPath(resolved.new_path, workspaceRoot);
   }
   args = resolved;
-  if (!inTauri()) {
+  if (!inNativeShell()) {
     return browserFallback(name, args);
   }
   try {
@@ -1130,7 +1131,7 @@ async function executeToolUncached(
             `Web search failed on all engines (${failures.join("; ")}). ` +
             `Do NOT retry web_search for this query — answer from your existing knowledge instead, ` +
             `or use web_fetch on a specific URL if the user provided one.` +
-            (!inTauri()
+            (!inNativeShell()
               ? ` (Note: plain-browser dev mode blocks cross-origin requests via CORS — use the Neo desktop app for web access.)`
               : ""),
         };

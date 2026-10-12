@@ -8,6 +8,23 @@ const { homedir } = require('node:os')
 const { basename, dirname, join } = require('node:path')
 const { pipeline } = require('node:stream/promises')
 
+// This app is pure DOM (no WebGL/canvas games). On Linux VMs without a usable
+// VA-API/GPU stack, Chromium's hardware-accelerated compositor crashes on init
+// ("vaInitialize failed" → the GPU process takes the whole binary down with a
+// SIGSEGV). Force software compositing so the renderer never touches the GPU.
+app.disableHardwareAcceleration()
+app.commandLine.appendSwitch('disable-gpu')
+
+// Reliability on Linux: Electron 40 defaults to the Wayland Ozone backend,
+// which hard-crashes (SIGSEGV) on compositors/containers without a complete
+// Wayland implementation — the window never even reaches "ready-to-show".
+// Prefer the X11 backend (served via XWayland on Wayland desktops, so it works
+// everywhere). Power users can override with NEO_OZONE_PLATFORM=wayland.
+if (process.platform === 'linux') {
+  const ozone = process.env.NEO_OZONE_PLATFORM
+  app.commandLine.appendSwitch('ozone-platform', ozone || 'x11')
+}
+
 const APP_PROTOCOL = 'agenticcoder'
 let mainWindow
 let deepLinkReady = false

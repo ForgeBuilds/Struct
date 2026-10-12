@@ -52,7 +52,7 @@ const RATE_KEY = "neo.token-rate.v1";
 const USAGE_KEY = "neo.token-usage.v1";
 const MAX_RECENT = 60;
 
-function inTauri(): boolean {
+function inNativeShell(): boolean {
   return isNativeRuntime();
 }
 
@@ -101,9 +101,9 @@ interface UsageStore {
 // Hydrate from disk once on module load.
 void (async () => {
   try {
-    const rawRate = inTauri() ? await diskRead(RATE_KEY) : localStorage.getItem(RATE_KEY);
+    const rawRate = inNativeShell() ? await diskRead(RATE_KEY) : localStorage.getItem(RATE_KEY);
     if (rawRate) rate = { ...DEFAULT_TOKEN_RATE_SETTINGS, ...JSON.parse(rawRate) };
-    const rawUsage = inTauri() ? await diskRead(USAGE_KEY) : localStorage.getItem(USAGE_KEY);
+    const rawUsage = inNativeShell() ? await diskRead(USAGE_KEY) : localStorage.getItem(USAGE_KEY);
     if (rawUsage) {
       const parsed = JSON.parse(rawUsage) as UsageStore;
       if (parsed && typeof parsed === "object") {
@@ -124,7 +124,7 @@ export function getCachedRateSettings(): TokenRateSettings {
 
 export async function loadTokenRateSettings(): Promise<TokenRateSettings> {
   try {
-    const raw = inTauri() ? await diskRead(RATE_KEY) : localStorage.getItem(RATE_KEY);
+    const raw = inNativeShell() ? await diskRead(RATE_KEY) : localStorage.getItem(RATE_KEY);
     if (raw) rate = { ...DEFAULT_TOKEN_RATE_SETTINGS, ...JSON.parse(raw) };
   } catch {
     /* keep cached value */
@@ -135,7 +135,7 @@ export async function loadTokenRateSettings(): Promise<TokenRateSettings> {
 export async function saveTokenRateSettings(next: TokenRateSettings): Promise<void> {
   rate = next;
   const raw = JSON.stringify(next);
-  if (inTauri()) {
+  if (inNativeShell()) {
     const ok = await diskWrite(RATE_KEY, raw);
     if (!ok) localStorage.setItem(RATE_KEY, raw);
   } else {
@@ -191,7 +191,7 @@ export async function recordUsage(
 
 function persistUsage(): void {
   const raw = JSON.stringify(store);
-  if (inTauri()) {
+  if (inNativeShell()) {
     void diskWrite(USAGE_KEY, raw);
   } else {
     try {

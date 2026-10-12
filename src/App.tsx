@@ -34,11 +34,9 @@ import {
 } from "./store";
 import {
   getCurrentUser,
-  getSupabaseAccessToken,
   getProfile,
   onAuthChanged,
   handleOAuthRedirect,
-  signOut,
   AUTH_CHANGED_EVENT,
   type NeoUser,
   type Profile as AccountProfile,
@@ -119,35 +117,17 @@ import { IoAdd, IoAlertSharp, /*IoBarChartOutline, IoBugOutline*/ IoCheckmark, I
 import { shortPath } from "./utils";
 
 const SettingsPanel = lazy(() => import("./components/SettingsPanel"));
-// Electron owns the window: native commands go through the preload bridge.
-// Outside Electron (browser preview) fall back to no-op event stubs so the UI
-// still renders and chat works over plain fetch.
-const nativeInvoke = window.neoDesktop
-  ? window.neoDesktop.invoke.bind(window.neoDesktop)
-  : (async () => {
-      throw new Error("Native command unavailable outside Electron");
-    }) as <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
-const browserEvents = new EventTarget();
-const listen = window.neoDesktop
-  ? window.neoDesktop.listen.bind(window.neoDesktop)
-  : (async <T,>(event: string, callback: (value: { event: string; id: number; payload: T }) => void) => {
-      const handler = (value: Event) => {
-        callback({
-          event,
-          id: 0,
-          payload: (value as CustomEvent<T>).detail,
-        });
-      };
-      browserEvents.addEventListener(event, handler);
-      return () => browserEvents.removeEventListener(event, handler);
-    });
-const emit = window.neoDesktop
-  ? window.neoDesktop.emit.bind(window.neoDesktop)
-  : (async (event: string, payload?: unknown) => {
-      browserEvents.dispatchEvent(new CustomEvent(event, { detail: payload }));
-    });
+import { invoke, listen, isNativeRuntime, saveDialog, openDialog } from "./native";
 
 type JsonDict = Record<string, unknown>;
+
+/** An open file in the chat's built-in viewer (the whole editor lives here now). */
+interface EditorTab {
+  path: string;
+  content: string;
+  dirty: boolean;
+}
+
 
 /** Newline character (avoids escape-sequence issues in generated code). */
 const NL = String.fromCharCode(10);
@@ -190,7 +170,7 @@ async function platformFetch(url: string, init: RequestInit): Promise<Response> 
         (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost") &&
         parsed.port === "11434"
       ) {
-        const native = await nativeInvoke<{ status: number; body: string }>("ollama_request", {
+        const native = await invoke<{ status: number; body: string }>("ollama_request", {
           url,
           method: init.method ?? "GET",
           body: typeof init.body === "string" ? init.body : null,
@@ -264,11 +244,9 @@ function parseProviderKey(key: string): { provider: ProviderId; model: string } 
 }
 /** Resolved once per process — the Rust side reports the version this binary
  *  was built as, so it cannot change while the app is running. */
-const APP_VERSION = window.neoDesktop
-  ? nativeInvoke<string>("get_app_version")
-  : isTauri()
-    ? nativeInvoke<string>("get_app_version")
-    : Promise.resolve("0.0.0");
+const APP_VERSION = isNativeRuntime()
+  ? invoke<string>("get_app_version").catch(() => "0.0.0")
+  : Promise.resolve("0.0.0");
 
 /** Icon button for the VS Code-style activity bar rail. */
 function RailButton({
@@ -404,7 +382,7 @@ export default function App() {
    *  "Help → Check for Updates…" always re-prompts. Wrapped in `useCallback`
    *  so the startup effect below can depend on it without re-firing. */
   const runUpdateCheck = useCallback(async (force: boolean) => {
-    if (!isTauri()) return;
+    if (!isNativeRuntime()) return;
     try {
       if (force) clearDismissedUntil();
       const current = await APP_VERSION;
@@ -497,8 +475,8 @@ export default function App() {
   const mountedRef = useRef(true);
   // Whether the user is scrolled near the bottom (auto-follow).
   const autoScrollRef = useRef(true);
-  const launchIdeWindowRef = useRef<() => void>(() => {});
-  const agentBridgeTokenRef = useRef(crypto.randomUUID());
+  // Late-bound so the Ctrl+Shift+O shortcut always calls the current closure.
+  const openWorkspaceRef = useRef<() => void>(() => {});
   // Workspace root shared with the IDE window via a persisted localStorage key.
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(() =>
     localStorage.getItem(SHARED_WS_KEY)
@@ -628,9 +606,9 @@ export default function App() {
       e.preventDefault();
       setCommandPaletteOpen((v) => !v);
     }
-    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "e") {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "o") {
       e.preventDefault();
-      launchIdeWindowRef.current();
+      openWorkspaceRef.current();
     }
 
     if ((e.ctrlKey || e.metaKey) && e.key === "`") {
@@ -703,7 +681,7 @@ export default function App() {
   // callbacks (tokens arrive via `agenticcoder://`, never in the webview URL),
   // so this is a fast no-op there; see useDeepLinkAuth() below.
   useEffect(() => {
-    if (isTauri()) return;
+    if (isNativeRuntime()) return;
     if (!isSupabaseConfigured) return;
     void handleOAuthRedirect();
   }, []);
@@ -947,89 +925,9 @@ export default function App() {
     return () => clearTimeout(t);
   }, [messages, activeSessionId, restored, settings]);
 
-  useEffect(() => {
-    if (!restored || (!window.neoDesktop && !isTauri())) return;
-    const timer = window.setTimeout(() => {
-      const models = PROVIDER_OPTIONS.map((provider) => {
-        const spec = providerById(provider.id);
-        return {
-          provider: provider.id,
-          label: provider.label,
-          model: spec.defaultModel,
-          active: settings.provider === provider.id && settings.model === spec.defaultModel,
-        };
-      });
-      if (!models.some((model) => model.active)) {
-        models.unshift({
-          provider: settings.provider,
-          label: providerById(settings.provider).label,
-          model: settings.model,
-          active: true,
-        });
-      }
-      const snapshot = JSON.stringify({
-        sessionId: activeSessionId,
-        messages: messages.map(({ role, content, bridgeRequestId }) => ({
-          role,
-          content,
-          bridgeRequestId,
-        })),
-        account: account
-          ? {
-              signedIn: true,
-              name: accountProfile?.name ?? account.name,
-              email: accountProfile?.email ?? account.email,
-              provider: accountProfile?.provider ?? account.provider,
-            }
-          : { signedIn: false },
-        ai: {
-          provider: settings.provider,
-          model: settings.model,
-          baseUrl: settings.baseUrl,
-          temperature: settings.temperature,
-          systemPrompt: settings.systemPrompt,
-          toolAllowance: settings.toolAllowance ?? "all",
-          autoApproveTools: settings.autoApproveTools ?? false,
-          apiKeyConfigured: !!settings.apiKey.trim(),
-        },
-        models,
-        isLoading,
-        error,
-      });
-      void nativeInvoke("struct_agent_bridge_publish", { snapshot }).catch((e) => {
-        setError(`Failed to sync the IDE chat: ${e instanceof Error ? e.message : String(e)}`);
-      });
-    }, 100);
-    return () => window.clearTimeout(timer);
-  }, [account, accountProfile, activeSessionId, error, isLoading, messages, restored, settings]);
 
-  useEffect(() => {
-    if (!restored || (!window.neoDesktop && !isTauri())) return;
-    let cancelled = false;
-    void getSupabaseAccessToken()
-      .then((accessToken) => {
-        if (cancelled) return;
-        const snapshot = JSON.stringify({
-          accessToken,
-          user: accessToken && account
-            ? {
-                id: account.id,
-                name: accountProfile?.name ?? account.name,
-                email: accountProfile?.email ?? account.email,
-              }
-            : null,
-        });
-        return nativeInvoke("struct_agent_bridge_publish_auth", { snapshot });
-      })
-      .catch((e) => {
-        if (!cancelled) {
-          setError(`Failed to sync the Neo account with CODE-OSS: ${e instanceof Error ? e.message : String(e)}`);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [account, accountProfile, restored]);
+
+
 
   // Keep the chat pinned to the bottom while the user hasn't scrolled up.
   useEffect(() => {
@@ -1224,13 +1122,8 @@ export default function App() {
   /** Max simultaneously open editor tabs (LRU-evicted beyond this). */
   const MAX_OPEN_TABS = 10;
 
-  const openFileInEditor = async (path: string, line?: number) => {
+  const openFileInEditor = async (path: string) => {
     setActiveEditorPath(path);
-    try {
-      await emit("neo:ide-open-file", { path, line: line ?? null });
-    } catch {
-      /* IDE window not open / event system unavailable — non-fatal */
-    }
     if (editorTabs.some((t) => t.path === path)) return;
     try {
       const content = await invoke<string>("fs_read_file", { path });
@@ -1253,39 +1146,19 @@ export default function App() {
   };
 
 
-  // Launch the native CODE-OSS IDE. The IDE button and Ctrl+Shift+E both use it.
-  const launchIdeWindow = async () => {
-    try {
-      // Resolve a workspace: current selection, persisted choice, or prompt.
-      let root = workspaceRoot ?? localStorage.getItem(SHARED_WS_KEY);
-      if (!root) {
-        const picked = await pickFolder();
-        if (!picked.length) {
-          setError("Open a workspace folder before launching Struct.");
-          return;
-        }
-        root = picked[0];
-        localStorage.setItem(SHARED_WS_KEY, root);
-        setWorkspaceRoot(root);
-      }
-
-      // Launch the native Struct IDE (Electron code-oss) as its own standalone
-      // window. This replaces the old code-server webview path
-      // (compatible_ide_start). The Rust command spawns the Electron binary
-      // directly and loads Neo's chat participant from app resources.
-      await nativeInvoke("struct_ide_launch", {
-        workspace: root,
-        bridgeToken: agentBridgeTokenRef.current,
-      });
-    } catch (e) {
-      setError(`Failed to launch Struct IDE: ${e instanceof Error ? e.message : String(e)}`);
-    }
+  /** Open a workspace folder — the agent reads/writes inside it. */
+  const openWorkspaceFolder = async () => {
+    const picked = await openDialog({ title: "Open folder", directory: true });
+    if (!picked.length) return; // user cancelled
+    const root = picked[0];
+    localStorage.setItem(SHARED_WS_KEY, root);
+    setWorkspaceRoot(root);
   };
 
   // Late-bound so the Ctrl+Shift+E shortcut registered above always calls the
-  // current launchIdeWindow closure.
+  // current closure.
   useLayoutEffect(() => {
-    launchIdeWindowRef.current = launchIdeWindow;
+    openWorkspaceRef.current = () => void openWorkspaceFolder();
   });
 
   /** Persist the active tab back to disk via the Tauri fs command. */
@@ -1295,7 +1168,7 @@ export default function App() {
     const tab = editorTabs.find((t) => t.path === path);
     if (!tab) return;
     try {
-      await nativeInvoke("fs_write_file", { path, content: tab.content });
+      await invoke("fs_write_file", { path, content: tab.content });
       setEditorTabs((prev) =>
         prev.map((t) => (t.path === path ? { ...t, dirty: false } : t))
       );
@@ -1705,7 +1578,7 @@ Tool allowance: No Tools Allowed. Do not attempt to use tools or claim to have u
     console.log('Animation completed!');
   };
 
-  const sendMessage = async (overrideText?: string, bridgeRequestId?: string) => {
+  const sendMessage = async (overrideText?: string) => {
     const trimmed = (overrideText ?? message).trim();
     if (!trimmed || isLoading) return;
 
@@ -1765,7 +1638,6 @@ Tool allowance: No Tools Allowed. Do not attempt to use tools or claim to have u
       {
         role: "user",
         content: trimmed,
-        ...(bridgeRequestId ? { bridgeRequestId } : {}),
       },
     ]);
     setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
@@ -2266,15 +2138,7 @@ MCP call rules:
             }
           }
         }
-        if (mutating.length > 0) {
-          // Nudge the IDE window so its explorer + open tabs pick up the
-          // agent's file changes immediately (it also polls as a fallback).
-          try {
-            await emit("neo:workspace-changed", {});
-          } catch {
-            /* IDE window not open — non-fatal */
-          }
-        }
+
 
         // Runaway guard: identical failing calls across consecutive rounds.
         // A round with ANY success proves progress — reset the streak.
@@ -2411,59 +2275,7 @@ MCP call rules:
     }
   };
 
-  const onAgentPanelPrompt = useEffectEvent((text: string, requestId: string) => {
-    if (isLoading) {
-      setError("Wait for the current chat response to finish before sending another prompt.");
-      return;
-    }
-    void sendMessage(text, requestId);
-  });
-  useEffect(() => {
-    let cancelled = false;
-    const unlisteners: (() => void)[] = [];
-    void Promise.all([
-      listen<{ text: string; requestId: string }>("neo:agent-panel-prompt", (event) => {
-        const text = event.payload?.text;
-        const requestId = event.payload?.requestId;
-        if (typeof text === "string" && typeof requestId === "string") {
-          onAgentPanelPrompt(text, requestId);
-        }
-      }),
-      listen<{ provider?: string; model?: string } | undefined>("neo:agent-panel-models", (event) => {
-        const selection = event.payload;
-        if (selection?.provider && selection.model) {
-          const parsed = parseProviderKey(`${selection.provider}:${selection.model}`);
-          if (parsed) setSettings((current) => ({ ...current, ...parsed }));
-        }
-        setSettingsSection("ai");
-        setSettingsOpen(true);
-      }),
-      listen("neo:agent-panel-account", () => {
-        setSettingsSection("account");
-        setSettingsOpen(true);
-      }),
-      listen("neo:agent-panel-signout", () => {
-        void signOut()
-          .then(refreshAccount)
-          .catch((e) => {
-            setError(`Failed to sign out of the Neo account: ${e instanceof Error ? e.message : String(e)}`);
-          });
-      }),
-    ])
-      .then((stopListening) => {
-        if (cancelled) stopListening.forEach((stop) => stop());
-        else unlisteners.push(...stopListening);
-      })
-      .catch((e) => {
-        setError(`Failed to connect the IDE chat: ${e instanceof Error ? e.message : String(e)}`);
-      });
-    return () => {
-      cancelled = true;
-      unlisteners.forEach((stop) => stop());
-    };
-  }, []);
 
-  /** Kick off a deep project analysis by the agent (Context menu). */
   const handleAnalyzeProject = () => {
     if (!workspaceRoot) {
       setError("Open a workspace folder first, then run Analyze Project.");
@@ -2491,7 +2303,7 @@ MCP call rules:
         messages: messages.map((m) => ({ role: m.role, content: m.content })),
         activities,
       };
-      await nativeInvoke("fs_write_file", { path, content: JSON.stringify(payload, null, 2) });
+      await invoke("fs_write_file", { path, content: JSON.stringify(payload, null, 2) });
     } catch (e) {
       setError(`Failed to save session: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -2513,9 +2325,6 @@ MCP call rules:
             setSettingsOpen(true);
           }}
           onOpenChatHistory={() => setHistorySidebarOpen(true)}
-          onOpenIde={() => launchIdeWindowRef.current()}
-          onOpenIdeWindow={() => void launchIdeWindow()}
-          // onOpenTerminal={() => setOpenTerminal(true)}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           onCheckForUpdates={() => void runUpdateCheck(true)}
@@ -2707,7 +2516,7 @@ MCP call rules:
                         as="button"
                         type="button"
                         onClick={() => {
-                          void launchIdeWindow();
+                          void openWorkspaceFolder();
                         }}
                         color="yellow"
                         speed="15s"
@@ -3017,11 +2826,11 @@ MCP call rules:
             //   action: () => setOpenTerminal((v) => !v),
             // },
             {
-              id: "open-ide-window",
-              label: "Open Struct",
+              id: "open-workspace",
+              label: "Open Workspace Folder",
               category: "View",
-              shortcut: "Ctrl+Shift+E",
-              action: () => launchIdeWindowRef.current(),
+              shortcut: "Ctrl+Shift+O",
+              action: () => openWorkspaceRef.current(),
             },
 
             {
