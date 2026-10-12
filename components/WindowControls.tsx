@@ -10,9 +10,23 @@ import { IoClose, IoCopyOutline, IoRemove, IoSquareOutline } from "react-icons/i
  * nothing instead of throwing.
  */
 
-let winCache: ReturnType<typeof getCurrentWindow> | null | undefined;
+type WindowController = Pick<
+  ReturnType<typeof getCurrentWindow>,
+  "minimize" | "toggleMaximize" | "close" | "isMaximized"
+>;
+
+let winCache: WindowController | null | undefined;
 function currentWin() {
   if (winCache !== undefined) return winCache;
+  if (window.neoDesktop) {
+    winCache = {
+      minimize: () => window.neoDesktop!.minimize(),
+      toggleMaximize: () => window.neoDesktop!.toggleMaximize().then(() => {}),
+      close: () => window.neoDesktop!.close(),
+      isMaximized: () => window.neoDesktop!.isMaximized(),
+    };
+    return winCache;
+  }
   try {
     winCache = getCurrentWindow();
   } catch {

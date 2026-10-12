@@ -3,9 +3,12 @@
   "private": true,
   "version": "1.12.0",
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
+    "dev:electron": "node scripts/electron-dev.mjs",
     "build": "tsc -b && vite build",
+    "build:electron:renderer": "npm run build",
     "build:desktop": "node scripts/desktop-build.mjs",
     "build:desktop:signed": "node scripts/desktop-build.mjs",
     "build:desktop:bundle": "node scripts/desktop-build.mjs --bundle-only",
@@ -16,6 +19,7 @@
     "test:lsp": "node scripts/verify-lsp.mjs",
     "test:editor-diag": "node scripts/verify-editor-diag.mjs",
     "test:editor-history": "node scripts/verify-editor-history.mjs",
+    "test:neo-model-sync": "node scripts/test-neo-model-sync.mjs",
     "preview": "vite preview",
     "tauri": "tauri"
   },
@@ -55,6 +59,7 @@
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.4",
     "babel-plugin-react-compiler": "^1.0.0",
+    "electron": "^40.10.6",
     "eslint": "^10.8.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",

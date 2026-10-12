@@ -5,13 +5,13 @@
 use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
 use std::collections::HashMap;
 use std::fs;
-use std::io::Read;
+use std::io::{BufRead, BufReader, Read};
 use std::io::Write;
-use std::net::TcpListener;
+use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, UNIX_EPOCH};
 use tauri::{Emitter, Manager};
@@ -122,6 +122,29 @@ struct CompatibleIdeProcess {
 }
 
 struct CompatibleIdeState(Mutex<Option<CompatibleIdeProcess>>);
+
+struct AgentBridgeServer {
+    port: u16,
+    token: Arc<Mutex<String>>,
+}
+
+struct AgentBridgeState {
+    server: Mutex<Option<AgentBridgeServer>>,
+    snapshot: Arc<Mutex<String>>,
+    auth_snapshot: Arc<Mutex<String>>,
+}
+
+impl Default for AgentBridgeState {
+    fn default() -> Self {
+        Self {
+            server: Mutex::new(None),
+            snapshot: Arc::new(Mutex::new(
+                r#"{"sessionId":null,"messages":[],"isLoading":false}"#.to_string(),
+            )),
+            auth_snapshot: Arc::new(Mutex::new(r#"{"user":null,"accessToken":null}"#.to_string())),
+        }
+    }
+}
 
 /// Set while `start_ollama_server` spawns + waits, so concurrent callers
 /// (the local-models panel and the model-switch guard) can't double-spawn:
@@ -1461,10 +1484,8 @@ fn terminal_kill(state: tauri::State<'_, TerminalState>, id: u32) {
 //    232 on Windows).
 
 use std::collections::VecDeque;
-use std::io::BufRead;
 use std::process::ChildStdin;
 use std::sync::mpsc::{self, Receiver};
-use std::sync::Arc;
 
 /// stdin/stdout child plumbing — locked separately so a read poll never blocks
 /// a send on the session map.
@@ -1986,147 +2007,488 @@ fn resolve_struct_server_main(app: &tauri::AppHandle) -> Option<PathBuf> {
     candidates.into_iter().find(|p| p.is_file())
 }
 
-/// Start code-server on an ephemeral loopback-only port for the current
-/// workspace. Its own extension host and Open VSX integration provide the
-/// compatible workbench; Neo never executes downloaded extensions itself.
-#[tauri::command]
-fn compatible_ide_start(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, CompatibleIdeState>,
-    workspace: String,
-) -> Result<String, String> {
-    let workspace = PathBuf::from(&workspace)
-        .canonicalize()
-        .map_err(|e| format!("Cannot open workspace \"{workspace}\": {e}"))?;
-    if !workspace.is_dir() {
-        return Err(format!("Workspace is not a directory: {}", workspace.display()));
-    }
-
-    let mut guard = state
-        .0
-        .lock()
-        .map_err(|e| format!("Compatible workbench state lock error: {e}"))?;
-    if let Some(process) = guard.as_mut() {
-        match process.child.try_wait() {
-            Ok(None) if process.workspace == workspace => return Ok(process.url.clone()),
-            Ok(None) => {
-                if let Some(mut old) = guard.take() {
-                    let _ = old.child.kill();
-                    let _ = old.child.wait();
-                }
-            }
-            Ok(Some(_)) => {
-                guard.take();
-            }
-            Err(e) => return Err(format!("Could not check code-server process: {e}")),
+/// Locate the native Struct IDE (Electron), resolved the same way as the
+/// compatible workbench:
+///   1. `STRUCT_IDE_ELECTRON` env override (explicit path to the binary).
+///   2. Resource dir next to the running app (production bundle).
+///   3. Next to the executable itself (portable/unzipped layouts).
+///   4. The sibling Vector checkout's `.build/electron/struct` (development).
+fn resolve_struct_ide(app: &tauri::AppHandle) -> Option<PathBuf> {
+    if let Ok(p) = std::env::var("STRUCT_IDE_ELECTRON") {
+        let p = PathBuf::from(p);
+        if p.is_file() {
+            return Some(p);
         }
+    }
+    const REL: &str = ".build/electron/struct";
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    if let Ok(dir) = app.path().resource_dir() {
+        candidates.push(dir.join(REL));
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            candidates.push(dir.join(REL));
+            candidates.push(dir.join("../resources").join(REL));
+            candidates.push(dir.join("../Resources").join(REL));
+        }
+    }
+    candidates.push(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("resources")
+            .join(REL),
+    );
+    candidates.push(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../Vector")
+            .join(REL),
+    );
+    candidates.into_iter().find(|p| p.is_file())
+}
+
+fn resolve_neo_chat_extension(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let mut candidates = vec![
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/neo-chat-bridge"),
+    ];
+    if let Ok(resources) = app.path().resource_dir() {
+        candidates.push(resources.join("neo-chat-bridge"));
+        candidates.push(resources.join("resources/neo-chat-bridge"));
+    }
+    candidates
+        .into_iter()
+        .find(|path| path.join("package.json").is_file() && path.join("extension.js").is_file())
+        .ok_or_else(|| "Neo's CODE-OSS chat integration is missing from the application resources.".to_string())
+}
+
+fn prepare_neo_ide_profile(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let profile_dir = data_dir(app)?.join("neo-code-oss-profile");
+    let settings_dir = profile_dir.join("User");
+    fs::create_dir_all(&settings_dir)
+        .map_err(|e| format!("Could not create Neo's CODE-OSS profile: {e}"))?;
+    let settings_path = settings_dir.join("settings.json");
+    let mut settings = match fs::read_to_string(&settings_path) {
+        Ok(contents) => serde_json::from_str::<serde_json::Value>(&contents)
+            .map_err(|e| format!("Neo's CODE-OSS settings are invalid JSON: {e}"))?,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            serde_json::Value::Object(serde_json::Map::new())
+        }
+        Err(error) => return Err(format!("Could not read Neo's CODE-OSS settings: {error}")),
+    };
+    let Some(settings) = settings.as_object_mut() else {
+        return Err("Neo's CODE-OSS settings must contain a JSON object.".to_string());
+    };
+    settings.insert(
+        "chat.agentHost.codexAgent.enabled".to_string(),
+        serde_json::Value::Bool(false),
+    );
+    settings.insert(
+        "chat.editor.codex.preferAgentHost".to_string(),
+        serde_json::Value::Bool(false),
+    );
+    fs::write(
+        &settings_path,
+        serde_json::to_vec_pretty(&settings)
+            .map_err(|e| format!("Could not encode Neo's CODE-OSS settings: {e}"))?,
+    )
+    .map_err(|e| format!("Could not write Neo's CODE-OSS settings: {e}"))?;
+    Ok(profile_dir)
+}
+
+fn start_agent_bridge(
+    app: tauri::AppHandle,
+    state: &AgentBridgeState,
+    bridge_token: String,
+) -> Result<u16, String> {
+    let mut server = state
+        .server
+        .lock()
+        .map_err(|e| format!("Agent bridge state lock error: {e}"))?;
+    if let Some(server) = server.as_ref() {
+        *server
+            .token
+            .lock()
+            .map_err(|e| format!("Agent bridge token lock error: {e}"))? = bridge_token;
+        return Ok(server.port);
     }
 
     let listener = TcpListener::bind(("127.0.0.1", 0))
-        .map_err(|e| format!("Cannot reserve a local workbench port: {e}"))?;
+        .map_err(|e| format!("Could not start the Neo chat bridge: {e}"))?;
     let port = listener
         .local_addr()
-        .map_err(|e| format!("Cannot determine the local workbench port: {e}"))?
+        .map_err(|e| format!("Could not read the Neo chat bridge address: {e}"))?
         .port();
-    drop(listener);
+    let token = Arc::new(Mutex::new(bridge_token));
+    let thread_token = Arc::clone(&token);
+    let snapshot = Arc::clone(&state.snapshot);
+    let auth_snapshot = Arc::clone(&state.auth_snapshot);
+    thread::Builder::new()
+        .name("neo-agent-panel-bridge".to_string())
+        .spawn(move || {
+            for incoming in listener.incoming() {
+                match incoming {
+                    Ok(stream) => {
+                        if let Err(error) =
+                            serve_agent_bridge_request(
+                                stream,
+                                &app,
+                                &thread_token,
+                                &snapshot,
+                                &auth_snapshot,
+                            )
+                        {
+                            log::warn!("Neo chat bridge request failed: {error}");
+                        }
+                    }
+                    Err(error) => log::warn!("Neo chat bridge listener failed: {error}"),
+                }
+            }
+        })
+        .map_err(|e| format!("Could not start the Neo chat bridge thread: {e}"))?;
 
-    let client = reqwest::blocking::Client::builder()
-        .timeout(Duration::from_secs(1))
-        .build()
-        .map_err(|e| format!("Cannot create workbench health check: {e}"))?;
-    let bind_addr = format!("127.0.0.1:{port}");
+    *server = Some(AgentBridgeServer { port, token });
+    Ok(port)
+}
 
-    // Launch command for the embedded workbench. Two modes:
-    //
-    //  • Struct (default when the bundled code-oss is found): our rebranded
-    //    code-server bundle at `resources/code-oss/`, launched as
-    //    `node <server-main.js> --port <p> --host 127.0.0.1
-    //    --without-connection-token --accept-server-license-terms
-    //    --default-folder <workspace>`. Override the location with
-    //    STRUCT_IDE_SERVER (and STRUCT_IDE_NODE for the node binary).
-    //  • Legacy: coder's generic `code-server` on PATH (--bind-addr/--auth none).
-    let mut command = if let Some(server_main) = resolve_struct_server_main(&app) {
-        // APP_ROOT = server_main/../../ — the bundle resolves node_modules and
-        // extensions relative to it, so run the server from there.
-        let app_root = server_main
-            .parent()
-            .and_then(|out| out.parent())
-            .map(Path::to_path_buf);
-        let node = std::env::var("STRUCT_IDE_NODE").unwrap_or_else(|_| "node".to_string());
-        let (program, front_args) = resolve_command(&node);
-        let mut c = Command::new(program);
-        // server-main.js opens the folder via --default-folder (positional args
-        // are deprecated upstream), so the workspace is a flag, not a positional.
-        c.args(front_args).arg(server_main).args([
-            "--port",
-            &port.to_string(),
-            "--host",
-            "127.0.0.1",
-            "--without-connection-token",
-            "--accept-server-license-terms",
-            "--default-folder",
-            &workspace.to_string_lossy(),
-        ]);
-        if let Some(root) = app_root {
-            c.current_dir(root);
+fn serve_agent_bridge_request(
+    mut stream: TcpStream,
+    app: &tauri::AppHandle,
+    token: &Arc<Mutex<String>>,
+    snapshot: &Arc<Mutex<String>>,
+    auth_snapshot: &Arc<Mutex<String>>,
+) -> std::io::Result<()> {
+    stream.set_read_timeout(Some(Duration::from_secs(5)))?;
+    let mut reader = BufReader::new(stream.try_clone()?);
+    let mut request_line = String::new();
+    reader.read_line(&mut request_line)?;
+    let mut headers = HashMap::new();
+    let mut header_bytes = request_line.len();
+    loop {
+        let mut line = String::new();
+        let read = reader.read_line(&mut line)?;
+        if read == 0 {
+            return write_agent_bridge_response(&mut stream, "400 Bad Request", r#"{"error":"Incomplete request"}"#);
         }
-        c
-    } else {
-        let (program, front_args) = resolve_command("code-server");
-        let mut c = Command::new(program);
-        c.args(front_args).args([
-            "--bind-addr",
-            &bind_addr,
-            "--auth",
-            "none",
-            "--disable-telemetry",
-            "--disable-update-check",
-        ]).arg(&workspace);
-        c
-    };
+        header_bytes += read;
+        if header_bytes > 16 * 1024 {
+            return write_agent_bridge_response(&mut stream, "431 Request Header Fields Too Large", r#"{"error":"Headers too large"}"#);
+        }
+        if line == "\r\n" || line == "\n" {
+            break;
+        }
+        if let Some((key, value)) = line.split_once(':') {
+            headers.insert(key.trim().to_ascii_lowercase(), value.trim().to_string());
+        }
+    }
 
-    let mut child = command
+    let expected_token = token
+        .lock()
+        .map_err(|_| std::io::Error::other("Agent bridge token lock poisoned"))?
+        .clone();
+    if headers.get("authorization").map(String::as_str)
+        != Some(format!("Bearer {expected_token}").as_str())
+    {
+        return write_agent_bridge_response(&mut stream, "401 Unauthorized", r#"{"error":"Unauthorized"}"#);
+    }
+
+    let mut parts = request_line.split_whitespace();
+    let method = parts.next().unwrap_or("");
+    let path = parts.next().unwrap_or("");
+    match (method, path) {
+        ("GET", "/state") => {
+            let body = snapshot
+                .lock()
+                .map_err(|_| std::io::Error::other("Agent bridge snapshot lock poisoned"))?
+                .clone();
+            write_agent_bridge_response(&mut stream, "200 OK", &body)
+        }
+        ("GET", "/auth-session") => {
+            let body = auth_snapshot
+                .lock()
+                .map_err(|_| std::io::Error::other("Agent bridge auth state lock poisoned"))?
+                .clone();
+            write_agent_bridge_response(&mut stream, "200 OK", &body)
+        }
+        ("POST", "/prompt") => {
+            let snapshot = snapshot
+                .lock()
+                .map_err(|_| std::io::Error::other("Agent bridge snapshot lock poisoned"))?
+                .clone();
+            let current: serde_json::Value = serde_json::from_str(&snapshot)
+                .map_err(|_| std::io::Error::other("Agent bridge snapshot is invalid"))?;
+            if current
+                .get("isLoading")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false)
+            {
+                return write_agent_bridge_response(
+                    &mut stream,
+                    "409 Conflict",
+                    r#"{"error":"Neo is already responding"}"#,
+                );
+            }
+            let content_length = headers
+                .get("content-length")
+                .and_then(|value| value.parse::<usize>().ok())
+                .unwrap_or(0);
+            if content_length == 0 || content_length > 64 * 1024 {
+                return write_agent_bridge_response(&mut stream, "400 Bad Request", r#"{"error":"Invalid prompt size"}"#);
+            }
+            let mut body = vec![0; content_length];
+            reader.read_exact(&mut body)?;
+            let request: serde_json::Value = match serde_json::from_slice(&body) {
+                Ok(value) => value,
+                Err(_) => {
+                    return write_agent_bridge_response(
+                        &mut stream,
+                        "400 Bad Request",
+                        r#"{"error":"Invalid JSON"}"#,
+                    );
+                }
+            };
+            let Some(text) = request.get("text").and_then(serde_json::Value::as_str) else {
+                return write_agent_bridge_response(
+                    &mut stream,
+                    "400 Bad Request",
+                    r#"{"error":"Missing prompt text"}"#,
+                );
+            };
+            let Some(request_id) = request
+                .get("requestId")
+                .and_then(serde_json::Value::as_str)
+                .filter(|request_id| !request_id.is_empty() && request_id.len() <= 128)
+            else {
+                return write_agent_bridge_response(
+                    &mut stream,
+                    "400 Bad Request",
+                    r#"{"error":"Invalid request id"}"#,
+                );
+            };
+            if text.trim().is_empty() {
+                return write_agent_bridge_response(
+                    &mut stream,
+                    "400 Bad Request",
+                    r#"{"error":"Prompt cannot be empty"}"#,
+                );
+            }
+            if let Err(error) = app.emit(
+                "neo:agent-panel-prompt",
+                serde_json::json!({ "text": text, "requestId": request_id }),
+            ) {
+                log::error!("Could not deliver CODE-OSS prompt to Neo: {error}");
+                return write_agent_bridge_response(
+                    &mut stream,
+                    "503 Service Unavailable",
+                    r#"{"error":"Neo could not receive the prompt"}"#,
+                );
+            }
+            write_agent_bridge_response(&mut stream, "202 Accepted", r#"{"accepted":true}"#)
+        }
+        ("POST", "/models") => {
+            let content_length = headers
+                .get("content-length")
+                .and_then(|value| value.parse::<usize>().ok())
+                .unwrap_or(0);
+            if content_length > 64 * 1024 {
+                return write_agent_bridge_response(
+                    &mut stream,
+                    "400 Bad Request",
+                    r#"{"error":"Invalid model selection size"}"#,
+                );
+            }
+            let mut payload = serde_json::json!({});
+            if content_length > 0 {
+                let mut body = vec![0; content_length];
+                reader.read_exact(&mut body)?;
+                payload = match serde_json::from_slice::<serde_json::Value>(&body) {
+                    Ok(value) if value.is_object() => value,
+                    _ => {
+                        return write_agent_bridge_response(
+                            &mut stream,
+                            "400 Bad Request",
+                            r#"{"error":"Invalid model selection"}"#,
+                        );
+                    }
+                };
+            }
+            let has_provider = payload.get("provider").is_some();
+            let has_model = payload.get("model").is_some();
+            if has_provider != has_model
+                || payload.get("provider").is_some_and(|value| {
+                    value
+                        .as_str()
+                        .map_or(true, |text| text.is_empty() || text.len() > 64)
+                })
+                || payload.get("model").is_some_and(|value| {
+                    value
+                        .as_str()
+                        .map_or(true, |text| text.is_empty() || text.len() > 256)
+                })
+            {
+                return write_agent_bridge_response(
+                    &mut stream,
+                    "400 Bad Request",
+                    r#"{"error":"Invalid model selection"}"#,
+                );
+            }
+            if let Err(error) = app.emit("neo:agent-panel-models", payload) {
+                log::error!("Could not deliver model-settings request from CODE-OSS to Neo: {error}");
+                return write_agent_bridge_response(
+                    &mut stream,
+                    "503 Service Unavailable",
+                    r#"{"error":"Neo could not receive the model-settings request"}"#,
+                );
+            }
+            write_agent_bridge_response(&mut stream, "202 Accepted", r#"{"accepted":true}"#)
+        }
+        ("POST", "/account") => {
+            if let Err(error) = app.emit("neo:agent-panel-account", ()) {
+                log::error!("Could not deliver account-settings request from CODE-OSS to Neo: {error}");
+                return write_agent_bridge_response(
+                    &mut stream,
+                    "503 Service Unavailable",
+                    r#"{"error":"Neo could not receive the account-settings request"}"#,
+                );
+            }
+            write_agent_bridge_response(&mut stream, "202 Accepted", r#"{"accepted":true}"#)
+        }
+        ("POST", "/signout") => {
+            if let Err(error) = app.emit("neo:agent-panel-signout", ()) {
+                log::error!("Could not deliver sign-out request from CODE-OSS to Neo: {error}");
+                return write_agent_bridge_response(
+                    &mut stream,
+                    "503 Service Unavailable",
+                    r#"{"error":"Neo could not receive the sign-out request"}"#,
+                );
+            }
+            write_agent_bridge_response(&mut stream, "202 Accepted", r#"{"accepted":true}"#)
+        }
+        _ => write_agent_bridge_response(&mut stream, "404 Not Found", r#"{"error":"Not found"}"#),
+    }
+}
+
+fn write_agent_bridge_response(
+    stream: &mut TcpStream,
+    status: &str,
+    body: &str,
+) -> std::io::Result<()> {
+    write!(
+        stream,
+        "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        body.len(),
+        body
+    )
+}
+
+#[tauri::command]
+fn struct_agent_bridge_publish(
+    state: tauri::State<'_, AgentBridgeState>,
+    snapshot: String,
+) -> Result<(), String> {
+    if snapshot.len() > 4 * 1024 * 1024 {
+        return Err("Neo chat snapshot is too large to sync".to_string());
+    }
+    let _: serde_json::Value =
+        serde_json::from_str(&snapshot).map_err(|e| format!("Invalid chat snapshot: {e}"))?;
+    *state
+        .snapshot
+        .lock()
+        .map_err(|e| format!("Agent bridge snapshot lock error: {e}"))? = snapshot;
+    Ok(())
+}
+
+#[tauri::command]
+fn struct_agent_bridge_publish_auth(
+    state: tauri::State<'_, AgentBridgeState>,
+    snapshot: String,
+) -> Result<(), String> {
+    if snapshot.len() > 64 * 1024 {
+        return Err("Neo account session is too large to sync".to_string());
+    }
+    let _: serde_json::Value =
+        serde_json::from_str(&snapshot).map_err(|e| format!("Invalid Neo account session: {e}"))?;
+    *state
+        .auth_snapshot
+        .lock()
+        .map_err(|e| format!("Agent bridge auth state lock error: {e}"))? = snapshot;
+    Ok(())
+}
+
+#[tauri::command]
+fn struct_ide_launch(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AgentBridgeState>,
+    workspace: String,
+    bridge_token: String,
+) -> Result<(), String> {
+    // Resolve the workspace path to an absolute directory.
+    let root = PathBuf::from(&workspace).canonicalize()
+        .map_err(|e| format!("Cannot open workspace: {}", e))?;
+    if !root.is_dir() {
+        return Err(format!("Workspace is not a directory: {}", root.display()));
+    }
+
+    // Resolve the native Struct IDE (Electron code-oss) binary.
+    let electron = resolve_struct_ide(&app).ok_or_else(|| {
+        "Struct IDE (Electron code-oss) was not found. Build it from the Vector repo, or set STRUCT_IDE_ELECTRON to the path of .build/electron/struct."
+    })?;
+    let code_root = electron
+        .parent()
+        .and_then(Path::parent)
+        .and_then(Path::parent)
+        .ok_or_else(|| {
+            format!(
+                "Could not determine the CODE-OSS source root from {}",
+                electron.display()
+            )
+        })?;
+    let neo_chat_extension = resolve_neo_chat_extension(&app)?;
+    let ide_profile = prepare_neo_ide_profile(&app)?;
+    if bridge_token.len() < 32 || bridge_token.len() > 128 {
+        return Err("Invalid Neo chat bridge token".to_string());
+    }
+    let bridge_port = start_agent_bridge(app.clone(), &state, bridge_token.clone())?;
+
+    Command::new(&electron)
+        // Match scripts/code.sh: run from the source root and pass it before
+        // the workspace so Electron opens the workspace in the built IDE.
+        .current_dir(code_root)
+        .arg(".")
+        .arg(&root)
+        .arg(format!(
+            "--extensionDevelopmentPath={}",
+            neo_chat_extension.display()
+        ))
+        .arg(format!("--user-data-dir={}", ide_profile.display()))
+        .arg("--disable-extension=struct.struct-agent")
+        .arg("--disable-extension=GitHub.copilot")
+        .arg("--disable-extension=GitHub.copilot-chat")
+        .arg("--enable-proposed-api=lumorix.neo-chat-bridge")
+        .env("NODE_ENV", "development")
+        .env("VSCODE_DEV", "1")
+        .env("VSCODE_CLI", "1")
+        .env("ELECTRON_ENABLE_STACK_DUMPING", "1")
+        .env("ELECTRON_ENABLE_LOGGING", "1")
+        .env("VSCODE_AGENT_HOST_COPILOT_AGENT_ENABLED", "false")
+        .env("STRUCT_NEO_BRIDGE_URL", format!("http://127.0.0.1:{bridge_port}"))
+        .env("STRUCT_NEO_BRIDGE_TOKEN", bridge_token)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
         .map_err(|e| {
             format!(
-                "Could not start the workbench ({e}). The bundled Struct code-oss \
-                 was not found in resources/code-oss — reinstall Neo, or install \
-                 code-server from https://code-server.dev/install as a fallback."
+                "Could not start Struct IDE ({e}). Check that the .build/electron/struct binary exists and is executable."
             )
         })?;
 
-    let url = format!("http://127.0.0.1:{port}");
-    for _ in 0..200 {
-        match child.try_wait() {
-            Ok(Some(status)) => {
-                return Err(format!(
-                    "code-server exited during startup with status {status}. Check its installation and try again."
-                ));
-            }
-            Err(e) => {
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(format!("Could not check code-server startup: {e}"));
-            }
-            Ok(None) => {}
-        }
-        if client.get(&url).send().is_ok() {
-            *guard = Some(CompatibleIdeProcess {
-                child,
-                url: url.clone(),
-                workspace,
-            });
-            return Ok(url);
-        }
-        thread::sleep(Duration::from_millis(100));
-    }
+    Ok(())
+}
 
-    let _ = child.kill();
-    let _ = child.wait();
-    Err("code-server did not become ready within 20 seconds.".to_string())
+/// Stop a Struct IDE if it is running.
+#[tauri::command]
+fn struct_ide_stop(_state: tauri::State<'_, ()>) -> Result<(), String> {
+    // The IDE is a standalone native window (Electron process). Stopping it is
+    // best left to the user (Closed/Quit); Neo does not need to kill it here.
+    Ok(())
 }
 
 /// Stop the compatible workbench if it is running.
@@ -2585,6 +2947,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(ServerState(Mutex::new(None)))
         .manage(CompatibleIdeState(Mutex::new(None)))
+        .manage(AgentBridgeState::default())
         .manage(TerminalState::default())
         .manage(McpState(Mutex::new(HashMap::new())))
         .manage(LspState(Mutex::new(HashMap::new())))
@@ -2627,8 +2990,9 @@ pub fn run() {
             mcp_stdio_send,
             mcp_stdio_read,
             mcp_stdio_stop,
-            compatible_ide_start,
-            compatible_ide_stop,
+            struct_agent_bridge_publish,
+            struct_agent_bridge_publish_auth,
+            struct_ide_launch,
             lsp_start,
             lsp_write,
             lsp_stop,

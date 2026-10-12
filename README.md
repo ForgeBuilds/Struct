@@ -127,11 +127,9 @@ Ctrl + Shift + E
   <img src="src/assets/images/IDE.png" alt="Struct integrated code editor" width="900" />
 </p>
 
-## VS Code-Compatible Extensions Workbench
+## CODE-OSS Chat Integration
 
-The IDE can open the current workspace in a companion [code-server](https://code-server.dev/) workbench. This uses code-server's extension host for real extensions and its default Open VSX extension gallery; extensions run with the permissions of the current user.
-
-Install code-server separately and make its `code-server` command available on `PATH`. Then open a workspace in Struct and select **Extensions workbench** from the IDE activity bar. The workbench is not bundled with Struct yet and opens in your default browser. Only extensions available from the configured gallery and compatible with code-server can be installed.
+Neo is the default participant in the existing CODE-OSS chat panel, and Neo's configured models are exposed in its model picker. Requests selected there run through Neo and appear in Neo's active conversation. Neo-launched CODE-OSS windows disable the GitHub Copilot extensions, the built-in Copilot agent, and the duplicate Struct Agent sidebar extension. Use `@neo /models` to open Neo's AI settings or `@neo /account` to check sign-in. Provider credentials remain in Neo and are not copied into CODE-OSS.
 
 ---
 
@@ -541,6 +539,18 @@ npm install
 ```bash
 npm run tauri dev
 ```
+
+## Electron Shell Preview
+
+The Electron shell is under active migration. To run the renderer in the
+isolated Electron window while native services are being moved across:
+
+```bash
+npm run dev:electron
+```
+
+The existing Tauri desktop build remains the production path until Electron
+native-service parity and packaging are complete.
 
 ---
 

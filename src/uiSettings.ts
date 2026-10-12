@@ -2,7 +2,7 @@
  * Author: madhusudhan
  * Check the LICENSE in the GitHub repo (https://github.com/Lumorix-studios/Struct) for more information on permissions to use this code.
  */
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isNativeRuntime } from "./native";
 export interface UiSettings {
   themeId: string;
   language: string;
@@ -113,8 +113,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
 const UI_SETTINGS_KEY = "neo.ui-settings.v1";
 
 function inTauri(): boolean {
-  const win = window as unknown as { __TAURI_INTERNALS__?: unknown };
-  return !!win.__TAURI_INTERNALS__;
+  return isNativeRuntime();
 }
 
 async function diskRead(key: string): Promise<string | null> {

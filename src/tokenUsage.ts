@@ -13,7 +13,7 @@
  *
  * All data lives on-device (same disk/localStorage pattern as uiSettings).
  */
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isNativeRuntime } from "./native";
 
 export interface TokenRateSettings {
   enabled: boolean;
@@ -53,8 +53,7 @@ const USAGE_KEY = "neo.token-usage.v1";
 const MAX_RECENT = 60;
 
 function inTauri(): boolean {
-  const win = window as unknown as { __TAURI_INTERNALS__?: unknown };
-  return !!win.__TAURI_INTERNALS__;
+  return isNativeRuntime();
 }
 
 async function diskRead(key: string): Promise<string | null> {

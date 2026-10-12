@@ -16,7 +16,7 @@
  */
 
 import { supabase, isSupabaseConfigured } from "./supabase";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isNativeRuntime } from "../native";
 
 const LOCAL_BYOK_KEY = "neo.byok.keys.v1";
 const LOCAL_BYOK_STATE_KEY = "neochat.byok.local.v1";
@@ -60,7 +60,7 @@ interface LocalByokStore {
 }
 
 function inTauri(): boolean {
-  return !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+  return isNativeRuntime();
 }
 
 async function readLocalStore(): Promise<LocalByokStore> {

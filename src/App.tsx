@@ -10,7 +10,7 @@
 import { lazy, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
-import { emit, listen } from "@tauri-apps/api/event";
+import { emit as tauriEmit, listen as tauriListen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import StarBorder from "../components/StarBorder";
 import TopMenu from "../components/TopMenu";
@@ -38,9 +38,11 @@ import {
 } from "./store";
 import {
   getCurrentUser,
+  getSupabaseAccessToken,
   getProfile,
   onAuthChanged,
   handleOAuthRedirect,
+  signOut,
   AUTH_CHANGED_EVENT,
   type NeoUser,
   type Profile as AccountProfile,
@@ -125,6 +127,28 @@ import { shortPath } from "./utils";
 // import IdeMenuBar from "./components/IdeMenuBar.tsx";
 
 const SettingsPanel = lazy(() => import("./components/SettingsPanel"));
+const nativeInvoke = window.neoDesktop?.invoke.bind(window.neoDesktop) ?? invoke;
+const browserEvents = new EventTarget();
+const listen = window.neoDesktop?.listen.bind(window.neoDesktop) ??
+  (isTauri()
+    ? tauriListen
+    : async <T,>(event: string, callback: (value: { event: string; id: number; payload: T }) => void) => {
+        const handler = (value: Event) => {
+          callback({
+            event,
+            id: 0,
+            payload: (value as CustomEvent<T>).detail,
+          });
+        };
+        browserEvents.addEventListener(event, handler);
+        return () => browserEvents.removeEventListener(event, handler);
+      });
+const emit = window.neoDesktop?.emit.bind(window.neoDesktop) ??
+  (isTauri()
+    ? tauriEmit
+    : async (event: string, payload?: unknown) => {
+        browserEvents.dispatchEvent(new CustomEvent(event, { detail: payload }));
+      });
 
 type JsonDict = Record<string, unknown>;
 
@@ -249,7 +273,11 @@ function parseProviderKey(key: string): { provider: ProviderId; model: string } 
 }
 /** Resolved once per process — the Rust side reports the version this binary
  *  was built as, so it cannot change while the app is running. */
-const APP_VERSION = invoke<string>("get_app_version");
+const APP_VERSION = window.neoDesktop
+  ? nativeInvoke<string>("get_app_version")
+  : isTauri()
+    ? nativeInvoke<string>("get_app_version")
+    : Promise.resolve("0.0.0");
 
 /** Icon button for the VS Code-style activity bar rail. */
 function RailButton({
@@ -479,6 +507,7 @@ export default function App() {
   // Whether the user is scrolled near the bottom (auto-follow).
   const autoScrollRef = useRef(true);
   const launchIdeWindowRef = useRef<() => void>(() => {});
+  const agentBridgeTokenRef = useRef(crypto.randomUUID());
   // Workspace root shared with the IDE window via a persisted localStorage key.
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(() =>
     localStorage.getItem(SHARED_WS_KEY)
@@ -927,6 +956,90 @@ export default function App() {
     return () => clearTimeout(t);
   }, [messages, activeSessionId, restored, settings]);
 
+  useEffect(() => {
+    if (!restored || (!window.neoDesktop && !isTauri())) return;
+    const timer = window.setTimeout(() => {
+      const models = PROVIDER_OPTIONS.map((provider) => {
+        const spec = providerById(provider.id);
+        return {
+          provider: provider.id,
+          label: provider.label,
+          model: spec.defaultModel,
+          active: settings.provider === provider.id && settings.model === spec.defaultModel,
+        };
+      });
+      if (!models.some((model) => model.active)) {
+        models.unshift({
+          provider: settings.provider,
+          label: providerById(settings.provider).label,
+          model: settings.model,
+          active: true,
+        });
+      }
+      const snapshot = JSON.stringify({
+        sessionId: activeSessionId,
+        messages: messages.map(({ role, content, bridgeRequestId }) => ({
+          role,
+          content,
+          bridgeRequestId,
+        })),
+        account: account
+          ? {
+              signedIn: true,
+              name: accountProfile?.name ?? account.name,
+              email: accountProfile?.email ?? account.email,
+              provider: accountProfile?.provider ?? account.provider,
+            }
+          : { signedIn: false },
+        ai: {
+          provider: settings.provider,
+          model: settings.model,
+          baseUrl: settings.baseUrl,
+          temperature: settings.temperature,
+          systemPrompt: settings.systemPrompt,
+          toolAllowance: settings.toolAllowance ?? "all",
+          autoApproveTools: settings.autoApproveTools ?? false,
+          apiKeyConfigured: !!settings.apiKey.trim(),
+        },
+        models,
+        isLoading,
+        error,
+      });
+      void nativeInvoke("struct_agent_bridge_publish", { snapshot }).catch((e) => {
+        setError(`Failed to sync the IDE chat: ${e instanceof Error ? e.message : String(e)}`);
+      });
+    }, 100);
+    return () => window.clearTimeout(timer);
+  }, [account, accountProfile, activeSessionId, error, isLoading, messages, restored, settings]);
+
+  useEffect(() => {
+    if (!restored || (!window.neoDesktop && !isTauri())) return;
+    let cancelled = false;
+    void getSupabaseAccessToken()
+      .then((accessToken) => {
+        if (cancelled) return;
+        const snapshot = JSON.stringify({
+          accessToken,
+          user: accessToken && account
+            ? {
+                id: account.id,
+                name: accountProfile?.name ?? account.name,
+                email: accountProfile?.email ?? account.email,
+              }
+            : null,
+        });
+        return nativeInvoke("struct_agent_bridge_publish_auth", { snapshot });
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setError(`Failed to sync the Neo account with CODE-OSS: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [account, accountProfile, restored]);
+
   // Keep the chat pinned to the bottom while the user hasn't scrolled up.
   useEffect(() => {
     const el = scrollRef.current;
@@ -1149,9 +1262,7 @@ export default function App() {
   };
 
 
-  // Open the code-oss workbench (Struct) directly, instead of the hand-rolled
-  // IDE window. We start the bundled code-server for the current workspace and
-  // point a native window at it. The {ide} button + Ctrl+Shift+E both call this.
+  // Launch the native CODE-OSS IDE. The IDE button and Ctrl+Shift+E both use it.
   const launchIdeWindow = async () => {
     try {
       // Resolve a workspace: current selection, persisted choice, or prompt.
@@ -1167,41 +1278,16 @@ export default function App() {
         setWorkspaceRoot(root);
       }
 
-      // If a workbench window is already open, just focus it.
-      const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-      const existing = await WebviewWindow.getByLabel("struct-workbench");
-      if (existing) {
-        await existing.setFocus();
-        return;
-      }
-
-      // Start the code-server (the bundled Struct code-oss in
-      // src-tauri/resources/code-oss; generic code-server only as fallback).
-      // Returns the base URL.
-      const baseUrl = await invoke<string>("compatible_ide_start", { workspace: root });
-
-      // Open the real workbench in its own native window, titled "Struct".
-      //
-      // Native decorations (unlike Neo's frameless main window) are required
-      // here: this window hosts the code-server page, not Neo's React tree, so
-      // Neo's custom titlebar with min/max/close buttons cannot be rendered —
-      // without native decorations the window would have no controls at all.
-      const url = new URL(baseUrl);
-      url.searchParams.set("folder", root);
-      const win = new WebviewWindow("struct-workbench", {
-        url: url.toString(),
-        title: "Struct",
-        width: 1280,
-        height: 820,
-        minWidth: 720,
-        minHeight: 480,
-        decorations: true,
-      });
-      win.once("tauri://error", (e) => {
-        setError(`Failed to open Struct workbench: ${e.payload}`);
+      // Launch the native Struct IDE (Electron code-oss) as its own standalone
+      // window. This replaces the old code-server webview path
+      // (compatible_ide_start). The Rust command spawns the Electron binary
+      // directly and loads Neo's chat participant from app resources.
+      await nativeInvoke("struct_ide_launch", {
+        workspace: root,
+        bridgeToken: agentBridgeTokenRef.current,
       });
     } catch (e) {
-      setError(`Failed to open Struct workbench: ${e instanceof Error ? e.message : String(e)}`);
+      setError(`Failed to launch Struct IDE: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
 
@@ -1218,7 +1304,7 @@ export default function App() {
     const tab = editorTabs.find((t) => t.path === path);
     if (!tab) return;
     try {
-      await invoke("fs_write_file", { path, content: tab.content });
+      await nativeInvoke("fs_write_file", { path, content: tab.content });
       setEditorTabs((prev) =>
         prev.map((t) => (t.path === path ? { ...t, dirty: false } : t))
       );
@@ -1628,7 +1714,7 @@ Tool allowance: No Tools Allowed. Do not attempt to use tools or claim to have u
     console.log('Animation completed!');
   };
 
-  const sendMessage = async (overrideText?: string) => {
+  const sendMessage = async (overrideText?: string, bridgeRequestId?: string) => {
     const trimmed = (overrideText ?? message).trim();
     if (!trimmed || isLoading) return;
 
@@ -1683,7 +1769,14 @@ Tool allowance: No Tools Allowed. Do not attempt to use tools or claim to have u
     }
 
     // Optimistically render the user message and a streaming assistant bubble.
-    setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "user",
+        content: trimmed,
+        ...(bridgeRequestId ? { bridgeRequestId } : {}),
+      },
+    ]);
     setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
 
     // Provider conversation for this agentic run.
@@ -2327,6 +2420,58 @@ MCP call rules:
     }
   };
 
+  const onAgentPanelPrompt = useEffectEvent((text: string, requestId: string) => {
+    if (isLoading) {
+      setError("Wait for the current chat response to finish before sending another prompt.");
+      return;
+    }
+    void sendMessage(text, requestId);
+  });
+  useEffect(() => {
+    let cancelled = false;
+    const unlisteners: (() => void)[] = [];
+    void Promise.all([
+      listen<{ text: string; requestId: string }>("neo:agent-panel-prompt", (event) => {
+        const text = event.payload?.text;
+        const requestId = event.payload?.requestId;
+        if (typeof text === "string" && typeof requestId === "string") {
+          onAgentPanelPrompt(text, requestId);
+        }
+      }),
+      listen<{ provider?: string; model?: string } | undefined>("neo:agent-panel-models", (event) => {
+        const selection = event.payload;
+        if (selection?.provider && selection.model) {
+          const parsed = parseProviderKey(`${selection.provider}:${selection.model}`);
+          if (parsed) setSettings((current) => ({ ...current, ...parsed }));
+        }
+        setSettingsSection("ai");
+        setSettingsOpen(true);
+      }),
+      listen("neo:agent-panel-account", () => {
+        setSettingsSection("account");
+        setSettingsOpen(true);
+      }),
+      listen("neo:agent-panel-signout", () => {
+        void signOut()
+          .then(refreshAccount)
+          .catch((e) => {
+            setError(`Failed to sign out of the Neo account: ${e instanceof Error ? e.message : String(e)}`);
+          });
+      }),
+    ])
+      .then((stopListening) => {
+        if (cancelled) stopListening.forEach((stop) => stop());
+        else unlisteners.push(...stopListening);
+      })
+      .catch((e) => {
+        setError(`Failed to connect the IDE chat: ${e instanceof Error ? e.message : String(e)}`);
+      });
+    return () => {
+      cancelled = true;
+      unlisteners.forEach((stop) => stop());
+    };
+  }, []);
+
   /** Kick off a deep project analysis by the agent (Context menu). */
   const handleAnalyzeProject = () => {
     if (!workspaceRoot) {
@@ -2355,7 +2500,7 @@ MCP call rules:
         messages: messages.map((m) => ({ role: m.role, content: m.content })),
         activities,
       };
-      await invoke("fs_write_file", { path, content: JSON.stringify(payload, null, 2) });
+      await nativeInvoke("fs_write_file", { path, content: JSON.stringify(payload, null, 2) });
     } catch (e) {
       setError(`Failed to save session: ${e instanceof Error ? e.message : String(e)}`);
     }

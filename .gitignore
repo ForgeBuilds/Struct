@@ -147,5 +147,8 @@ src-tauri/chk.txt
 # Browser "Save Page As" dumps accidentally saved into the asset tree.
 src/assets/images/*_files/
 
-# Bundled Struct code-oss workbench (regenerate via Vector build; do not commit)
-src-tauri/resources/
+# Generated CODE-OSS workbench (regenerate via build; do not commit).
+# Keep Neo's small chat participant extension under version control.
+src-tauri/resources/*
+!src-tauri/resources/neo-chat-bridge/
+!src-tauri/resources/neo-chat-bridge/**

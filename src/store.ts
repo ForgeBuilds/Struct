@@ -2,7 +2,7 @@
  * Author: madhusudhan
  * Check the LICENSE in the GitHub repo (https://github.com/Lumorix-studios/Struct) for more information on permissions to use this code.
  */
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isNativeRuntime } from "./native";
 import type { AISettings, ChatSession, Message } from "./types";
 import { DEFAULT_SETTINGS } from "./types";
 
@@ -13,8 +13,7 @@ const ACTIVE_SESSION_KEY = "neochat.activeSession.v1";
 const STORAGE_PREFIX = "neochat:";
 
 function inTauri(): boolean {
-  const win = window as unknown as { __TAURI_INTERNALS__?: unknown };
-  return !!win.__TAURI_INTERNALS__;
+  return isNativeRuntime();
 }
 
 async function diskRead(key: string): Promise<string | null> {

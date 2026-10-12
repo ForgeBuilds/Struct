@@ -27,6 +27,8 @@ export interface NativeToolCall {
 export interface Message {
   role: "user" | "assistant" | "system" | "tool";
   content: string;
+  /** Request id used to correlate prompts sent from the CODE-OSS chat bridge. */
+  bridgeRequestId?: string;
   /** Assistant-native tool invocations (OpenAI/Anthropic/Ollama/Gemini). */
   toolCalls?: NativeToolCall[];
   /** Tool-result correlation id when role is `tool`. */

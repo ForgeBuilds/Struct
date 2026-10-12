@@ -372,6 +372,16 @@ export async function getCurrentUser(): Promise<NeoUser | null> {
   return toNeoUser(data.session.user, profile ?? undefined);
 }
 
+/** Current Supabase access token for the trusted local IDE account bridge. */
+export async function getSupabaseAccessToken(): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
+  const sb = supabase();
+  if (!sb) return null;
+  const { data, error } = await sb.auth.getSession();
+  if (error) throw new Error(authErrorMessage(error));
+  return data.session?.access_token ?? null;
+}
+
 /** Full profile (includes the BYOK entitlement flag). Null when signed out. */
 export async function getProfile(): Promise<Profile | null> {
   if (!isSupabaseConfigured) return null;
