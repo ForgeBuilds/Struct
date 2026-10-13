@@ -30,8 +30,8 @@ information in connection with the Application. All features are available to
 all users at no cost.
 
 Certain features require a free account (cloud sync, encrypted provider-key
-storage, and cross-device settings). An account is optional; local editing,
-terminal, and local-model features work without one.
+storage, and cross-device settings). An account is optional; local chat,
+agentic file tools, and local-model features work without one.
 
 ## 3. Acceptable Use
 
@@ -71,8 +71,8 @@ charges incurred through their use.
 
 You retain all rights to your workspace files, source code, and other content.
 
-The Application is local-first: files you open in the editor are read and
-written on your device and are not uploaded to Lumorix systems unless you
+The Application is local-first: files the agent reads and writes on your behalf are
+read and written on your device and are not uploaded to Lumorix systems unless you
 configure a remote AI provider or enable cloud sync.
 
 You are responsible for maintaining backups of your work. Lumorix Studios is

@@ -1,5 +1,28 @@
 
 /* Neo - Electron main. Pure chat shell, native OS frame. */
+
+// ── Linux GPU/Wayland SIGSEGV workaround ────────────────────────────────────
+// This app is pure DOM (no WebGL), yet on Linux desktops/VMs without a
+// complete Wayland implementation, Electron 40's default Wayland Ozone backend
+// hard-crashes (SIGSEGV) inside the GPU child process on window creation
+// ("vaInitialize failed" → the whole binary goes down before "ready-to-show").
+//
+// The `--ozone-platform` switch is parsed by the native binary *before* any
+// main-process JS runs, so `app.commandLine.appendSwitch()` is too late and
+// injecting into `process.argv` from inside the entry is also too late. The
+// only reliable fix is to re-launch ourselves once with the flag on argv,
+// then forward the child's exit code. Prefer X11 (served via XWayland on
+// Wayland desktops, so it works everywhere). Override with NEO_OZONE_PLATFORM.
+if (process.platform === 'linux' && !process.argv.some((a) => a.startsWith('--ozone-platform'))) {
+  const { spawnSync } = require('node:child_process')
+  const platform = process.env.NEO_OZONE_PLATFORM || 'x11'
+  const relaunch = spawnSync(process.execPath, [...process.argv.slice(1), `--ozone-platform=${platform}`], {
+    stdio: 'inherit',
+    env: process.env,
+  })
+  process.exit(relaunch.status ?? 0)
+}
+
 const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron')
 const { spawn } = require('node:child_process')
 const { existsSync, statSync, createWriteStream } = require('node:fs')
@@ -8,22 +31,10 @@ const { homedir } = require('node:os')
 const { basename, dirname, join } = require('node:path')
 const { pipeline } = require('node:stream/promises')
 
-// This app is pure DOM (no WebGL/canvas games). On Linux VMs without a usable
-// VA-API/GPU stack, Chromium's hardware-accelerated compositor crashes on init
-// ("vaInitialize failed" → the GPU process takes the whole binary down with a
-// SIGSEGV). Force software compositing so the renderer never touches the GPU.
+// Belt-and-suspenders: never let the renderer touch a broken GPU stack even
+// once the correct Ozone backend is selected.
 app.disableHardwareAcceleration()
 app.commandLine.appendSwitch('disable-gpu')
-
-// Reliability on Linux: Electron 40 defaults to the Wayland Ozone backend,
-// which hard-crashes (SIGSEGV) on compositors/containers without a complete
-// Wayland implementation — the window never even reaches "ready-to-show".
-// Prefer the X11 backend (served via XWayland on Wayland desktops, so it works
-// everywhere). Power users can override with NEO_OZONE_PLATFORM=wayland.
-if (process.platform === 'linux') {
-  const ozone = process.env.NEO_OZONE_PLATFORM
-  app.commandLine.appendSwitch('ozone-platform', ozone || 'x11')
-}
 
 const APP_PROTOCOL = 'agenticcoder'
 let mainWindow

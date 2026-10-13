@@ -77,7 +77,7 @@ Private internal use does not grant permission to redistribute the Software or a
 
 You may modify the Software for Personal Use and private internal use.
 
-Modified Versions remain subject to this License if they contain substantial portions of the original Struct code.
+Modified Versions remain subject to this License if they contain substantial portions of the original Neo code.
 
 You must retain applicable copyright notices and a copy of this License in any permitted redistribution.
 
@@ -87,14 +87,14 @@ When redistributing the Software or a Modified Version in a manner permitted by 
 
 1. Retain the original copyright notices.
 2. Include a copy of this License.
-3. Clearly state that the redistributed software is based on Struct.
+3. Clearly state that the redistributed software is based on Neo.
 4. Clearly identify substantial modifications from the version distributed by Lumorix Studios.
 
-## 7. Struct Name and Branding
+## 7. Neo Name and Branding
 
-This License does not grant permission to use the names, logos, trademarks, service marks, product names, or branding of Lumorix Studios or Struct except as reasonably necessary to identify the original Software.
+This License does not grant permission to use the names, logos, trademarks, service marks, product names, or branding of Lumorix Studios or Neo except as reasonably necessary to identify the original Software.
 
-You may not represent a Modified Version as the official Struct product or imply that Lumorix Studios endorses, sponsors, or maintains a Modified Version without prior written permission.
+You may not represent a Modified Version as the official Neo product or imply that Lumorix Studios endorses, sponsors, or maintains a Modified Version without prior written permission.
 
 Modified Versions intended for redistribution should use a distinct product name and branding.
 
@@ -105,18 +105,18 @@ You may not circumvent the commercial restrictions of this License by:
 1. Repackaging the Software under another name.
 2. Splitting the Software into multiple components for the purpose of avoiding the restrictions of this License.
 3. Removing or replacing licensing or subscription functionality for the purpose of commercial redistribution.
-4. Combining the Software with other software where the resulting distribution is substantially equivalent to distributing Struct itself for a commercial purpose.
-5. Providing substantially equivalent access to Struct functionality through a hosted or remote service for commercial purposes.
+4. Combining the Software with other software where the resulting distribution is substantially equivalent to distributing Neo itself for a commercial purpose.
+5. Providing substantially equivalent access to Neo functionality through a hosted or remote service for commercial purposes.
 
 ## 9. Contributions
 
-Unless otherwise agreed in writing, contributions submitted to the Struct project may be incorporated into the Software and distributed by Lumorix Studios under this License or under a different license selected by Lumorix Studios for future versions.
+Unless otherwise agreed in writing, contributions submitted to the Neo project may be incorporated into the Software and distributed by Lumorix Studios under this License or under a different license selected by Lumorix Studios for future versions.
 
-By intentionally submitting a contribution to the Struct project for inclusion in the Software, you represent that you have the necessary rights to submit the contribution.
+By intentionally submitting a contribution to the Neo project for inclusion in the Software, you represent that you have the necessary rights to submit the contribution.
 
 ## 10. Third-Party Software
 
-This License applies only to code owned or controlled by Lumorix Studios and distributed as part of Struct.
+This License applies only to code owned or controlled by Lumorix Studios and distributed as part of Neo.
 
 Third-party libraries, dependencies, frameworks, and other components remain subject to their respective licenses.
 
@@ -166,4 +166,4 @@ If you do not agree to this License, you may not use, modify, or distribute the 
 
 Copyright © 2026 Lumorix Studios.
 
-Struct and associated Lumorix Studios branding are the property of their respective owners.
+Neo and associated Lumorix Studios branding are the property of their respective owners.
