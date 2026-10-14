@@ -363,7 +363,7 @@ export default function App() {
   // const [onOpenTerminal, setOpenTerminal] = useState(false);
   // Which tab of the bottom dock is visible (terminal/problems/debug/…).
   // const [panelTab, setPanelTab] = useState<PanelTab>("terminal");
-  const [historySidebarOpen, setHistorySidebarOpen] = useState(true);
+  const [historySidebarOpen, setHistorySidebarOpen] = useState(false);
   const [infoPanelOpen, setInfoPanelOpen] = useState(false);
   const [privacyPolicyOpen, setPrivacyPolicyOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -478,6 +478,22 @@ export default function App() {
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(() =>
     localStorage.getItem(SHARED_WS_KEY)
   );
+  // Default working directory when no folder is open: the user's home dir.
+  // Fetched once from the native layer (null in plain-browser dev mode) so
+  // the agent can list/read/search and run commands anywhere the user asks,
+  // without first opening a folder inside the app.
+  const [homeRoot, setHomeRoot] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void invoke<string>("home_dir")
+      .then((h) => {
+        if (!cancelled && typeof h === "string" && h) setHomeRoot(h);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   // --- Context menu (top-left): workspace folder list + pinned files ---
   const [contextEntries, setContextEntries] = useState<FsEntry[]>([]);
   const [pinnedPaths, setPinnedPaths] = useState<string[]>([]);
@@ -1708,6 +1724,8 @@ Tool allowance: No Tools Allowed. Do not attempt to use tools or claim to have u
         }
       } else if (workspaceRoot) {
         promptSuffix += `\n\nNo files are currently open in the editor. If the task is ambiguous, use list_dir or search_files to locate the right file before reading.`;
+      } else if (homeRoot) {
+        promptSuffix += `\n\nNo project folder is open — your default working directory is ${homeRoot}. Relative paths (like ".") resolve there; use absolute paths for anything outside it. You may list, read and search any folder the user asks about.`;
       }
 
       // Pinned files (from the Context menu) are injected verbatim so the
@@ -1953,7 +1971,8 @@ MCP call rules:
             if (!a) return null;
             const i = Math.max(a.lastIndexOf("\\"), a.lastIndexOf("/"));
             return i > 0 ? a.slice(0, i) : null;
-          })();
+          })() ??
+          homeRoot;
 
         const runToolCall = async (call: ToolCall): Promise<{ ok: boolean; output: string; data?: unknown }> => {
           // A tool benched for repeated failures is short-circuited: the
@@ -1995,6 +2014,20 @@ MCP call rules:
                 output: `MCP tool "${call.name}" failed: ${e instanceof Error ? e.message : String(e)}`,
               };
             }
+          }
+          // git_* and analyze_project_structure are workspace-scoped: with no
+          // folder open, effRoot falls back to the home directory, where they
+          // would only fail noisily ("not a git repository", "Unknown" type).
+          // Keep them gated on an explicitly opened project folder instead.
+          if (
+            !workspaceRoot &&
+            (call.name === "analyze_project_structure" || call.name.startsWith("git_"))
+          ) {
+            return {
+              ok: false,
+              output:
+                "No project folder is open, so this tool is unavailable. Ask the user to open their project folder (sidebar → Open Folder); these tools operate on the open workspace, not the home directory.",
+            };
           }
           const editor = {
             openPaths: editorTabsRef.current.map((t) => t.path),
@@ -2407,7 +2440,16 @@ MCP call rules:
                   </span> {shortPath(activeEditorPath)}
                 </div>
               )}
-              {!workspaceRoot && !activeEditorPath && (
+              {!workspaceRoot && homeRoot && (
+                <div
+                  className="flex items-center gap-1 rounded border border-(--border) bg-(--fill-1) px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]"
+                  title={`Default working directory: ${homeRoot}`}
+                >
+                  <span><IoFolderOutline/>
+                  </span> ~
+                </div>
+              )}
+              {!workspaceRoot && !activeEditorPath && !homeRoot && (
                 <span className="text-[var(--text-secondary)] text-[10px]">N/A</span>
               )}
               {/* Context-window usage — lives with the chat (it used to be a

@@ -394,10 +394,84 @@ async function mcpStop(o) {
 }
 
 
+/* --- main-process HTTP (web tools, bypasses webview CORS) --- */
+
+/** Response size cap for web tools (8 MB). */
+const HTTP_FETCH_MAX = 8 * 1024 * 1024
+
+/**
+ * Generic http(s) fetch executed in the Electron main process. The renderer's
+ * fetch is subject to CORS (webSecurity is on), and search engines / most
+ * sites send no Access-Control-Allow-Origin — so the web_search / web_fetch /
+ * http_request tools route through here instead.
+ *
+ * Args: { url, method?, headers?, body? }  — headers must be a plain object of
+ * string→string, body a raw string (the tools already serialize JSON).
+ * Returns: { status, statusText, headers, body } with body decoded as UTF-8
+ * text and the content-encoding/content-length headers stripped (the body
+ * arrives already decompressed, and the length no longer matches).
+ */
+async function httpFetch(a) {
+  let url
+  try {
+    url = new URL(String(a.url || ''))
+  } catch {
+    throw new Error('http_fetch requires a valid absolute URL')
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error('Unsupported URL scheme: ' + url.protocol)
+  }
+  const method = String(a.method || 'GET').toUpperCase()
+  const headers = {}
+  const rawHeaders = a.headers && typeof a.headers === 'object' && !Array.isArray(a.headers) ? a.headers : {}
+  for (const k of Object.keys(rawHeaders)) headers[k] = String(rawHeaders[k])
+  const hasBody = typeof a.body === 'string' && a.body.length > 0 && method !== 'GET' && method !== 'HEAD'
+
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 60000)
+  try {
+    const res = await fetch(url.toString(), {
+      method,
+      headers,
+      ...(hasBody ? { body: a.body } : {}),
+      redirect: 'follow',
+      signal: ctrl.signal,
+    })
+    const declaredLen = Number(res.headers.get('content-length') || 0)
+    if (declaredLen && declaredLen > HTTP_FETCH_MAX) {
+      throw new Error('Response too large (' + declaredLen + ' bytes; limit 8 MB)')
+    }
+    const text = await res.text()
+    const outHeaders = {}
+    res.headers.forEach((v, k) => {
+      const lk = k.toLowerCase()
+      // Body is already decoded/measured — a stale gzip length would corrupt
+      // the reconstructed Response in the renderer.
+      if (lk === 'content-encoding' || lk === 'content-length') return
+      outHeaders[k] = v
+    })
+    return {
+      status: res.status,
+      statusText: res.statusText,
+      headers: outHeaders,
+      body: text.length > HTTP_FETCH_MAX ? text.slice(0, HTTP_FETCH_MAX) : text,
+      truncated: text.length > HTTP_FETCH_MAX,
+    }
+  } catch (e) {
+    if (e && e.name === 'AbortError') throw new Error('HTTP request timed out after 60s')
+    throw new Error('HTTP request failed: ' + (e && e.message ? e.message : String(e)))
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+
 /* --- invoke router A: state + fs --- */
 async function invoke(cmd, a) {
   a = a || {}
   if (cmd === 'get_app_version') return app.getVersion()
+  if (cmd === 'home_dir') return homedir()
+  if (cmd === 'http_fetch') return httpFetch(a)
   if (cmd === 'load_state') return readState(a.key)
   if (cmd === 'save_state') { if (typeof a.value !== 'string') throw new Error('State value must be a string'); return writeState(a.key, a.value) }
   if (cmd === 'fs_read_file') return readFile(String(a.path), 'utf8').catch((e) => { throw new Error('Failed to read ' + a.path + ': ' + e.message) })

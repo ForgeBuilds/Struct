@@ -557,26 +557,57 @@ async function browserFallback(name: string, args: Record<string, unknown>): Pro
  * process (bypassing webview CORS / origin policy), everything else uses
  * plain fetch. Used by the web_fetch / web_search tools. */
 async function platformFetch(url: string, init?: RequestInit): Promise<Response> {
-  if (inNativeShell()) {
-    try {
-      const parsed = new URL(url);
-      if (
-        (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost") &&
-        parsed.port === "11434"
-      ) {
-        const headers = new Headers(init?.headers);
-        headers.set("Origin", "http://localhost");
-        return await fetch(url, { ...init, headers });
-      }
-      return await fetch(url, init);
-    } catch (e) {
-      throw new Error(
-        `Native HTTP request failed: ${e instanceof Error ? e.message : String(e)}`,
-        { cause: e }
-      );
+  if (!inNativeShell()) return fetch(url, init);
+  try {
+    const parsed = new URL(url);
+    if (
+      (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost") &&
+      parsed.port === "11434"
+    ) {
+      // Loopback Ollama: keep the renderer-side fetch (a spoofed Origin is all
+      // the local server needs — no real CORS boundary here).
+      const headers = new Headers(init?.headers);
+      headers.set("Origin", "http://localhost");
+      return await fetch(url, { ...init, headers });
     }
+    // Everything else (search engines, fetched pages, APIs) goes through the
+    // Electron main process: the webview runs with webSecurity enabled, and
+    // those servers send no Access-Control-Allow-Origin, so a renderer-side
+    // fetch would fail CORS on every engine.
+    const headers: Record<string, string> = {};
+    new Headers(init?.headers).forEach((v, k) => {
+      headers[k] = v;
+    });
+    const method = (init?.method ?? "GET").toUpperCase();
+    const body =
+      typeof init?.body === "string" && method !== "GET" && method !== "HEAD"
+        ? init.body
+        : undefined;
+    const res = await invoke<{
+      status: number;
+      statusText: string;
+      headers: Record<string, string>;
+      body: string;
+    }>("http_fetch", {
+      url,
+      method,
+      headers,
+      ...(body !== undefined ? { body } : {}),
+    });
+    // 204/205/304 responses cannot be constructed with a body.
+    const bodyless =
+      res.status === 204 || res.status === 205 || res.status === 304;
+    return new Response(bodyless ? null : res.body, {
+      status: res.status,
+      statusText: res.statusText || "",
+      headers: res.headers,
+    });
+  } catch (e) {
+    throw new Error(
+      `Native HTTP request failed: ${e instanceof Error ? e.message : String(e)}`,
+      { cause: e }
+    );
   }
-  return fetch(url, init);
 }
 
 /** Decode the HTML entities that show up in search-result text. */
@@ -1007,7 +1038,7 @@ async function executeToolUncached(
           return {
             ok: false,
             output:
-              "No folder is open and no file is active. Ask the user to open a folder from the sidebar or a file in the editor first.",
+              "No working directory is available and no file is active. Use an absolute path (e.g. /home/user/project or C:\\Users\\me\\project), or ask the user to open a folder from the sidebar or a file in the editor first.",
           };
         }
         let entries: FsEntry[];
@@ -1066,7 +1097,7 @@ async function executeToolUncached(
         const cwdArg = typeof args.cwd === "string" && args.cwd.trim() ? args.cwd.trim() : null;
         const res = await invoke<Record<string, unknown>>("run_command", {
           command: String(args.command ?? ""),
-          cwd: cwdArg ? resolveFsPath(cwdArg, workspaceRoot) : null,
+          cwd: cwdArg ? resolveFsPath(cwdArg, workspaceRoot) : (workspaceRoot ?? null),
           timeoutSecs: typeof args.timeout_secs === "number" ? Math.round(args.timeout_secs) : null,
         });
         const timedOut = Boolean(res.timedOut);
@@ -1132,7 +1163,7 @@ async function executeToolUncached(
             `Do NOT retry web_search for this query — answer from your existing knowledge instead, ` +
             `or use web_fetch on a specific URL if the user provided one.` +
             (!inNativeShell()
-              ? ` (Note: plain-browser dev mode blocks cross-origin requests via CORS — use the Neo desktop app for web access.)`
+              ? ` (Note: plain-browser dev mode blocks cross-origin requests via CORS — use the Struct desktop app for web access.)`
               : ""),
         };
       }
@@ -1740,7 +1771,7 @@ export const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
  * literal: small local models follow concrete examples far better than
  * abstract role-play, and they must never claim they lack web access. */
 export const AGENTIC_PROMPT = `
-You are Neo, a helpful AI assistant with REAL tool access. You CAN search the web, read files, and run commands — through tool calls. NEVER claim you lack internet or system access: if a tool below covers the request, USE it.
+You are Struct, a helpful AI assistant with REAL tool access. You CAN search the web, read files, and run commands — through tool calls. NEVER claim you lack internet or system access: if a tool below covers the request, USE it.
 
 ## AVAILABLE TOOLS
 Web:

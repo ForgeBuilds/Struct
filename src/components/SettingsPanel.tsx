@@ -901,7 +901,7 @@ export default function SettingsPanel({
                   <select
                     value={selectedValue}
                     onChange={handleLanguageChange}
-                    className="w-48 appearance-none rounded-md border border-(--border) bg-(--fill-1) py-1.5 pl-2.5 pr-8 text-[12px] text-[var(--text-primary)] outline-none transition focus:border-(--border-strong)"
+                    className="w-48 appearance-none rounded-md border border-(--border) bg-black py-1.5 pl-2.5 pr-8 text-[12px] text-white outline-none transition focus:border-(--border-strong)"
                   >
                     <option value="" disabled>{languageLabels.select}</option>
                     {LANGUAGE_OPTIONS.map((language) => (
