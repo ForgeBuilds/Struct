@@ -99,7 +99,7 @@ export default function UpdateNotification({
             )}
           </div>
           <p className="mt-1 text-[11.5px] leading-4 text-[var(--text-muted)]">
-            A newer version of Neo is ready to install.
+            A newer version of Struct is ready to install.
           </p>
         </div>
 

@@ -186,7 +186,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 /** Export a JSON snapshot of all settings via a browser download. */
 function exportSettingsSnapshot(ui: UiSettings, ai: AISettings): void {
   const snapshot = {
-    app: "Neo",
+    app: "Struct",
     exportedAt: new Date().toISOString(),
     uiSettings: ui,
     aiSettings: ai,
@@ -626,7 +626,7 @@ export default function SettingsPanel({
       setMcpImported([]);
       if (found.length === 0) {
         setMcpError(
-          "No MCP config files found. Neo looks for Claude Desktop, Cursor, VS Code, Windsurf and .mcp.json — add a server manually if you keep your config elsewhere."
+          "No MCP config files found. Struct looks for Claude Desktop, Cursor, VS Code, Windsurf and .mcp.json — add a server manually if you keep your config elsewhere."
         );
       }
     } finally {
@@ -767,7 +767,7 @@ export default function SettingsPanel({
           </nav>
           <div className="hidden px-3 py-2.5 text-[10px] text-[var(--text-faint)] sm:block">
             <div ref={buildsInfoRef} className="relative flex items-center justify-between gap-2">
-              <span>Neo 1.12 · Beta</span>
+              <span>Struct 1.12 · Beta</span>
               <button
                 type="button"
                 aria-label="About builds"
@@ -785,7 +785,7 @@ export default function SettingsPanel({
                   </p>
 
                   <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">
-                    Neo is a free and open-source project. The official builds are
+                    Struct is a free and open-source project. The official builds are
                     published by Lumorix Studios and are signed with a verified
                     certificate. The official GitHub repository is{" "}
                     <a
@@ -1006,8 +1006,8 @@ export default function SettingsPanel({
                       discoveredPort === "No Ollama server found" ||
                       discoveredPort.toLowerCase().includes("could not") ||
                       discoveredPort.toLowerCase().includes("install")
-                        ? "text-red-400/80"
-                        : "text-emerald-400/80"
+                        ? "text-[var(--danger)]"
+                        : "text-[var(--success)]"
                     }`}
                   >
                     {discoveredPort === "No Ollama server found"
@@ -1062,7 +1062,7 @@ export default function SettingsPanel({
                   <div className="flex flex-col gap-1.5 pb-3">
                     <p className="text-[10.5px] leading-4 text-[var(--text-muted)]">
                       Your key is encrypted before it is stored in your account. It is only
-                      decrypted in memory when Neo needs it.
+                      decrypted in memory when Struct needs it.
                     </p>
                     <div className="flex gap-1.5">
                       <div className="relative flex-1">
@@ -1274,7 +1274,7 @@ export default function SettingsPanel({
                         </div>
                         <div className="truncate text-[10px] text-[var(--text-faint)]">{describeServer(s)}</div>
                         {mcpTest[s.id] && (
-                          <div className={`truncate text-[10px] ${mcpTest[s.id].startsWith("✕") ? "text-red-400/80" : "text-emerald-400/80"}`}>
+                          <div className={`truncate text-[10px] ${mcpTest[s.id].startsWith("✕") ? "text-[var(--danger)]" : "text-[var(--success)]"}`}>
                             {mcpTest[s.id]}
                           </div>
                         )}
@@ -1291,7 +1291,7 @@ export default function SettingsPanel({
                         type="button"
                         onClick={() => removeMcpServer(s.id)}
                         aria-label={`Remove ${s.name}`}
-                        className="shrink-0 rounded p-1 text-[var(--text-muted)] transition hover:bg-red-500/10 hover:text-red-400"
+                        className="shrink-0 rounded p-1 text-[var(--text-muted)] transition hover:bg-red-500/10 hover:text-[var(--danger)]"
                       >
                         <IoClose size={11} />
                       </button>
@@ -1380,7 +1380,7 @@ export default function SettingsPanel({
                     </>
                   )}
                   {mcpError && (
-                    <p className="text-[10.5px] leading-4 text-red-400/90">{mcpError}</p>
+                    <p className="text-[10.5px] leading-4 text-[var(--danger)]">{mcpError}</p>
                   )}
                   <button
                     type="button"
@@ -1617,10 +1617,10 @@ export default function SettingsPanel({
                         key={`${r.at}-${i}`}
                         className="flex items-center justify-between rounded-md border border-(--border) px-3 py-1.5 text-[11px]"
                       >
-                        <span className="min-w-0 truncate text-white-600">
+                        <span className="min-w-0 truncate text-[var(--text-primary)]">
                           {r.provider} · {r.model}
                         </span>
-                        <span className="ml-3 shrink-0 tabular-nums text-emerald-400">
+                        <span className="ml-3 shrink-0 tabular-nums text-[var(--success)]">
                           {new Date(r.at).toLocaleTimeString()} | Input:{formatTokens(r.input)} | Output:{formatTokens(r.output)}
                         </span>
                       </div>
@@ -1726,7 +1726,7 @@ export default function SettingsPanel({
                             setCloudBusy(false);
                           }
                         }}
-                        className="shrink-0 rounded-md border border-red-400/40 px-2.5 py-1 text-[11px] text-red-400/90 transition hover:bg-red-400/10 disabled:opacity-40"
+                        className="shrink-0 rounded-md border border-red-400/40 px-2.5 py-1 text-[11px] text-[var(--danger)] transition hover:bg-red-400/10 disabled:opacity-40"
                       >
                         {cloudBusy ? "Deleting…" : "Delete"}
                       </button>
@@ -1743,10 +1743,10 @@ export default function SettingsPanel({
               <div>
                 <div className="flex items-center gap-3 py-2">
                   <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-(--border) bg-(--fill-1)">
-                    <img src={appIcon} alt="Neo logo" className="h-full w-full object-contain" />
+                    <img src={appIcon} alt="Struct logo" className="h-full w-full object-contain" />
                   </div>
                   <div>
-                    <p className="text-[13px] font-medium text-[var(--text-primary)]">Neo</p>
+                    <p className="text-[13px] font-medium text-[var(--text-primary)]">Struct</p>
                     <p className="text-[11px] text-[var(--text-muted)]">Version 1.12 (Beta)</p>
                   </div>
                 </div>
@@ -1760,7 +1760,7 @@ export default function SettingsPanel({
                  data according to their own privacy policy.
                 </p>
                 <p className = "text-[11.5px] leading-5 text-[var(--text-secondary)]">
-                  Neo is in early beta — some features may not work as expected. Please report bugs on the GitHub repository.
+                  Struct is in early beta — some features may not work as expected. Please report bugs on the GitHub repository.
                 </p>
                 <SectionTitle>Links</SectionTitle>
                 <div className="flex flex-col gap-1">

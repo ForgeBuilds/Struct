@@ -150,7 +150,7 @@ const AccountSection = memo(function AccountSection({
         {(error || notice) && (
           <p
             className={`text-[11.5px] leading-4 ${
-              error ? "text-red-400/90" : "text-[var(--text-muted)]"
+              error ? "text-[var(--danger)]" : "text-[var(--text-muted)]"
             }`}
           >
             {error ?? notice}
@@ -204,7 +204,7 @@ const AccountSection = memo(function AccountSection({
               </Row>
             )}
             <Row title="Sign out" description="Local data on this device is kept.">
-              <button type="button" onClick={() => void signOut()} className="shrink-0 text-[11.5px] text-[var(--text-muted)] transition-colors hover:text-red-500 disabled:opacity-40">
+              <button type="button" onClick={() => void signOut()} className="shrink-0 text-[11.5px] text-[var(--text-muted)] transition-colors hover:text-[var(--danger)] disabled:opacity-40">
                 <IoExit size={16}/>
               </button>
             </Row>
@@ -228,7 +228,7 @@ const AccountSection = memo(function AccountSection({
                       void removeCloudData();
                       alert("Cloud data deleted.");
                     }}
-                    className="shrink-0 text-[11.5px] text-red-400/90 underline-offset-2 hover:underline"
+                    className="shrink-0 text-[11.5px] text-[var(--danger)] underline-offset-2 hover:underline"
                   >
 
                     Confirm delete
@@ -243,7 +243,7 @@ const AccountSection = memo(function AccountSection({
                   </button>
                 </>
               ) : (
-                <button type="button" onClick={() => setDangerOpen(true)} className="shrink-0 text-[11.5px] text-[var(--text-muted)] transition-colors hover:text-red-500 disabled:opacity-40">
+                <button type="button" onClick={() => setDangerOpen(true)} className="shrink-0 text-[11.5px] text-[var(--text-muted)] transition-colors hover:text-[var(--danger)] disabled:opacity-40">
                   <IoTrash size={16}/>
                 </button>
               )}
@@ -272,7 +272,7 @@ const AccountSection = memo(function AccountSection({
           <Card>
             <Row
               title="Account"
-              description="Your profile, cloud data and provider keys are tied to a Neo account — sign in or create one to open them."
+              description="Your profile, cloud data and provider keys are tied to a Struct account — sign in or create one to open them."
             >
               <button
                 type="button"

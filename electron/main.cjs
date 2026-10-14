@@ -73,7 +73,7 @@ function handleDeepLink(argv) {
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1220, height: 820, minWidth: 720, minHeight: 480, show: false,
-    frame: true, autoHideMenuBar: true, backgroundColor: '#1f1f1f', title: 'Neo',
+    frame: true, autoHideMenuBar: true, backgroundColor: '#1f1f1f', title: 'Struct',
     webPreferences: { preload: join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   })
   mainWindow.once('ready-to-show', () => { if (mainWindow) mainWindow.show() })

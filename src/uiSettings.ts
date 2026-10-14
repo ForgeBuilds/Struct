@@ -251,9 +251,11 @@ export function applyBrightness(hex: string, delta: number): string {
   return delta > 0 ? shade(hex, delta * (1 - l)) : shade(hex, delta * l);
 }
 
-/* Neutral ink ramps — one for dark surfaces, one for light/bright ones. */
-const DARK_INK = { primary: "#e5e5e5", secondary: "#a1a1a1", muted: "#666666", faint: "#444444" };
-const LIGHT_INK = { primary: "#1a1a1a", secondary: "#4d4d4d", muted: "#7d7d7d", faint: "#ababab" };
+/* Neutral ink ramps — one for dark surfaces, one for light/bright ones.
+   Muted/faint sit at WCAG AA+ distances from their base (#1f1f1f / #f7f7f8):
+   muted >= 4.5:1, faint >= 3:1 — nothing disappears in either mode. */
+const DARK_INK = { primary: "#e5e5e5", secondary: "#a1a1a1", muted: "#8a8a8a", faint: "#757575" };
+const LIGHT_INK = { primary: "#1a1a1a", secondary: "#4d4d4d", muted: "#707070", faint: "#8c8c8c" };
 
 const DARK_TOK = { kw: "#c678dd", str: "#98c379", num: "#d19a66", com: "#7f848e", fn: "#61afef", tag: "#e06c75" };
 const LIGHT_TOK = { kw: "#a626a4", str: "#50a14f", num: "#986801", com: "#8f9dae", fn: "#4078f2", tag: "#e45649" };
@@ -266,6 +268,20 @@ function tintToward(ink: string, base: string, amount: number): string {
   if (max - min < 20) return ink; // neutral base → keep neutral ink
   const [ir, ig, ib] = hexToRgb(ink);
   return rgbToHex(ir + (r - ir) * amount, ig + (g - ig) * amount, ib + (b - ib) * amount);
+}
+
+/**
+ * Nudge an ink color AWAY from the background until it meets a WCAG contrast
+ * target (no-op when already readable). Hue-preserving and bounded — this
+ * guarantees every text tier stays fully legible on any base, dark or light.
+ */
+function ensureContrast(ink: string, bg: string, target: number): string {
+  let c = ink;
+  const bgLum = luminance(bg);
+  for (let i = 0; i < 24 && contrastRatio(c, bg) < target; i++) {
+    c = shade(c, 0.05 * (luminance(c) > bgLum ? 1 : -1));
+  }
+  return c;
 }
 
 export interface DerivedTheme {
@@ -303,10 +319,12 @@ export function deriveTheme(rawBase: string, brightness = 0, accent = "#3b82f6")
     chrome: shade(base, -0.025 * dir),
     editor: base,
     input: shade(base, 0.045 * dir),
-    textPrimary: tint(ink.primary, 0.06),
-    textSecondary: tint(ink.secondary, 0.1),
-    textMuted: tint(ink.muted, 0.12),
-    textFaint: tint(ink.faint, 0.14),
+    /* Applied AFTER tinting so the hue nudge can never break readability:
+       primary 7:1, secondary/muted 4.5:1, faint 3:1 (large/decorative). */
+    textPrimary: ensureContrast(tint(ink.primary, 0.06), base, 7),
+    textSecondary: ensureContrast(tint(ink.secondary, 0.1), base, 4.5),
+    textMuted: ensureContrast(tint(ink.muted, 0.12), base, 4.5),
+    textFaint: ensureContrast(tint(ink.faint, 0.14), base, 3),
     onAccent: onAccentInk(accent),
     isDark: dark,
   };
@@ -351,6 +369,11 @@ export function resolveThemeVars(s: UiSettings): Record<string, string> {
     "--accent": accent,
     "--accent-soft": hexToRgba(accent, accentSoftAlpha),
     "--on-accent": onAccentInk(accent),
+    // Semantic status ink — flips with the mode so red/green/amber stay
+    // fully legible on light surfaces too (never pale-on-white).
+    "--danger": dark ? "#f87171" : "#b91c1c",
+    "--success": dark ? "#34d399" : "#15803d",
+    "--warning": dark ? "#fbbf24" : "#b45309",
     "--code-kw": tok.kw,
     "--code-str": tok.str,
     "--code-num": tok.num,

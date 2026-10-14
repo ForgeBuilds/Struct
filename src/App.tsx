@@ -346,7 +346,7 @@ function MessageAction({
       aria-label={label}
       className={`flex h-6 w-6 items-center justify-center rounded-md transition-colors ${
         done
-          ? "text-emerald-400/80"
+          ? "text-[var(--success)]"
           : "text-[var(--text-muted)] hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
       }`}
     >
@@ -2429,7 +2429,7 @@ MCP call rules:
                 <div className="h-1 w-14 shrink-0 overflow-hidden rounded-full bg-(--fill-2)">
                   <div
                     className={`h-full rounded-full transition-all ${
-                      ctxPct > 85 ? "bg-red-400" : ctxPct > 60 ? "bg-amber-400" : "bg-(--accent)"
+                      ctxPct > 85 ? "bg-[var(--danger)]" : ctxPct > 60 ? "bg-[var(--warning)]" : "bg-(--accent)"
                     }`}
                     style={{ width: `${Math.max(3, ctxPct)}%` }}
                   />
@@ -2447,7 +2447,7 @@ MCP call rules:
               {messages.length === 0 ? (
                 <div className="relative flex min-h-full items-center justify-center px-6">
                   <div className="msg-in relative z-0 w-full max-w-2xl pb-24 text-center" data-debug="welcome-wrap">
-
+                
                     <h1 className="mb-6 text-[16px] font-medium tracking-tight text-[var(--text-primary)]" data-debug="welcome-heading">
                       What do you want to build?
                     </h1>
@@ -2476,7 +2476,7 @@ MCP call rules:
                         },
                         {
                           label: "Write a new feature",
-                          desc: "Describe it and Neo builds it",
+                          desc: "Describe it and Struct builds it",
                           prompt: "Write a new feature in my code",
                         },
                       ].map((card) => (
@@ -2555,7 +2555,7 @@ MCP call rules:
             </div>
             {error && (
               <div className="relative z-20 mx-auto w-full max-w-3xl px-5 pt-2">
-                <div className="rounded-lg border border-red-500/20 bg-red-500/[0.08] px-3.5 py-2 text-[12.5px] leading-5 text-red-300">
+                <div className="rounded-lg border border-red-500/20 bg-red-500/[0.08] px-3.5 py-2 text-[12.5px] leading-5 text-[var(--danger)]">
                   {error}
                 </div>
               </div>
@@ -2568,7 +2568,7 @@ MCP call rules:
                       title={`The agent will receive this file's contents automatically`}
                       className="inline-flex items-center gap-1.5 rounded border border-(--border) bg-(--fill-1) px-2 py-0.5 text-[11px] text-[var(--text-secondary)]"
                     >
-                      <span className="h-1 w-1 rounded-full bg-[#5a5a5a]" />
+                      <span className="h-1 w-1 rounded-full bg-(--text-muted)" />
                       {activeEditorPath.split(/[\\/]/).pop()}
                     </span>
                   ) : (

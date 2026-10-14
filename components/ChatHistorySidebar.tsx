@@ -348,8 +348,8 @@ export default function ChatHistorySidebar({
                         }}
                         className={`mr-1.5 flex h-6 shrink-0 items-center justify-center rounded-md transition ${
                           confirming
-                            ? "w-auto px-1.5 text-[10px] text-red-400/90"
-                            : "w-6 text-[var(--text-muted)] opacity-0 hover:text-red-400/90 group-hover:opacity-100"
+                            ? "w-auto px-1.5 text-[10px] text-[var(--danger)]"
+                            : "w-6 text-[var(--text-muted)] opacity-0 hover:text-[var(--danger)] group-hover:opacity-100"
                         }`}
                       >
                         {confirming ? "Delete?" : <IoTrashOutline size={12} />}
@@ -363,7 +363,7 @@ export default function ChatHistorySidebar({
 
           <div className="flex shrink-0 items-center gap-1.5 border-t border-(--border) px-3 py-2">
             <img src={appIcon} alt="" className="h-3.5 w-3.5 rounded-[3px]" />
-            <span className="text-[11px] font-semibold text-[var(--text-secondary)]">Neo</span>
+            <span className="text-[11px] font-semibold text-[var(--text-secondary)]">Struct</span>
             <span className="ml-auto text-[10px] text-[var(--text-faint)]">
               {signedIn ? "Synced to your account." : "Stored on this device."}
             </span>

@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import { signInWithOAuth, signInWithEmail, signUpWithEmail, resetPassword, refreshEnabledProviders, checkSupabaseHealth, onAuthError, getLastAuthError, clearLastAuthError, AUTH_ERROR_EVENT } from "../lib/auth";
 import { listen } from "../native";
 import { IoClose, IoLogoGithub, IoLogoGoogle, IoEye, IoEyeOff } from "react-icons/io5";
+import appIcon from "../assets/images/icon.jpeg";
 
 interface LoginModalProps {
   open: boolean;
@@ -184,10 +185,10 @@ function SignInUpForm({
   return (
     <div className="space-y-3">
       {healthError && (
-        <p className="text-[11.5px] leading-4 text-red-400/90">{healthError}</p>
+        <p className="text-[11.5px] leading-4 text-[var(--danger)]">{healthError}</p>
       )}
       {callbackError && !error && (
-        <p className="text-[11.5px] leading-4 text-red-400/90">{callbackError}</p>
+        <p className="text-[11.5px] leading-4 text-[var(--danger)]">{callbackError}</p>
       )}
       {notice && !error && !callbackError && (
         <p className="text-[11.5px] leading-4 text-[var(--text-muted)]">{notice}</p>
@@ -195,6 +196,10 @@ function SignInUpForm({
 
       {step === "email" ? (
         <div className="space-y-1">
+          <div className="mb-2 flex items-center gap-2">
+            <img src={appIcon} alt="Struct logo" className="h-5 w-5 shrink-0 rounded object-contain" />
+            <p className="text-[11.5px] leading-4 text-[var(--text-muted)]">Log/Sign in to Struct</p>
+          </div>
           <label className={LABEL_CLASS}>Email</label>
           <input
             type="email"
@@ -258,7 +263,7 @@ function SignInUpForm({
         )}
       </div>
 
-      {error && <p className="text-[11.5px] leading-4 text-red-400/90">{error}</p>}
+      {error && <p className="text-[11.5px] leading-4 text-[var(--danger)]">{error}</p>}
       {!error && !callbackError && notice && (
         <p className="text-[11.5px] leading-4 text-[var(--text-muted)]">{notice}</p>
       )}

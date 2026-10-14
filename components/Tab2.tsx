@@ -33,7 +33,7 @@ export default function Tab2({ isOpen, onClose }: Tab2Props) {
         {/* Header */}
         <div className="flex items-center justify-between border-b border-(--border) px-5 py-4">
           <div>
-            <h2 className="m-0 text-[14px] font-semibold text-[var(--text-primary)]">Rate Neo</h2>
+            <h2 className="m-0 text-[14px] font-semibold text-[var(--text-primary)]">Rate Struct</h2>
             <p className="m-0 text-[11.5px] text-[var(--text-muted)]">Lumorix Studios</p>
           </div>
           <button
@@ -85,7 +85,7 @@ export default function Tab2({ isOpen, onClose }: Tab2Props) {
           <span className="text-[10.5px] text-[var(--text-muted)]">© 2026 Lumorix Studios</span>
           <button
             onClick={onClose}
-            className="rounded-md bg-[#ececec] px-3.5 py-1.5 text-[12px] font-semibold text-[#111111] transition hover:bg-white"
+            className="rounded-md bg-(--accent) px-3.5 py-1.5 text-[12px] font-semibold text-(--on-accent) transition hover:opacity-90"
           >
             Close
           </button>
