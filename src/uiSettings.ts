@@ -22,6 +22,9 @@ export interface UiSettings {
   terminalFontSize: number;
   terminalScrollback: number;
   terminalCursorBlink: boolean;
+
+  /** Translucent, blurred surfaces (dialogs, dropdowns, sidebar). */
+  glass: boolean;
 }
 
 export interface ThemePreset {
@@ -33,17 +36,10 @@ export interface ThemePreset {
   active: string;
 }
 
+/** Two modes only — Dark and Light. Any other stored id falls back to Dark on load. */
 export const THEMES: ThemePreset[] = [
-  { id: "neo", label: "Struct Dark", base: "#0e0e0e", panel: "#131313", elevated: "#1a1a1a", active: "#232323" },
-  { id: "midnight", label: "Midnight", base: "#0b1220", panel: "#0f1726", elevated: "#162032", active: "#1e2a40" },
-  { id: "graphite", label: "Graphite", base: "#111214", panel: "#16181b", elevated: "#1d2024", active: "#26292e" },
-  { id: "charcoal", label: "Charcoal", base: "#131110", panel: "#191614", elevated: "#211d1a", active: "#2b2622" },
-  { id: "slate", label: "Slate", base: "#0f1115", panel: "#14171c", elevated: "#1b1f26", active: "#242a33" },
-  { id: "aurora", label: "Aurora", base: "#0b1512", panel: "#0f1d18", elevated: "#16291f", active: "#1e3527" },
-  { id: "plum", label: "Plum", base: "#150f1d", panel: "#1b1426", elevated: "#241a33", active: "#2e2242" },
-  { id: "ember", label: "Ember", base: "#171010", panel: "#1f1616", elevated: "#2a1d1d", active: "#372626" },
-  { id: "paper", label: "Paper", base: "#f4f1ea", panel: "#ece8df", elevated: "#e2ddd2", active: "#d6cfc1" },
-  { id: "sky", label: "Sky", base: "#eef4fa", panel: "#e3ecf4", elevated: "#d7e3ee", active: "#c6d7e6" },
+  { id: "neo", label: "Dark", base: "#1f1f1f", panel: "#191919", elevated: "#2b2b2b", active: "#343434" },
+  { id: "paper", label: "Light", base: "#f7f7f8", panel: "#f0f0f2", elevated: "#e6e6e9", active: "#dcdce0" },
 ];
 
 export const ACCENT_SWATCHES: Array<{ label: string; value: string }> = [
@@ -107,6 +103,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
   terminalFontSize: 12.5,
   terminalScrollback: 1000,
   terminalCursorBlink: true,
+  glass: true,
 };
 
 
@@ -368,6 +365,7 @@ export function applyUiSettings(s: UiSettings): void {
   for (const [k, v] of Object.entries(vars)) {
     document.documentElement.style.setProperty(k, v);
   }
+  document.documentElement.dataset.glass = s.glass ? "1" : "0";
 }
 
 

@@ -116,10 +116,10 @@ export default function CommandPalette({ isOpen, onClose, commands }: CommandPal
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/50 pt-[14vh]"
+      className="dialog-backdrop fixed inset-0 z-[100] flex items-start justify-center bg-black/50 pt-[14vh]"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-xl overflow-hidden rounded-xl border border-(--border-strong) bg-[var(--bg-elevated)] shadow-[0_20px_60px_rgba(0,0,0,0.6)]">
+      <div className="w-full max-w-xl overflow-hidden rounded-lg border border-(--border-strong) bg-[var(--bg-elevated)]">
         {/* Input */}
         <div className="border-b border-(--border) px-4 py-3">
           <input

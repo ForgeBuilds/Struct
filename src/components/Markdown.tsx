@@ -20,7 +20,7 @@ const components: Components = {
     if (!isBlock || isInline) {
       return (
         <code
-          className="rounded border border-(--border) bg-(--fill-2) px-1.5 py-0.5 font-mono text-[0.85em] text-[#e8d5a3]"
+          className="rounded border border-(--border) bg-(--fill-2) px-1.5 py-0.5 font-mono text-[0.85em] text-[var(--text-primary)]"
           {...props}
         >
           {children}
@@ -29,7 +29,7 @@ const components: Components = {
     }
 
     return (
-      <div className="group relative my-3 overflow-hidden rounded-md border border-(--border) bg-[#111111]">
+      <div className="group relative my-3 overflow-hidden rounded-lg border border-(--border) bg-(--fill-1)">
         <div className="flex items-center justify-between border-b border-(--border) px-3 py-1">
           <span className="font-mono text-[10px] text-[var(--text-muted)]">
             {match ? match[1] : "code"}
@@ -57,14 +57,14 @@ const components: Components = {
         href={href}
         target="_blank"
         rel="noreferrer noopener"
-        className="text-[#7aa7ff] underline decoration-[#7aa7ff]/40 underline-offset-2 transition hover:text-[#9dbaff] hover:decoration-[#9dbaff]/60"
+        className="text-[var(--accent)] underline underline-offset-2 transition hover:opacity-80"
       >
         {children}
       </a>
     );
   },
   h1: ({ children }) => (
-    <h1 className="mb-2 mt-5 text-[15px] font-semibold text-[var(--text-primary)]">
+    <h1 className="mb-2 mt-5 text-[16px] font-semibold text-[var(--text-primary)]">
       {children}
     </h1>
   ),

@@ -81,20 +81,15 @@ export default function UpdateNotification({
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-3xl px-4 py-3 sm:px-6 sm:py-4">
-      <div className="flex items-start gap-3 rounded-lg border border-emerald-700/40 bg-emerald-950/80 p-3.5 shadow-[0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-sm">
-        {/* Icon */}
-        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-emerald-800/60 text-emerald-300">
-          <IoOpenOutline size={16} />
-        </div>
+      <div className="panel-in flex items-start gap-3 rounded-lg border border-(--border-strong) bg-(--bg-panel) p-3">
 
         {/* Content */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-[12.5px] font-semibold uppercase tracking-wide text-emerald-300">
+            <span className="text-[12.5px] font-medium text-[var(--text-primary)]">
               Update available
             </span>
-            <span className="flex h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
-            <span className="text-[12.5px] font-medium text-[var(--text-primary)]">
+            <span className="text-[12px] text-[var(--text-primary)]">
               v{version}
             </span>
             {date && (
@@ -103,7 +98,7 @@ export default function UpdateNotification({
               </span>
             )}
           </div>
-          <p className="mt-1.5 text-[12px] leading-relaxed text-[var(--text-secondary)]">
+          <p className="mt-1 text-[11.5px] leading-4 text-[var(--text-muted)]">
             A newer version of Neo is ready to install.
           </p>
         </div>
@@ -114,7 +109,7 @@ export default function UpdateNotification({
             type="button"
             onClick={handleDownload}
             disabled={downloading || launching || !result.downloadUrl}
-            className="flex h-7 items-center gap-1.5 rounded-md bg-emerald-700 px-2.5 py-1 text-[12px] font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50 hover:bg-emerald-600"
+            className="flex h-7 items-center gap-1.5 rounded-md bg-(--text-primary) px-2.5 py-1 text-[12px] font-medium text-(--bg-base) transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {downloading && (
               <span className="flex h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" />

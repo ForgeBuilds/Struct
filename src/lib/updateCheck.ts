@@ -77,8 +77,8 @@ export function compareVersions(a: string, b: string): number {
 }
 
 // ---------------------------------------------------------------------------
-// OS / asset helpers (mirrors the logic already in TopMenu so the top bar and
-// the update banner pick the same installer).
+// OS / asset helpers (kept in sync with the update notification UI so the
+// banner and the download pick the same installer).
 // ---------------------------------------------------------------------------
 
 type OsKey = "windows" | "linux" | "macos" | "other";

@@ -26,10 +26,10 @@ export default function Tab2({ isOpen, onClose }: Tab2Props) {
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-6"
+      className="dialog-backdrop fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-6"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-md overflow-hidden rounded-xl border border-(--border-strong) bg-[var(--bg-elevated)] shadow-[0_20px_60px_rgba(0,0,0,0.6)]">
+      <div className="w-full max-w-md overflow-hidden rounded-lg border border-(--border-strong) bg-[var(--bg-elevated)]">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-(--border) px-5 py-4">
           <div>
@@ -62,7 +62,7 @@ export default function Tab2({ isOpen, onClose }: Tab2Props) {
                 onMouseEnter={() => setHover(star)}
                 onMouseLeave={() => setHover(0)}
                 aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
-                className="p-1 transition-transform hover:scale-110"
+                className="p-1 text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
               >
                 {(hover || rating) >= star ? (
                   <IoStar size={26} color="#ececec" />

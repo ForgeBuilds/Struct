@@ -1,6 +1,6 @@
 /*
  * Author: madhusudhan
- * Check the LICENSE in the GitHub repo (https://github.com/Lumorix-studios/Struct) for more information on permissions to use this code.
+ * Check the LICENSE in the GitHub repo (https://github.com/Lumorix-studios/Neo) for more information on permissions to use this code.
  */
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import { useTranslation } from "../i18n";
@@ -9,11 +9,7 @@ import {
   DEFAULT_UI_SETTINGS,
   LANGUAGE_OPTIONS,
   THEMES,
-  contrastRatio,
-  deriveTheme,
   isValidHex,
-  onAccentInk,
-  resolveThemeVars,
   clearRecentFiles,
   clearRecentFolders,
   type UiSettings,
@@ -44,12 +40,8 @@ import * as cloudSync from "../lib/cloudSync";
 import appIcon from "../assets/images/icon.jpeg";
 
 import {
-  IoBulbSharp,
-  IoClose, IoCode, IoContrastOutline,
-  IoDocumentOutline, IoInformationCircleOutline, IoKeyOutline,
-  IoLockClosedOutline, IoOpenOutline,
-  IoPersonCircleOutline, IoSearch,
-  IoShieldCheckmarkOutline, IoTerminal
+  IoClose, IoInformationCircleOutline,
+  IoLockClosedOutline, IoOpenOutline, IoSearch
 } from "react-icons/io5";
 import {
   formatTokens,
@@ -194,7 +186,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 /** Export a JSON snapshot of all settings via a browser download. */
 function exportSettingsSnapshot(ui: UiSettings, ai: AISettings): void {
   const snapshot = {
-    app: "STRUCT",
+    app: "Neo",
     exportedAt: new Date().toISOString(),
     uiSettings: ui,
     aiSettings: ai,
@@ -203,7 +195,7 @@ function exportSettingsSnapshot(ui: UiSettings, ai: AISettings): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `Struct-settings-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `neo-settings-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -215,7 +207,6 @@ interface SectionMeta {
   hint: string;
   group: "Personal" | "Workspace" | "System";
   keywords: string;
-  icon: React.ReactNode;
 }
 
 const SECTIONS: SectionMeta[] = [
@@ -225,15 +216,13 @@ const SECTIONS: SectionMeta[] = [
     hint: "Profile, sync and signed-in devices",
     group: "Personal",
     keywords: "profile email plan sign in sign out sync avatar name",
-    icon: <IoPersonCircleOutline className="h-3.5 w-3.5" />,
   },
   {
     id: "appearance",
     label: "Appearance",
-    hint: "Theme, background, accent and contrast",
+    hint: "Theme, glass, accent and language",
     group: "Workspace",
-    keywords: "theme dark light color colour accent background contrast",
-    icon: <IoContrastOutline className="h-3.5 w-3.5" />,
+    keywords: "theme dark light color colour accent glass translucent blur background contrast",
   },
   {
     id: "ai",
@@ -241,7 +230,6 @@ const SECTIONS: SectionMeta[] = [
     hint: "Providers, models, keys and MCP tools",
     group: "Workspace",
     keywords: "provider model api key byok ollama openai anthropic google groq mcp tools",
-    icon: <IoCode size={13} />,
   },
   {
     id: "dashboard",
@@ -249,7 +237,6 @@ const SECTIONS: SectionMeta[] = [
     hint: "Token usage and rate-limit estimates",
     group: "Workspace",
     keywords: "tokens usage cost rate limits statistics budget",
-    icon: <IoBulbSharp className="h-3.5 w-3.5" />,
   },
   {
     id: "files",
@@ -257,7 +244,6 @@ const SECTIONS: SectionMeta[] = [
     hint: "Autosave and recent items",
     group: "Workspace",
     keywords: "autosave recent files folders save",
-    icon: <IoDocumentOutline className="h-3.5 w-3.5" />,
   },
   {
     id: "shortcuts",
@@ -265,7 +251,6 @@ const SECTIONS: SectionMeta[] = [
     hint: "Keyboard bindings at a glance",
     group: "Workspace",
     keywords: "keyboard keys hotkeys bindings commands",
-    icon: <IoKeyOutline className="h-3.5 w-3.5" />,
   },
   {
     id: "terminal",
@@ -273,7 +258,6 @@ const SECTIONS: SectionMeta[] = [
     hint: "Shell, fonts and scrollback",
     group: "System",
     keywords: "shell command prompt font cursor scrollback",
-    icon: <IoTerminal className="h-3.5 w-3.5" />,
   },
   {
     id: "data",
@@ -281,7 +265,6 @@ const SECTIONS: SectionMeta[] = [
     hint: "Local storage, cloud data and recents",
     group: "System",
     keywords: "privacy data storage cloud delete clear recents reset",
-    icon: <IoShieldCheckmarkOutline className="h-3.5 w-3.5" />,
   },
   {
     id: "about",
@@ -289,23 +272,7 @@ const SECTIONS: SectionMeta[] = [
     hint: "Version, links and build information",
     group: "System",
     keywords: "version update github links help credits",
-    icon: <IoInformationCircleOutline className="h-3.5 w-3.5" />,
   },
-];
-
-/* Curated quick picks — includes very bright colors that exercise the
-   auto-harmony system (ink/borders/panels re-derive to match). */
-const BG_PRESETS: Array<{ label: string; value: string }> = [
-  { label: "Neo ink", value: "#0e0e0e" },
-  { label: "Midnight", value: "#0b1220" },
-  { label: "Charcoal", value: "#131110" },
-  { label: "Slate", value: "#0f1115" },
-  { label: "Plum", value: "#1a1023" },
-  { label: "Forest", value: "#0d1a14" },
-  { label: "Warm paper", value: "#f2eee8" },
-  { label: "Snow", value: "#eef2f6" },
-  { label: "Ice cyan", value: "#bfe9ff" },
-  { label: "Sun", value: "#ffdf8a" },
 ];
 
 const SHORTCUTS: Array<[string, string]> = [
@@ -377,8 +344,6 @@ export default function SettingsPanel({
   // Stable callbacks: keep AccountSection (memoised) from re-rendering
   // whenever an unrelated settings field changes.
   const refreshAccount = useCallback(() => onAccountRefresh?.(), [onAccountRefresh]);
-  const [bgDraft, setBgDraft] = useState(settings.customBackground ?? "#0e0e0e");
-  const [bgBrightness, setBgBrightness] = useState(settings.bgBrightness ?? 0);
   // --- AI settings state (mirrors the previous chat settings sidebar) ---
   const [showAiKey, setShowAiKey] = useState(false);
   const [showLocalModels, setShowLocalModels] = useState(false);
@@ -521,8 +486,6 @@ export default function SettingsPanel({
    *  effect event so the `[open]` dependency stays authoritative and editing a
    *  draft is never clobbered by an unrelated settings change. */
   const seedDrafts = useEffectEvent(() => {
-    setBgDraft(settings.customBackground ?? resolveThemeVars(settings)["--bg-base"]);
-    setBgBrightness(settings.bgBrightness ?? 0);
     setSection(initialSection ?? "appearance");
     setShowLocalModels(false);
     setShowAiKey(false);
@@ -663,7 +626,7 @@ export default function SettingsPanel({
       setMcpImported([]);
       if (found.length === 0) {
         setMcpError(
-          "No MCP config files found. Struct looks for Claude Desktop, Cursor, VS Code, Windsurf and .mcp.json — add a server manually if you keep your config elsewhere."
+          "No MCP config files found. Neo looks for Claude Desktop, Cursor, VS Code, Windsurf and .mcp.json — add a server manually if you keep your config elsewhere."
         );
       }
     } finally {
@@ -735,8 +698,6 @@ export default function SettingsPanel({
 
   if (!open) return null;
 
-  const theme = THEMES.find((t) => t.id === settings.themeId) ?? THEMES[0];
-
   // Token usage snapshot for the Dashboard tab; usageTick only forces a
   // re-render every 2s while the tab is open.
   const usageSnapshot = getUsageSnapshot();
@@ -744,10 +705,10 @@ export default function SettingsPanel({
   const activeMeta = SECTIONS.find((s) => s.id === section) ?? SECTIONS[0];
   return (
     <div
-      className="fixed inset-0 z-[95] flex items-center justify-center bg-(--scrim) p-2 backdrop-blur-[2px] sm:p-6"
+      className="dialog-backdrop fixed inset-0 z-[95] flex items-center justify-center bg-(--scrim) p-2 sm:p-6"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="panel-in flex h-[min(680px,92vh)] w-full max-w-5xl flex-col overflow-hidden rounded-lg  border-(--border) bg-[var(--bg-base)] shadow-[0_16px_48px_rgba(0,0,0,0.45)] sm:flex-row">
+      <div className="panel-in flex h-[min(680px,92vh)] w-full max-w-5xl flex-col overflow-hidden rounded-lg  border-(--border) bg-[var(--bg-base)] sm:flex-row">
         {/* ── Left nav */}
         <aside className="flex shrink-0 flex-col border-b border-(--border) bg-[var(--bg-panel)] sm:w-[212px] sm:border-b-0 sm:border-r">
           <p className="hidden px-3.5 pb-1.5 pt-3.5 text-[11px] text-[var(--text-muted)] sm:block">
@@ -789,9 +750,6 @@ export default function SettingsPanel({
                       : "text-[var(--text-secondary)] hover:bg-(--fill-1) hover:text-[var(--text-primary)]"
                   }`}
                 >
-                  <span className={active ? "text-(--accent)" : "text-[var(--text-muted)]"}>
-                    {s.icon}
-                  </span>
                   <span className="hidden min-w-0 flex-1 truncate sm:inline">{s.label}</span>
                   {!signedIn && s.id === "account" && (
                     <span
@@ -809,7 +767,7 @@ export default function SettingsPanel({
           </nav>
           <div className="hidden px-3 py-2.5 text-[10px] text-[var(--text-faint)] sm:block">
             <div ref={buildsInfoRef} className="relative flex items-center justify-between gap-2">
-              <span>Struct 1.12 · Beta</span>
+              <span>Neo 1.12 · Beta</span>
               <button
                 type="button"
                 aria-label="About builds"
@@ -827,11 +785,11 @@ export default function SettingsPanel({
                   </p>
 
                   <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">
-                    Struct is a free and open-source project. The official builds are
+                    Neo is a free and open-source project. The official builds are
                     published by Lumorix Studios and are signed with a verified
                     certificate. The official GitHub repository is{" "}
                     <a
-                      href="https://github.com/Lumorix-studios/Struct"
+                      href="https://github.com/Lumorix-studios/Neo"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[var(--text-primary)] hover:underline"
@@ -907,134 +865,13 @@ export default function SettingsPanel({
                   })}
                 </div>
 
-                <SectionTitle>Background</SectionTitle>
+                <SectionTitle>Surface</SectionTitle>
                 <Row
-                  title="Custom background color"
-                  description={`Overrides the ${theme.label} base color. Text, borders and panels are re-derived automatically — pick a really bright color and the whole UI flips to keep it readable.`}
+                  title="Glassy surfaces"
+                  description="Dialogs, menus and the sidebar turn translucent with a soft blur behind them."
                 >
-                  <div className="flex shrink-0 items-center gap-2">
-                    <input
-                      type="color"
-                      value={isValidHex(bgDraft) ? bgDraft : "#0e0e0e"}
-                      onChange={(e) => {
-                        setBgDraft(e.target.value);
-                        onChange({ customBackground: e.target.value });
-                      }}
-                      className="h-7 w-9 cursor-pointer rounded border border-(--border) bg-transparent p-0.5"
-                    />
-                    <input
-                      type="text"
-                      value={bgDraft}
-                      onChange={(e) => {
-                        setBgDraft(e.target.value);
-                        if (isValidHex(e.target.value)) onChange({ customBackground: e.target.value });
-                      }}
-                      spellCheck={false}
-                      className="w-20 rounded-md border border-(--border) bg-(--fill-2) px-2 py-1 text-[11px] font-mono text-[var(--text-primary)] outline-none focus:border-(--accent)"
-                    />
-                    {settings.customBackground && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onChange({ customBackground: null, bgBrightness: 0 });
-                          setBgBrightness(0);
-                          setBgDraft(resolveThemeVars({ ...settings, customBackground: null, bgBrightness: 0 })["--bg-base"]);
-                        }}
-                        className="rounded-md px-2 py-1 text-[11px] text-[var(--text-muted)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
-                      >
-                        Reset
-                      </button>
-                    )}
-                  </div>
+                  <Toggle checked={settings.glass ?? true} onChange={(v) => onChange({ glass: v })} />
                 </Row>
-                {settings.customBackground && isValidHex(bgDraft) && (
-                  <div className="mt-2 rounded-lg border border-(--border) bg-(--fill-1) p-2.5">
-                    <div className="flex flex-wrap gap-1.5">
-                      {BG_PRESETS.map((p) => (
-                        <button
-                          key={p.value}
-                          type="button"
-                          title={p.label}
-                          onClick={() => {
-                            setBgDraft(p.value);
-                            setBgBrightness(0);
-                            onChange({ customBackground: p.value, bgBrightness: 0 });
-                          }}
-                          className={`h-6 w-6 rounded-full border-2 transition ${
-                            bgDraft.toLowerCase() === p.value.toLowerCase()
-                              ? "scale-105 border-(--accent)"
-                              : "border-(--border) hover:scale-105"
-                          }`}
-                          style={{ background: p.value }}
-                        />
-                      ))}
-                      <span className="ml-auto self-center text-[10px] text-[var(--text-faint)]">Quick picks</span>
-                    </div>
-
-                    <div className="mt-2 flex items-center gap-2">
-                      <span className="text-[10px] text-[var(--text-faint)]">Darker</span>
-                      <input
-                        type="range"
-                        min={-0.35}
-                        max={0.35}
-                        step={0.05}
-                        value={bgBrightness}
-                        onChange={(e) => {
-                          const v = Number(e.target.value);
-                          setBgBrightness(v);
-                          onChange({ bgBrightness: v });
-                        }}
-                        className="h-1 w-32 cursor-pointer appearance-none rounded-full bg-(--fill-2) accent-[var(--accent)]"
-                      />
-                      <span className="text-[10px] text-[var(--text-faint)]">Brighter</span>
-                      <span className="w-10 text-right text-[10px] tabular-nums text-[var(--text-secondary)]">
-                        {Math.round(bgBrightness * 100)}%
-                      </span>
-                    </div>
-
-                    {(() => {
-                      const d = deriveTheme(bgDraft, bgBrightness, settings.accent);
-                      const textOk = contrastRatio(d.base, d.textPrimary);
-                      const accentOk = contrastRatio(d.base, settings.accent);
-                      const grade = (c: number) => (c >= 7 ? "AAA" : c >= 4.5 ? "AA" : c >= 3 ? "AA lge" : "low");
-                      return (
-                        <div className="mt-2 overflow-hidden rounded-md border border-(--border-strong)">
-                          <div className="flex h-6 items-center justify-between px-2" style={{ background: d.chrome }}>
-                            <span className="text-[8.5px] text-[var(--text-faint)]">chrome</span>
-                            <span className="h-1.5 w-8 rounded-full" style={{ background: settings.accent }} />
-                          </div>
-                          <div className="flex h-16 items-start gap-1.5 px-2 py-1" style={{ background: d.editor }}>
-                            <div className="w-8 self-stretch rounded-[3px]" style={{ background: d.panel }} />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[10px] font-semibold leading-4" style={{ color: d.textPrimary }}>The quick brown fox</p>
-                              <p className="text-[9px] leading-4" style={{ color: d.textSecondary }}>Secondary line of muted length</p>
-                              <p className="text-[8.5px] leading-4" style={{ color: d.textMuted }}>Tertiary detail that explains the rest.</p>
-                            </div>
-                          </div>
-                          <div className="flex h-6 items-center justify-between px-2" style={{ background: d.active }}>
-                            <span className="text-[9px]" style={{ color: d.onAccent }}>Active / selected row</span>
-                            <span className="rounded px-1.5 text-[9px] font-semibold" style={{ background: settings.accent, color: d.onAccent }}>
-                              Accent
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between px-2 py-1" style={{ background: d.base }}>
-                            <span className="text-[8.5px] text-[var(--text-faint)]">Text on background</span>
-                            <span className={`rounded-full px-1.5 text-[9px] font-semibold ${textOk >= 7 ? "bg-[#22c55e]/15 text-[#22c55e]" : textOk >= 4.5 ? "bg-[#e5b567]/15 text-[#e5b567]" : "bg-[#e5534b]/15 text-[#e5534b]"}`}>
-                              {textOk.toFixed(1)}:1 ({grade(textOk)})
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between px-2 py-1" style={{ background: d.base }}>
-                            <span className="text-[8.5px] text-[var(--text-faint)]">Accent on background</span>
-                            <span className="text-[9px] text-[var(--text-secondary)]">
-                              {accentOk.toFixed(1)}:1 ({grade(accentOk)})
-                              {accentOk < 3 ? " · accent ink flips for readability" : ""}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                )}
 
                 <SectionTitle>Accent</SectionTitle>
                 <div className="flex items-center gap-2">
@@ -1044,8 +881,10 @@ export default function SettingsPanel({
                       type="button"
                       title={a.label}
                       onClick={() => onChange({ accent: a.value })}
-                      className={`h-6 w-6 rounded-full border-2 transition ${
-                        settings.accent === a.value ? "scale-105 border-white/80" : "border-transparent hover:scale-105"
+                      className={`h-5 w-5 rounded-full border transition ${
+                        settings.accent === a.value
+                          ? "border-(--text-primary)"
+                          : "border-(--border-strong) hover:border-(--text-muted)"
                       }`}
                       style={{ background: a.value }}
                     />
@@ -1058,30 +897,11 @@ export default function SettingsPanel({
                     className="h-6 w-9 cursor-pointer rounded border border-(--border) bg-transparent p-0.5"
                   />
                 </div>
-                <div className="mt-2 flex items-center gap-2">
-                  <span
-                    className="rounded-md px-2 py-0.5 text-[10px] font-medium"
-                    style={{ background: settings.accent, color: onAccentInk(settings.accent) }}
-                  >
-                    Aa · {onAccentInk(settings.accent) === "#ffffff" ? "white ink" : "dark ink"}
-                  </span>
-                  <span className="text-[10px] text-[var(--text-muted)]">
-                    Ink on the accent is auto-picked — bright accents (yellow, cyan) get dark text so buttons stay readable.
-                  </span>
-                </div>
-                <span>
-                  <label
-                    htmlFor="custom-select"
-                    className="text-sm font-medium text-white-300"
-                  >
-                    {languageLabels.changeLanguage}
-                  </label>
-
+                <Row title={languageLabels.changeLanguage}>
                   <select
-                    id="custom-select"
                     value={selectedValue}
                     onChange={handleLanguageChange}
-                    className="w-30 h-7 rounded-2xl bg-gray m-4 text-gray-900"
+                    className="w-48 appearance-none rounded-md border border-(--border) bg-(--fill-1) py-1.5 pl-2.5 pr-8 text-[12px] text-[var(--text-primary)] outline-none transition focus:border-(--border-strong)"
                   >
                     <option value="" disabled>{languageLabels.select}</option>
                     {LANGUAGE_OPTIONS.map((language) => (
@@ -1090,11 +910,7 @@ export default function SettingsPanel({
                       </option>
                     ))}
                   </select>
-
-                  <p className="mt-1 text-gray-500">
-                    {languageLabels.selected}: <span className="font-semibold">{selectedValue}</span>
-                  </p>
-                </span>
+                </Row>
                           </div>
             )}
             {section === "account" && (
@@ -1246,7 +1062,7 @@ export default function SettingsPanel({
                   <div className="flex flex-col gap-1.5 pb-3">
                     <p className="text-[10.5px] leading-4 text-[var(--text-muted)]">
                       Your key is encrypted before it is stored in your account. It is only
-                      decrypted in memory when Struct needs it.
+                      decrypted in memory when Neo needs it.
                     </p>
                     <div className="flex gap-1.5">
                       <div className="relative flex-1">
@@ -1926,11 +1742,11 @@ export default function SettingsPanel({
             {section === "about" && (
               <div>
                 <div className="flex items-center gap-3 py-2">
-                  <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-(--accent-soft)">
-                    <img src={appIcon} alt="Struct logo" className="h-full w-full object-contain" />
+                  <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-(--border) bg-(--fill-1)">
+                    <img src={appIcon} alt="Neo logo" className="h-full w-full object-contain" />
                   </div>
                   <div>
-                    <p className="text-[14px] font-semibold text-[var(--text-primary)]">Struct</p>
+                    <p className="text-[13px] font-medium text-[var(--text-primary)]">Neo</p>
                     <p className="text-[11px] text-[var(--text-muted)]">Version 1.12 (Beta)</p>
                   </div>
                 </div>
@@ -1944,13 +1760,13 @@ export default function SettingsPanel({
                  data according to their own privacy policy.
                 </p>
                 <p className = "text-[11.5px] leading-5 text-[var(--text-secondary)]">
-                  App is still very premature so functions might fail sometimes and you might encounter bugs. Functions might work differently than expected and are not that optimized as expected. Please report any bugs you encounter on the GitHub repository.
+                  Neo is in early beta — some features may not work as expected. Please report bugs on the GitHub repository.
                 </p>
                 <SectionTitle>Links</SectionTitle>
                 <div className="flex flex-col gap-1">
                   {[
-                    ["GitHub repository", "https://github.com/Lumorix-Studios/Struct"],
-                    ["Report an issue", "https://github.com/Lumorix-Studios/Struct/issues"],
+                    ["GitHub repository", "https://github.com/Lumorix-Studios/Neo"],
+                    ["Report an issue", "https://github.com/Lumorix-Studios/Neo/issues"],
                   ].map(([label, href]) => (
                     <a
                       key={href}
@@ -1965,17 +1781,7 @@ export default function SettingsPanel({
                   ))}
                 </div>
 
-                {/* <SectionTitle>Built with</SectionTitle> */}
-                {/* <div className="flex flex-wrap gap-1.5">
-                  {["Tauri 2", "React 19", "TypeScript", "Rust", "Tailwind CSS 4", "xterm.js", "portable-pty"].map((t) => (
-                    <span key={t} className="rounded-full border border-(--border) px-2.5 py-0.5 text-[10.5px] text-[var(--text-secondary)]">
-                      {t}
-                    </span>
-                  ))}
-                </div> */}
-                <p className="pt-4 text-[10.5px] text-[var(--text-faint)]">
-                </p>
-              </div>
+</div>
             )}
             </div>
           </div>

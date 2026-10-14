@@ -1,11 +1,19 @@
 /*
  * Chat history sidebar — flat session list with search, date grouping and
  * inline delete. Purely presentational: session state lives in App.
+ *
+ * Also home to the app-level controls that used to live in the removed top
+ * menu: the Context/File/View/Help dropdown menus and the command-palette
+ * search button.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChatSession } from "../src/types";
 import { providerById } from "../src/providers";
 import { IoAdd, IoClose, IoSearch, IoTrashOutline } from "react-icons/io5";
+import { openExternalUrl as openUrl } from "../src/lib/external";
+import { useErrorHandler } from "../src/errorContext";
+import { useTranslation } from "../src/i18n";
+import appIcon from "../src/assets/images/icon.jpeg";
 
 interface Props {
   isOpen: boolean;
@@ -17,6 +25,27 @@ interface Props {
   onDeleteSession: (id: string) => void;
   /** True when the user is signed in — chats then sync to their account. */
   signedIn?: boolean;
+
+  /* App-level controls relocated from the removed top menu. */
+  onOpenInfoPanel?: () => void;
+  onOpenTab2?: () => void;
+  onOpenAiSettings?: () => void;
+  onOpenSettings?: () => void;
+  /** Opens the command palette (was the top bar's Search pill). */
+  onOpenCommandPalette?: () => void;
+  onCheckForUpdates?: () => void;
+  onAnalyzeProject?: () => void;
+  onSaveSession?: () => void;
+  onPinFile?: (path: string) => void;
+  /** Workspace folder entries shown in the Context menu. */
+  contextEntries?: { name: string; path: string; is_dir: boolean }[];
+  /** Paths currently pinned to the agent's context. */
+  pinnedPaths?: string[];
+}
+
+interface MenuDef {
+  label: string;
+  items: { label: string; action: () => void; shortcut?: string; disabled?: boolean }[];
 }
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -51,9 +80,113 @@ export default function ChatHistorySidebar({
   onNewChat,
   onDeleteSession,
   signedIn = false,
+  onOpenInfoPanel,
+  onOpenTab2,
+  onOpenAiSettings,
+  onOpenSettings,
+  onOpenCommandPalette,
+  onCheckForUpdates,
+  onAnalyzeProject,
+  onSaveSession,
+  onPinFile,
+  contextEntries,
+  pinnedPaths,
 }: Props) {
   const [query, setQuery] = useState("");
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const { reportError } = useErrorHandler();
+  const { t } = useTranslation();
+
+  /* Close an open menu when clicking anywhere outside the menu row. */
+  useEffect(() => {
+    const close = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenu(null);
+      }
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
+
+  const openDocs = async () => {
+    try {
+      await openUrl("https://lumorix-studios.github.io/LumorixStudiosHq/Documentation");
+    } catch (error) {
+      reportError(error);
+    }
+  };
+  const openPrivacyPolicy = async () => {
+    try {
+      await openUrl("https://lumorix-studios.github.io/LumorixStudiosHq/privacypolicyandterms");
+    } catch (error) {
+      reportError(error);
+    }
+  };
+
+  const pinned = new Set(pinnedPaths ?? []);
+  /** Workspace entries for the Context menu — files are pinnable, folders are informational. */
+  const contextItems: MenuDef["items"] = (contextEntries ?? []).slice(0, 25).map((e) => ({
+    label: `${pinned.has(e.path) ? "📌 " : ""}${e.is_dir ? "📁 " : "📄 "}${e.name}`,
+    action: () => onPinFile?.(e.path),
+    disabled: e.is_dir || !onPinFile,
+  }));
+
+  /** The old top-bar menus, relocated into the sidebar. */
+  const menus: MenuDef[] = [
+    {
+      label: t("app.context"),
+      items: [
+        {
+          label: t("app.analyzeProject"),
+          action: () => onAnalyzeProject?.(),
+          disabled: !onAnalyzeProject,
+        },
+        {
+          label: t("app.saveSession"),
+          action: () => onSaveSession?.(),
+          disabled: !onSaveSession,
+        },
+        ...(contextItems.length > 0
+          ? [
+              { label: t("app.contextTarget"), action: () => {}, disabled: true },
+              ...contextItems,
+            ]
+          : [{ label: t("app.noFolderOpen"), action: () => {}, disabled: true }]),
+      ],
+    },
+    {
+      label: t("app.file"),
+      items: [
+        { label: t("app.newChat"), action: onNewChat, shortcut: "Ctrl+Shift+H" },
+        { label: t("app.chatHistory"), action: onClose, shortcut: "Ctrl+H" },
+      ],
+    },
+    {
+      label: t("app.view"),
+      items: [
+        { label: t("app.chatHistory"), action: onClose, shortcut: "Ctrl+Shift+H" },
+        { label: t("app.aiSettings"), action: () => onOpenAiSettings?.(), shortcut: "Ctrl+B" },
+        ...(onOpenSettings
+          ? [{ label: t("app.settingsMenu"), action: onOpenSettings, shortcut: "Ctrl+," }]
+          : []),
+      ],
+    },
+    {
+      label: t("app.help"),
+      items: [
+        { label: t("app.documentation"), action: openDocs },
+        { label: t("app.aboutContact"), action: () => onOpenInfoPanel?.() },
+        { label: t("app.privacyPolicy"), action: openPrivacyPolicy },
+        { label: t("app.rateApp"), action: () => onOpenTab2?.() },
+        ...(onCheckForUpdates
+          ? [{ label: t("app.checkForUpdates"), action: onCheckForUpdates }]
+          : []),
+      ],
+    },
+  ];
+  const openMenuDef = openMenu ? (menus.find((m) => m.label === openMenu) ?? null) : null;
 
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -73,12 +206,66 @@ export default function ChatHistorySidebar({
 
   return (
     <aside
-      className={`shrink-0 overflow-hidden border-r border-(--border) bg-[var(--bg-panel)] transition-[width] duration-150 ease-out ${
+      className={`glass-panel shrink-0 overflow-hidden border-r border-(--border) bg-[var(--bg-panel)] transition-[width] duration-150 ease-out ${
         isOpen ? "w-[248px] max-sm:w-full" : "w-0"
       }`}
     >
       {isOpen && (
         <div className="flex h-full w-full flex-col">
+          {/* Menus — relocated from the removed top bar */}
+          <div ref={menuRef} className="relative flex shrink-0 items-center gap-0.5 px-1.5 pt-2">
+            {menus.map((menu) => (
+              <button
+                key={menu.label}
+                type="button"
+                onClick={() => setOpenMenu(openMenu === menu.label ? null : menu.label)}
+                onMouseEnter={() => openMenu && setOpenMenu(menu.label)}
+                className={`rounded-[4px] px-1.5 py-[3px] text-[12px] transition-colors ${
+                  openMenu === menu.label
+                    ? "bg-(--fill-2) text-[var(--text-primary)]"
+                    : "text-[var(--text-secondary)] hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
+                }`}
+              >
+                {menu.label}
+              </button>
+            ))}
+            {onOpenCommandPalette && (
+              <button
+                type="button"
+                onClick={onOpenCommandPalette}
+                title="Search commands and files (Ctrl+Shift+P)"
+                aria-label="Search commands and files"
+                className={`ml-auto ${ICON_BUTTON}`}
+              >
+                <IoSearch size={13} />
+              </button>
+            )}
+
+            {openMenuDef && (
+              <div className="panel-in absolute left-1.5 top-full z-50 mt-1 w-60 overflow-hidden rounded-[5px] border border-(--border) bg-[var(--bg-elevated)] p-[3px]">
+                {openMenuDef.items.map((item, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    disabled={item.disabled}
+                    onClick={() => {
+                      item.action();
+                      setOpenMenu(null);
+                    }}
+                    className="flex w-full items-center justify-between rounded-[3px] px-2.5 py-[5px] text-left text-[12.5px] text-[var(--text-primary)] transition-colors hover:bg-(--fill-2) hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <span>{item.label}</span>
+                    {item.shortcut && (
+                      <span className="ml-8 text-[11px] tracking-wide text-[var(--text-muted)]">
+                        {item.shortcut}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Search + actions */}
           <div className="flex shrink-0 items-center gap-1.5 px-2 py-2">
             <div className="relative min-w-0 flex-1">
@@ -174,9 +361,13 @@ export default function ChatHistorySidebar({
             ))}
           </div>
 
-          <p className="shrink-0 border-t border-(--border) px-3 py-2 text-[10px] text-[var(--text-faint)]">
-            {signedIn ? "Synced to your account." : "Stored on this device."}
-          </p>
+          <div className="flex shrink-0 items-center gap-1.5 border-t border-(--border) px-3 py-2">
+            <img src={appIcon} alt="" className="h-3.5 w-3.5 rounded-[3px]" />
+            <span className="text-[11px] font-semibold text-[var(--text-secondary)]">Neo</span>
+            <span className="ml-auto text-[10px] text-[var(--text-faint)]">
+              {signedIn ? "Synced to your account." : "Stored on this device."}
+            </span>
+          </div>
         </div>
       )}
     </aside>

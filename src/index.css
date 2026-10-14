@@ -54,22 +54,22 @@
 /* Native OS frame: no drag regions, the system draws the title bar. */
 
 :root {
-  --bg-base: #0d0d0d;        /* Deep black-grey */
-  --bg-panel: #121212;       /* Slightly lighter for sidebars */
-  --bg-elevated: #1a1a1a;    /* Popovers/Inputs */
-  --bg-active: #222222;      /* Hover/Selected */
-  --bg-input: #161616;       /* Input backgrounds */
+  --bg-base: #1f1f1f;        /* Charcoal (Codex-like), not near-black */
+  --bg-panel: #191919;       /* Slightly recessed for sidebars */
+  --bg-elevated: #2b2b2b;    /* Popovers/Inputs */
+  --bg-active: #343434;      /* Hover/Selected */
+  --bg-input: #242424;       /* Input backgrounds */
 
-  --bg-chrome: #0a0a0a;      /* Activity bar/Title bar */
-  --bg-editor: #0d0d0d;
+  --bg-chrome: #1a1a1a;      /* Activity bar/Title bar */
+  --bg-editor: #1f1f1f;
 
-  --border: rgba(255, 255, 255, 0.05);
-  --border-strong: rgba(255, 255, 255, 0.1);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
 
-  --text-primary: #e5e5e5;
-  --text-secondary: #a1a1a1;
-  --text-muted: #666666;
-  --text-faint: #444444;
+  --text-primary: #f4f4f5;
+  --text-secondary: #d4d4d8;
+  --text-muted: #a1a1a1;
+  --text-faint: #71717a;
 
   --accent: #3b82f6;         /* Clean, professional blue */
   --accent-soft: rgba(59, 130, 246, 0.1);
@@ -329,4 +329,33 @@ button,
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* -- Glass mode (Settings > Appearance > Glassy surfaces) -------------
+   Dialog backdrops blur the chat behind them; floating panels and the
+   sidebar turn translucent with a top-edge sheen. Gated on <html data-glass="1">. */
+[data-glass="1"] .dialog-backdrop {
+  background: rgba(0, 0, 0, 0.45);
+  -webkit-backdrop-filter: blur(8px) saturate(1.15);
+  backdrop-filter: blur(8px) saturate(1.15);
+}
+[data-glass="1"] .panel-in {
+  background-color: color-mix(in srgb, var(--bg-elevated) 80%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.35);
+  backdrop-filter: blur(18px) saturate(1.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+[data-glass="1"] .glass-panel {
+  position: relative;
+  background-color: color-mix(in srgb, var(--bg-panel) 84%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  backdrop-filter: blur(20px) saturate(1.3);
+}
+[data-glass="1"] .glass-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 88px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.03), transparent);
 }

@@ -31,10 +31,15 @@ const { homedir } = require('node:os')
 const { basename, dirname, join } = require('node:path')
 const { pipeline } = require('node:stream/promises')
 
-// Belt-and-suspenders: never let the renderer touch a broken GPU stack even
-// once the correct Ozone backend is selected.
-app.disableHardwareAcceleration()
-app.commandLine.appendSwitch('disable-gpu')
+// Software-rendering escape hatch (opt-in). The X11 re-launch above already
+// dodges the Wayland vaInitialize SIGSEGV, so hardware acceleration stays ON
+// by default — forcing SwiftShader for the whole window made every paint,
+// blur and scroll crawl on the CPU. Set NEO_SOFTWARE_RENDER=1 only if the
+// host GPU stack is genuinely broken.
+if (process.env.NEO_SOFTWARE_RENDER === '1') {
+  app.disableHardwareAcceleration()
+  app.commandLine.appendSwitch('disable-gpu')
+}
 
 const APP_PROTOCOL = 'agenticcoder'
 let mainWindow
@@ -68,7 +73,7 @@ function handleDeepLink(argv) {
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1220, height: 820, minWidth: 720, minHeight: 480, show: false,
-    frame: true, autoHideMenuBar: true, backgroundColor: '#101014', title: 'Neo',
+    frame: true, autoHideMenuBar: true, backgroundColor: '#1f1f1f', title: 'Neo',
     webPreferences: { preload: join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   })
   mainWindow.once('ready-to-show', () => { if (mainWindow) mainWindow.show() })

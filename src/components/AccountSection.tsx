@@ -4,31 +4,12 @@
  */
 
 
-import { memo, useEffect, useState } from "react";
-import { openExternalUrl as openUrl } from "../lib/external";
-import {
-  signInWithEmail,
-  signUpWithEmail,
-  signInWithOAuth,
-  resetPassword,
-  signOut,
-  updateProfile,
-  refreshEnabledProviders,
-  checkSupabaseHealth,
-  refreshSupabaseHealth,
-  providerDisabledMessage,
-  onAuthError,
-  getLastAuthError,
-  clearLastAuthError,
-  AUTH_ERROR_EVENT,
-  type EnabledProviders,
-  type NeoUser,
-  type Profile,
-} from "../lib/auth";
+import { memo, useState } from "react";
+import { signOut, updateProfile, type NeoUser, type Profile } from "../lib/auth";
 import { isSupabaseConfigured } from "../lib/supabase";
 import { deleteAllCloudData } from "../lib/cloudSync";
-import { listen } from "../native";
-import { IoLogoGithub, IoLogoGoogle, IoTrash, IoExit } from "react-icons/io5";
+import { IoTrash, IoExit } from "react-icons/io5";
+import LoginModal from "./LoginModal";
 
 interface AccountSectionProps {
   account: NeoUser | null;
@@ -37,8 +18,6 @@ interface AccountSectionProps {
   /** Ask the app to re-read the account/profile after profile edits. */
   onAccountRefresh: () => void;
 }
-
-type Mode = "sign-in" | "sign-up";
 
 function providerName(provider: string | null | undefined): string {
   if (provider === "github") return "GitHub";
@@ -105,6 +84,7 @@ const AccountSection = memo(function AccountSection({
   const [notice, setNotice] = useState<string | null>(null);
   const [dangerOpen, setDangerOpen] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [loginOpen, setLoginOpen] = useState(false);
 
   const profileName = profile?.name ?? "";
   const [draft, setDraft] = useState({ name: profileName, from: profileName });
@@ -292,312 +272,21 @@ const AccountSection = memo(function AccountSection({
           <Card>
             <Row
               title="Account"
-              description="Your profile, cloud data and provider keys are tied to a Struct account — sign in or create one to open them."
-            />
+              description="Your profile, cloud data and provider keys are tied to a Neo account — sign in or create one to open them."
+            >
+              <button
+                type="button"
+                onClick={() => setLoginOpen(true)}
+                className="h-7 rounded-md bg-(--text-primary) px-3 text-[12px] font-medium text-(--bg-base) transition-opacity hover:opacity-90 disabled:opacity-40"
+              >
+                Sign in
+              </button>
+            </Row>
           </Card>
         </section>
-        <SignInUp />
+        <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
       </div>
     );
   }
 });
-
-/* ── Signed-out form ───────────────────────────────────────────────────────── */
-
-function SignInUp() {
-  const [mode, setMode] = useState<Mode>("sign-in");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [callbackError, setCallbackError] = useState<string | null>(() => getLastAuthError());
-  const [healthError, setHealthError] = useState<string | null>(null);
-  const [providers, setProviders] = useState<EnabledProviders | null>(null);
-  const [infoOpen, setInfoOpen] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  useEffect(() => {
-    let alive = true;
-    void refreshEnabledProviders().then((p) => {
-      if (alive && p) setProviders(p);
-    });
-    // Startup probe: when the URL/key in .env is dead (rotated anon key,
-    // paused project, offline…), EVERY method fails. Say so up front instead
-    // of letting each button fail one by one.
-    void checkSupabaseHealth().then((h) => {
-      if (alive && !h.ok && h.message) setHealthError(h.message);
-    });
-    // OAuth / recovery deep-link failures are broadcast from the auth layer
-    // (they happen outside this form). Show them here so "login always fails"
-    // always comes with a reason.
-    const off = onAuthError((msg) => {
-      if (alive) setCallbackError(msg);
-    });
-    let unlisten: (() => void) | null = null;
-    void listen<string>(AUTH_ERROR_EVENT, (e) => {
-      if (alive) setCallbackError(typeof e.payload === "string" ? e.payload : String(e.payload));
-    }).then((un) => {
-      unlisten = un;
-    });
-    return () => {
-      alive = false;
-      off();
-      try {
-        unlisten?.();
-      } catch {
-        /* listener already gone */
-      }
-    };
-  }, []);
-
-  const runAuth = async (fn: () => Promise<unknown>, done?: (r: unknown) => void) => {
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-    setCallbackError(null);
-    setHealthError(null);
-    clearLastAuthError();
-    try {
-      const result = await fn();
-      done?.(result);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
-    setBusy(false);
-  };
-
-  const recheckHealth = () => {
-    setHealthError(null);
-    void refreshSupabaseHealth().then((h) => {
-      setHealthError(!h.ok && h.message ? h.message : null);
-    });
-    void refreshEnabledProviders().then((p) => {
-      if (p) setProviders(p);
-    });
-  };
-
-  const canSubmit = !busy && email.trim().length > 3 && password.length >= 6;
-
-  const submit = () =>
-    void runAuth(
-      () =>
-        mode === "sign-in"
-          ? signInWithEmail(email.trim(), password)
-          : signUpWithEmail(email.trim(), password),
-      (r) => {
-        const res = r as { needsEmailConfirmation?: boolean } | undefined;
-        if (res?.needsEmailConfirmation) {
-          setNotice("Check your inbox — confirm your email to finish signing up.");
-        }
-      }
-    );
-
-  const switchMode = (next: Mode) => {
-    setMode(next);
-    setError(null);
-    setNotice(null);
-  };
-
-  const reset = () =>
-    void runAuth(() => resetPassword(email.trim()), () => setNotice("Password-reset email sent."));
-
-  return (
-    <div className="space-y-5">
-      <div>
-        <div className="flex gap-4 text-[12px]">
-          {(["sign-in", "sign-up"] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => switchMode(m)}
-              className={
-                mode === m
-                  ? "text-[var(--text-primary)]"
-                  : "text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
-              }
-            >
-              {m === "sign-in" ? "Sign in" : "Create account"}
-            </button>
-          ))}
-        </div>
-        <p className="mt-1.5 text-[11px] leading-4 text-[var(--text-muted)]">
-          Sync chats, settings and encrypted API keys across your devices.
-        </p>
-      </div>
-
-      {providers?.email === false && (
-        <p className="text-[10.5px] leading-4 text-[var(--text-muted)]">
-          Email sign-in is switched off for this Supabase project. Turn it on under Dashboard →
-          Authentication → Sign In / Providers.
-        </p>
-      )}
-
-      {healthError && (
-        <p className="text-[11.5px] leading-5 text-red-400/90">
-          {healthError}{" "}
-          <button type="button" onClick={recheckHealth} className="underline underline-offset-2">
-            Recheck
-          </button>
-        </p>
-      )}
-
-      <div className="space-y-2.5">
-        <label className="block">
-          <span className="mb-1 block text-[11px] text-[var(--text-muted)]">Email</span>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            spellCheck={false}
-            autoComplete="email"
-            className="h-8 w-full rounded-md border border-(--border) bg-(--fill-1) px-2.5 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-[11px] text-[var(--text-muted)]">Password</span>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="At least 6 characters"
-            autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
-            className="h-8 w-full rounded-md border border-(--border) bg-(--fill-1) px-2.5 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
-          />
-        </label>
-      </div>
-
-      <div className="flex items-center justify-between gap-3">
-        <button
-          type="button"
-          disabled={!canSubmit}
-          onClick={submit}
-          className="h-8 rounded-md px-3.5 text-[12px] font-medium transition disabled:opacity-40"
-          style={{ background: "var(--accent)", color: "var(--on-accent)" }}
-        >
-          {busy ? "Working…" : mode === "sign-in" ? "Sign in" : "Create account"}
-        </button>
-        {mode === "sign-in" && (
-          <button type="button" disabled={busy || !email.trim()} onClick={reset} className={TEXT_BUTTON}>
-            Forgot password?
-          </button>
-        )}
-      </div>
-
-      {error && <p className="text-[11.5px] leading-4 text-red-400/90">{error}</p>}
-      {callbackError && !error && (
-        <p className="text-[11.5px] leading-4 text-red-400/90">
-          Last sign-in attempt failed: {callbackError}
-        </p>
-      )}
-      {notice && !error && !callbackError && (
-        <p className="text-[11.5px] leading-4 text-[var(--text-muted)]">{notice}</p>
-      )}
-
-      <OAuthButtons
-        busy={busy}
-        runAuth={runAuth}
-        providers={providers}
-        onRecheck={() => {
-          void refreshEnabledProviders().then((p) => {
-            if (p) setProviders(p);
-          });
-        }}
-      />
-
-      <div>
-        <button
-          type="button"
-          onClick={() => setInfoOpen((v) => !v)}
-          aria-expanded={infoOpen}
-          className="text-[11px] text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
-        >
-          {infoOpen ? "Hide OAuth status & help" : "OAuth status & help"}
-        </button>
-        {infoOpen && (
-          <p className="mt-1.5 text-[11px] leading-5 text-[var(--text-muted)]">
-            Google and GitHub OAuth may be down for maintenance — email and password sign-in always
-            works. For enquiries, open an issue on the{" "}
-            <a
-              href="https://github.com/Lumorix-studios/Struct"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline underline-offset-2 hover:text-[var(--text-secondary)]"
-            >
-              official repository
-            </a>
-            .
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ── OAuth buttons (GitHub / Google) ───────────────────────────────────────── */
-
-function OAuthButtons({
-  busy,
-  runAuth,
-  providers,
-  onRecheck,
-}: {
-  busy: boolean;
-  runAuth: (fn: () => Promise<unknown>, done?: (r: unknown) => void) => Promise<void>;
-  providers: EnabledProviders | null;
-  onRecheck: () => void;
-}) {
-  const githubOff = providers?.github === false;
-  const googleOff = providers?.google === false;
-  const oauth = (provider: "github" | "google") => ({
-    disabled: busy || (provider === "github" ? githubOff : googleOff),
-    title:
-      provider === "github"
-        ? githubOff
-          ? providerDisabledMessage("github")
-          : "Continue with GitHub"
-        : googleOff
-          ? providerDisabledMessage("google")
-          : "Continue with Google",
-    onClick: () =>
-      void runAuth(async () => {
-        const url = await signInWithOAuth(provider);
-        await openUrl(url);
-      }),
-  });
-
-  const off = [githubOff ? "GitHub" : null, googleOff ? "Google" : null].filter(Boolean).join(" and ");
-
-  return (
-    <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          {...oauth("github")}
-          className="flex h-8 items-center justify-center gap-2 rounded-md border border-(--border) text-[11.5px] text-[var(--text-secondary)] transition-colors hover:bg-(--fill-1) hover:text-[var(--text-primary)] disabled:opacity-40"
-        >
-          <IoLogoGithub size={13} />
-          GitHub
-        </button>
-        <button
-          type="button"
-          {...oauth("google")}
-          className="flex h-8 items-center justify-center gap-2 rounded-md border border-(--border) text-[11.5px] text-[var(--text-secondary)] transition-colors hover:bg-(--fill-1) hover:text-[var(--text-primary)] disabled:opacity-40"
-        >
-          <IoLogoGoogle size={12} />
-          Google
-        </button>
-      </div>
-      {off && (
-        <p className="text-[10.5px] leading-4 text-[var(--text-muted)]">
-          {off} sign-in is switched off in Supabase.{" "}
-          <button type="button" onClick={onRecheck} className="underline underline-offset-2">
-            Recheck
-          </button>
-        </p>
-      )}
-    </div>
-  );
-}
-
 export default AccountSection;

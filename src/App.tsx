@@ -8,8 +8,6 @@
 //also cant assure you this will always stay opensource
 //       last modified : 9/24/26
 import { lazy, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
-import StarBorder from "../components/StarBorder";
-import TopMenu from "../components/TopMenu";
 import ChatHistorySidebar from "../components/ChatHistorySidebar.tsx";
 import InfoPanel from "../components/InfoPanel";
 import PrivacyPolicy from "../components/PrivacyPolicy.tsx";
@@ -100,7 +98,6 @@ import { computeLineDiff } from "./diff";
 import { checkRateLimit, estimateTokens, recordUsage } from "./tokenUsage";
 import { resolveFsPath } from "./agentic";
 import { ensureOllamaReady } from "./localModels";
-import BlurText from "../components/BlurText";
 import type { SectionId } from "./components/SettingsPanel";
 import {
   applyUiSettings,
@@ -113,7 +110,7 @@ import {
   type UiSettings,
 } from "./uiSettings";
 import { getActiveLanguage, setActiveLanguage } from "./i18n";
-import { IoAdd, IoAlertSharp, /*IoBarChartOutline, IoBugOutline*/ IoCheckmark, IoCopyOutline, IoFolderOutline, /*IoSparkles*/ /*IoTerminal,*/ IoThumbsDownSharp, IoThumbsUpSharp, IoSettings, /*IoInformation*/ IoPersonCircleOutline } from "react-icons/io5";
+import { IoMenu, IoAlertSharp, /*IoBarChartOutline, IoBugOutline*/ IoCheckmark, IoCopyOutline, IoFolderOutline, /*IoSparkles*/ /*IoTerminal,*/ IoThumbsDownSharp, IoThumbsUpSharp, IoSettings, /*IoInformation*/ IoPersonCircleOutline } from "react-icons/io5";
 import { shortPath } from "./utils";
 
 const SettingsPanel = lazy(() => import("./components/SettingsPanel"));
@@ -366,7 +363,7 @@ export default function App() {
   // const [onOpenTerminal, setOpenTerminal] = useState(false);
   // Which tab of the bottom dock is visible (terminal/problems/debug/…).
   // const [panelTab, setPanelTab] = useState<PanelTab>("terminal");
-  const [historySidebarOpen, setHistorySidebarOpen] = useState(false);
+  const [historySidebarOpen, setHistorySidebarOpen] = useState(true);
   const [infoPanelOpen, setInfoPanelOpen] = useState(false);
   const [privacyPolicyOpen, setPrivacyPolicyOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -1574,9 +1571,6 @@ Tool allowance: No Tools Allowed. Do not attempt to use tools or claim to have u
       usageIn: sawUsage && usageIn > 0 ? usageIn : 0,
     };
   };
-  const handleAnimationComplete = () => {
-    console.log('Animation completed!');
-  };
 
   const sendMessage = async (overrideText?: string) => {
     const trimmed = (overrideText ?? message).trim();
@@ -2311,40 +2305,7 @@ MCP call rules:
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-[var(--bg-base)] text-[var(--text-primary)] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
-        <TopMenu
-          contextEntries={contextEntries}
-          pinnedPaths={pinnedPaths}
-          onPinFile={togglePinFile}
-          onAnalyzeProject={handleAnalyzeProject}
-          onSaveSession={() => void handleSaveSession()}
-          onOpenInfoPanel={() => setInfoPanelOpen(true)}
-          onOpenPrivacyPolicy={() => setPrivacyPolicyOpen(true)}
-          onOpenTab2={() => setTab2Open(true)}
-          onOpenAiSettings={() => {
-            setSettingsSection("ai");
-            setSettingsOpen(true);
-          }}
-          onOpenChatHistory={() => setHistorySidebarOpen(true)}
-          onOpenSettings={() => setSettingsOpen(true)}
-          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
-          onCheckForUpdates={() => void runUpdateCheck(true)}
-          right={
-            <>
-              {/* Provider/model switching moved to the PromptBar (composer); the
-                  context-window readout now renders in the chat's context strip. */}
-              {/* New chat */}
-              <button
-                type="button"
-                onClick={newChat}
-                title="New chat"
-                aria-label="New chat"
-                className="flex h-6 w-6 items-center justify-center rounded-md text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
-              >
-                <IoAdd size={13} />
-              </button>
-            </>
-          }
-        />
+
         <InfoPanel isOpen={infoPanelOpen} onClose={() => setInfoPanelOpen(false)} />
         <PrivacyPolicy isOpen={privacyPolicyOpen} onClose={() => setPrivacyPolicyOpen(false)} />
         {updateNotification && (
@@ -2379,6 +2340,13 @@ MCP call rules:
               </RailButton> */}
 
               <RailButton
+                active={historySidebarOpen}
+                title="Chat history (Ctrl+Shift+H)"
+                onClick={() => setHistorySidebarOpen((v) => !v)}
+              >
+                <IoMenu size={17} />
+              </RailButton>
+              <RailButton
                 active={settingsOpen && settingsSection === "account"}
                 title="Account"
                 onClick={() => {
@@ -2402,6 +2370,20 @@ MCP call rules:
             onNewChat={newChat}
             onDeleteSession={deleteSession}
             signedIn={signedIn}
+            contextEntries={contextEntries}
+            pinnedPaths={pinnedPaths}
+            onPinFile={togglePinFile}
+            onAnalyzeProject={handleAnalyzeProject}
+            onSaveSession={() => void handleSaveSession()}
+            onOpenInfoPanel={() => setInfoPanelOpen(true)}
+            onOpenTab2={() => setTab2Open(true)}
+            onOpenAiSettings={() => {
+              setSettingsSection("ai");
+              setSettingsOpen(true);
+            }}
+            onOpenSettings={() => setSettingsOpen(true)}
+            onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+            onCheckForUpdates={() => void runUpdateCheck(true)}
           />
           <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-[var(--bg-base)]">
             {/* --- CONTEXT STRIP --- */}
@@ -2411,16 +2393,16 @@ MCP call rules:
               data-debug="context-strip"
             >
               <div className="flex items-center gap-1.5 text-[var(--text-secondary)]">
-                <span className="text-[10px] uppercase tracking-wider font-bold">Context:</span>
+                <span className="text-[10.5px] font-medium text-[var(--text-muted)]">Context</span>
               </div>
               {workspaceRoot && (
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded border-zinc-800 text-[var(--text-primary)] text-[10px] font-mono">
+                <div className="flex items-center gap-1 rounded border border-(--border) bg-(--fill-1) px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]">
                   <span><IoFolderOutline/>
                   </span> {shortPath(workspaceRoot)}
                 </div>
               )}
               {activeEditorPath && (
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-300 text-[10px] font-mono">
+                <div className="flex items-center gap-1 rounded border border-(--border) bg-(--fill-1) px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]">
                   <span>
                   </span> {shortPath(activeEditorPath)}
                 </div>
@@ -2432,9 +2414,7 @@ MCP call rules:
                   dropdown inside the top-menu provider pill) and ticks up live
                   while a reply streams. */}
               <div className="ml-auto flex shrink-0 items-center gap-2 pl-4">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-                  Tokens:
-                </span>
+                <span className="text-[10.5px] font-medium text-[var(--text-muted)]">Tokens</span>
                 <span
                   className="tabular-nums text-[10px] text-[var(--text-secondary)]"
                   title={
@@ -2468,74 +2448,21 @@ MCP call rules:
                 <div className="relative flex min-h-full items-center justify-center px-6">
                   <div className="msg-in relative z-0 w-full max-w-2xl pb-24 text-center" data-debug="welcome-wrap">
 
-                    {/* Emblem */}
+                    <h1 className="mb-6 text-[16px] font-medium tracking-tight text-[var(--text-primary)]" data-debug="welcome-heading">
+                      What do you want to build?
+                    </h1>
 
-
-                    {/* Welcome heading */}
-                    <div className="relative z-0 flex items-center justify-center" data-debug="welcome-heading">
-                      <BlurText
-                        text="Ready to start working?"
-                        delay={70}
-                        animateBy="letters"
-                        direction="top"
-                        onAnimationComplete={handleAnimationComplete}
-                        className="mb-3 justify-center text-center text-2xl text-[var(--text-primary)] font-serif"
-                      />
-                    </div>
-
-                    {/* Status chips */}
-                    <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-                      {/* <span
-                        title={`Provider: ${spec.label}`}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-(--border) bg-(--fill-1) px-2.5 py-1 text-[11px] text-[var(--text-secondary)]"
-                      >
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            settings.apiKey || !spec.needsAuth ? "bg-emerald-500" : "bg-zinc-600"
-                          }`}
-                        />
-                        {settings.model || spec.label}
-                      </span>
-                      <span
-                        title={workspaceRoot ?? undefined}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-(--border) bg-(--fill-1) px-2.5 py-1 text-[11px] text-[var(--text-secondary)]"
-                      >
-                        <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M1.5 4.5A1.5 1.5 0 013 3h3l1.5 1.75H13A1.5 1.5 0 0114.5 6.25V12A1.5 1.5 0 0112.5 13.5h-9A1.5 1.5 0 011.5 12V4.5z" />
-                        </svg>
-                        {workspaceRoot
-                          ? `${workspaceRoot.split(/[\\/]/).filter(Boolean).pop()} folder/file open`
-                          : "No workspace open"}
-                      </span>
-                       */}
-                    </div>
-
-                    {/* Action cards */}
-                    <div className="mx-auto mt-5 grid w-full max-w-lg grid-cols-1 gap-3 text-left sm:grid-cols-2">
-                      <StarBorder
-                        as="button"
+                    <div className="mx-auto mt-1 grid w-full max-w-lg grid-cols-1 gap-1.5 text-left sm:grid-cols-2">
+                      <button
                         type="button"
                         onClick={() => {
                           void openWorkspaceFolder();
                         }}
-                        color="yellow"
-                        speed="15s"
-                        thickness={1}
-                        backgroundColor="rgba(255, 255, 255, 0.02)"
-                        borderColor="rgba(255, 255, 255, 0.08)"
-                        className="w-full rounded-[2px] transition hover:bg-(--fill-1)"
-                        innerClassName="px-3 py-2.5 text-left"
+                        className="rounded-xl border border-transparent bg-(--fill-1) px-3.5 py-2.5 text-left transition hover:border-(--border) hover:bg-(--fill-2)"
                       >
-
-
-                      <span className="flex items-center gap-2 ">
-                        <IoAdd size={14} className="text-[var(--text-accent)]" />
-                        <span className="block text-[12.5px] font-medium text-[var(--text-primary)] font-serif">Open a project</span>
-                      </span>
-
-                      <span className="mt-0.5 block text-[12px] leading-4 text-[var(--text-faint)] font-serif">Browse and edit files in a real workspace</span>
-
-                      </StarBorder>
+                        <span className="block text-[12.5px] text-[var(--text-primary)]">Open a project</span>
+                        <span className="mt-0.5 block text-[11.5px] leading-4 text-[var(--text-muted)]">Browse and edit files in a real workspace</span>
+                      </button>
                       {[
                         {
                           label: "Summarize my project",
@@ -2546,93 +2473,54 @@ MCP call rules:
                           label: "Find and fix bugs",
                           desc: "Scan for issues and apply fixes",
                           prompt: "Find and fix bugs and make sure they aren't repeated again",
-
                         },
                         {
                           label: "Write a new feature",
                           desc: "Describe it and Neo builds it",
                           prompt: "Write a new feature in my code",
-
                         },
                       ].map((card) => (
-                        <StarBorder
+                        <button
                           key={card.label}
-                          as="button"
                           type="button"
                           onClick={() => setMessage(card.prompt)}
-                          color="yellow"
-                          speed="15s"
-                          thickness={1}
-                          backgroundColor="rgba(255, 255, 255, 0.02)"
-                          borderColor="rgba(255, 255, 255, 0.08)"
-                          className="w-full rounded-[2px] transition hover:bg-(--fill-1)"
-                          innerClassName="px-3 py-2.5 text-left"
+                          className="rounded-xl border border-transparent bg-(--fill-1) px-3.5 py-2.5 text-left transition hover:border-(--border) hover:bg-(--fill-2)"
                         >
-                          <span className="flex items-center gap-2">
-                            {/* <CardIcon name={card.icon} /> */}
-                            <span className="block text-[12.5px] font-medium text-[var(--text-primary)] font-serif">{card.label}</span>
-                          </span>
-                          <span className="mt-0.5 block text-[12px] leading-4 text-[var(--text-faint)] font-serif">{card.desc}</span>
-                        </StarBorder>
+                          <span className="block text-[12.5px] text-[var(--text-primary)]">{card.label}</span>
+                          <span className="mt-0.5 block text-[11.5px] leading-4 text-[var(--text-muted)]">{card.desc}</span>
+                        </button>
                       ))}
                     </div>
 
                     {/* Keyboard shortcuts */}
-                    {/* <div className="mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-[10.5px] text-[var(--text-muted)]">
-                      <span className="flex items-center gap-1.5">
-                        <span className="kbd">Ctrl</span>
-                        <span className="kbd">Shift</span>
-                        <span className="kbd">P</span>
-                        Command palette
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="kbd">Ctrl</span>
-                        <span className="kbd">`</span>
-                        Terminal
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="kbd">Ctrl</span>
-                        <span className="kbd">B</span>
-                        AI config
-                      </span>
-                    </div> */}
                   </div>
                 </div>
               ) : (
-                <div className="mx-auto w-full max-w-3xl px-6 py-8">
-                  <div className="space-y-7">
+                <div className="mx-auto w-full max-w-3xl px-6 py-10">
+                  <div className="space-y-8">
                     {messages.map((msg, index) => (
                       <div key={index} className="msg-in">
                         {msg.role === "user" ? (
                           <div className="flex justify-end">
-                            <div className="max-w-[85%] whitespace-pre-wrap rounded-md border border-(--border) bg-(--fill-1) px-3.5 py-2.5 text-[13px] leading-6 text-[var(--text-primary)]">
+                            <div className="max-w-[85%] whitespace-pre-wrap rounded-xl bg-(--fill-2) px-4 py-2.5 text-[13px] leading-6 text-[var(--text-primary)]">
                               {msg.content}
                             </div>
                           </div>
                         ) : isLoading &&
                           index === messages.length - 1 &&
                           msg.content.trim().length === 0 ? (
-                          <div className="flex items-center gap-2 py-2">
-                            <span className="thinking-dot" />
-                            <span className="text-[11px] text-[var(--text-muted)]">
-                              <ThinkingIndicator label="Thinking" />
-                            </span>
+                          <div className="py-1.5 text-[var(--text-muted)]">
+                            <ThinkingIndicator label="Thinking" />
                           </div>
                         ) : (
                           <div className="group/msg min-w-0">
-                            <div className="mb-1.5 flex items-center gap-1.5">
-
-                              <span className="text-[10px] font-medium tracking-[0.06em] text-[var(--text-muted)]">
-                                Assistant -
-                              </span>
-                            </div>
-                            <div className="text-[13.5px] leading-7 text-[var(--text-primary)]">
+                            <div className="text-[14px] leading-[1.75] text-[var(--text-primary)]">
                               <Markdown content={msg.content} />
                               {isLoading && index === messages.length - 1 && (
                                 <span className="stream-caret" aria-hidden />
                               )}
                             </div>
-                            <div className="mt-1 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/msg:opacity-100">
+                            <div className="mt-1.5 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/msg:opacity-100">
                               <MessageAction
                                 label="Copy"
                                 onClick={() => {
@@ -2684,8 +2572,8 @@ MCP call rules:
                       {activeEditorPath.split(/[\\/]/).pop()}
                     </span>
                   ) : (
-                    <span className="text-[11px] text-[var(--text-muted)]">
-                      Open file/folder or give the agent the path of file/folder in the editor and it's sent to the agent automatically
+                    <span className="text-[11px] text-[var(--text-faint)]">
+                      No file attached — mention a path and it's sent to the agent automatically
                     </span>
                   )}
                   <label
