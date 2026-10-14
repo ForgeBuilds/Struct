@@ -2,6 +2,9 @@
   "name": "neo",
   "private": true,
   "version": "1.12.0",
+  "desktopName": "com.lumorixstudios.agenticcoder",
+  "description": "Struct - a fast, local-first AI coding agent in a single native window",
+  "author": "Lumorix Studios <contact@lumorixstudios.com>",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -11,6 +14,11 @@
     "build:electron:renderer": "npm run build",
     "build:desktop": "node scripts/desktop-build.mjs",
     "build:desktop:bundle": "node scripts/desktop-build.mjs --bundle-only",
+    "build:desktop:unsigned": "node scripts/desktop-build.mjs",
+    "build:linux": "node scripts/desktop-build.mjs -- --linux AppImage deb",
+    "build:mac": "node scripts/desktop-build.mjs -- --mac dmg",
+    "build:win": "node scripts/desktop-build.mjs -- --win nsis",
+    "icons": "node scripts/generate-icons.mjs",
     "electron": "electron .",
     "release:notes": "node scripts/generate-release-notes.mjs",
     "version": "node scripts/generate-release-notes.mjs",
@@ -67,18 +75,30 @@
     },
     "mac": {
       "category": "public.app-category.developer-tools",
-      "target": "dmg"
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "build/icon.icns"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.ico"
     },
     "linux": {
       "target": [
         "AppImage",
-        "deb",
-        "rpm"
+        "deb"
       ],
-      "category": "Development"
-    }
+      "category": "Development",
+      "icon": "build/icon.png",
+      "maintainer": "Lumorix Studios <contact@lumorixstudios.com>"
+    },
+    "publish": null
   }
 }

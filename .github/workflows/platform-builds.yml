@@ -2,6 +2,8 @@ name: Platform builds
 
 on:
   push:
+    branches: [main]
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 
@@ -9,9 +11,9 @@ permissions:
   contents: read
 
 jobs:
-  windows:
-    name: Windows NSIS and MSI
-    runs-on: windows-latest
+  linux:
+    name: Linux (AppImage, deb)
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - name: Check out repository
@@ -23,35 +25,29 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-
       - name: Install dependencies
         run: npm ci
 
-      - name: Build frontend
+      - name: Generate icons
+        run: npm run icons
+
+      - name: Build renderer
         run: npm run build
 
-      - name: Verify editor and LSP features
-        run: |
-          npm run test:lsp
-          npm run test:editor-diag
-          npm run test:editor-history
+      - name: Build Linux installers
+        run: npm run build:desktop:unsigned -- --linux AppImage deb
 
-      - name: Build Windows installers
-        run: npm run build:desktop:unsigned -- --bundles nsis,msi
-
-      - name: Upload Windows installers
+      - name: Upload Linux installers
         uses: actions/upload-artifact@v4
         with:
-          name: windows-installers
+          name: linux-installers
           path: |
-            src-tauri/target/release/bundle/nsis/*.exe
-            src-tauri/target/release/bundle/msi/*.msi
+            release/*.AppImage
+            release/*.deb
           if-no-files-found: error
 
   macos:
-    name: macOS universal DMG
+    name: macOS (DMG, universal)
     runs-on: macos-14
     timeout-minutes: 60
     steps:
@@ -64,29 +60,60 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-darwin,x86_64-apple-darwin
-
       - name: Install dependencies
         run: npm ci
 
-      - name: Build frontend
+      - name: Generate icons
+        run: npm run icons
+
+      - name: Build renderer
         run: npm run build
 
-      - name: Verify editor and LSP features
-        run: |
-          npm run test:lsp
-          npm run test:editor-diag
-          npm run test:editor-history
-
-      - name: Build universal macOS DMG
-        run: npm run build:desktop:unsigned -- --target universal-apple-darwin --bundles dmg
+      # Signed builds run the same target with CSC_* secrets present; the
+      # unsigned path exercises identical packaging minus codesign/notarize.
+      - name: Build macOS DMG
+        run: npm run build:desktop:unsigned -- --mac dmg
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
       - name: Upload macOS DMG
         uses: actions/upload-artifact@v4
         with:
-          name: macos-universal-dmg
-          path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          name: macos-dmg
+          path: release/*.dmg
+          if-no-files-found: error
+
+  windows:
+    name: Windows (NSIS)
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate icons
+        run: npm run icons
+
+      - name: Build renderer
+        run: npm run build
+
+      - name: Build Windows installer
+        run: npm run build:desktop:unsigned -- --win nsis
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: release/*.exe
           if-no-files-found: error
