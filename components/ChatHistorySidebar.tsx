@@ -13,7 +13,7 @@ import { IoAdd, IoClose, IoSearch, IoTrashOutline } from "react-icons/io5";
 import { openExternalUrl as openUrl } from "../src/lib/external";
 import { useErrorHandler } from "../src/errorContext";
 import { useTranslation } from "../src/i18n";
-import appIcon from "../src/assets/images/icon.jpeg";
+// import appIcon from "../src/assets/images/icon.jpeg";
 
 interface Props {
   isOpen: boolean;
@@ -79,7 +79,7 @@ export default function ChatHistorySidebar({
   onSelectSession,
   onNewChat,
   onDeleteSession,
-  signedIn = false,
+  // signedIn = false,
   onOpenInfoPanel,
   onOpenTab2,
   onOpenAiSettings,
@@ -362,11 +362,11 @@ export default function ChatHistorySidebar({
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5 border-t border-(--border) px-3 py-2">
-            <img src={appIcon} alt="" className="h-3.5 w-3.5 rounded-[3px]" />
+            {/* <img src={appIcon} alt="" className="h-3.5 w-3.5 rounded-[3px]" />
             <span className="text-[11px] font-semibold text-[var(--text-secondary)]">Struct</span>
             <span className="ml-auto text-[10px] text-[var(--text-faint)]">
               {signedIn ? "Synced to your account." : "Stored on this device."}
-            </span>
+            </span> */}
           </div>
         </div>
       )}
