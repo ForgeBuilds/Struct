@@ -110,7 +110,7 @@ import {
   type UiSettings,
 } from "./uiSettings";
 import { getActiveLanguage, setActiveLanguage } from "./i18n";
-import { IoMenu, IoAlertSharp, /*IoBarChartOutline, IoBugOutline*/ IoCheckmark, IoCopyOutline, IoFolderOutline, /*IoSparkles*/ /*IoTerminal,*/ IoThumbsDownSharp, IoThumbsUpSharp, IoSettings, /*IoInformation*/ IoPersonCircleOutline } from "react-icons/io5";
+import { IoMenu, IoAlertSharp, /*IoBarChartOutline, IoBugOutline*/ IoCheckmark, IoCopyOutline, IoFolderOutline, /*IoSparkles*/ /*IoTerminal,*/ IoThumbsDownSharp, IoThumbsUpSharp, /*IoInformation*/ } from "react-icons/io5";
 import { shortPath } from "./utils";
 
 const SettingsPanel = lazy(() => import("./components/SettingsPanel"));
@@ -244,36 +244,6 @@ function parseProviderKey(key: string): { provider: ProviderId; model: string } 
 const APP_VERSION = isNativeRuntime()
   ? invoke<string>("get_app_version").catch(() => "0.0.0")
   : Promise.resolve("0.0.0");
-
-/** Icon button for the VS Code-style activity bar rail. */
-function RailButton({
-  active,
-  title,
-  onClick,
-  children,
-}: {
-  active?: boolean;
-  title: string;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      aria-label={title}
-      className={`relative flex h-[48px] w-full items-center justify-center transition-colors ${
-        active ? "text-[var(--text-primary)]" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-      }`}
-    >
-      {active && (
-        <span className="absolute left-0 top-0 h-full w-[2px] bg-(--accent)" />
-      )}
-      {children}
-    </button>
-  );
-}
 
 /** Known context-window sizes by model-family substring (first match wins). */
 const CONTEXT_LIMITS: Array<[string, number]> = [
@@ -2365,35 +2335,6 @@ MCP call rules:
           workspaceRoot={workspaceRoot}
         />
         <div className="flex min-h-0 flex-1 overflow-hidden">
-          {/* */}
-          <nav className="flex w-12 shrink-0 flex-col items-center justify-between border-r border-(--border) bg-[var(--bg-panel)] py-1">
-            <div className="w-full">
-              {/* <RailButton active={onOpenTerminal} title="Terminal (Ctrl+`)" onClick={() => setOpenTerminal((v) => !v)}>
-                <IoTerminal size={17} />
-              </RailButton> */}
-
-              <RailButton
-                active={historySidebarOpen}
-                title="Chat history (Ctrl+Shift+H)"
-                onClick={() => setHistorySidebarOpen((v) => !v)}
-              >
-                <IoMenu size={17} />
-              </RailButton>
-              <RailButton
-                active={settingsOpen && settingsSection === "account"}
-                title="Account"
-                onClick={() => {
-                  setSettingsSection("account");
-                  setSettingsOpen(true);
-                }}
-              >
-                <IoPersonCircleOutline size={19} />
-              </RailButton>
-              <RailButton active={settingsOpen} title="Settings (Ctrl+,)" onClick={() => setSettingsOpen(true)}>
-                <IoSettings size={18} />
-              </RailButton>
-            </div>
-          </nav>
           <ChatHistorySidebar
             isOpen={historySidebarOpen}
             onClose={() => setHistorySidebarOpen(false)}
@@ -2415,16 +2356,35 @@ MCP call rules:
               setSettingsOpen(true);
             }}
             onOpenSettings={() => setSettingsOpen(true)}
+            onOpenAccount={() => {
+              setSettingsSection("account");
+              setSettingsOpen(true);
+            }}
             onOpenCommandPalette={() => setCommandPaletteOpen(true)}
             onCheckForUpdates={() => void runUpdateCheck(true)}
           />
-          <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-[var(--bg-base)]">
+          <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[var(--bg-base)]">
             {/* --- CONTEXT STRIP --- */}
             {/* relative z-20 keeps it ABOVE the scroll fade so it stays visible/clickable */}
             <div
-              className="relative z-20 flex shrink-0 items-center gap-3 overflow-x-auto whitespace-nowrap bg-root px-5 py-1.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              className="relative z-20 flex shrink-0 items-center gap-3 overflow-x-auto whitespace-nowrap bg-root py-1.5 pl-2 pr-5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               data-debug="context-strip"
             >
+              {/* Chat panel toggle — reopens/closes history now that the railbar is gone. */}
+              <button
+                type="button"
+                onClick={() => setHistorySidebarOpen((v) => !v)}
+                title={historySidebarOpen ? "Close chat history" : "Open chat history (Ctrl+Shift+H)"}
+                aria-label={historySidebarOpen ? "Close chat history" : "Open chat history"}
+                aria-expanded={historySidebarOpen}
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors ${
+                  historySidebarOpen
+                    ? "bg-(--fill-2) text-[var(--text-primary)]"
+                    : "text-[var(--text-muted)] hover:bg-(--fill-1) hover:text-[var(--text-primary)]"
+                }`}
+              >
+                <IoMenu size={15} />
+              </button>
               <div className="flex items-center gap-1.5 text-[var(--text-secondary)]">
                 <span className="text-[10.5px] font-medium text-[var(--text-muted)]">Context</span>
               </div>

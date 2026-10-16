@@ -31,6 +31,7 @@ interface Props {
   onOpenTab2?: () => void;
   onOpenAiSettings?: () => void;
   onOpenSettings?: () => void;
+  onOpenAccount?: () => void;
   /** Opens the command palette (was the top bar's Search pill). */
   onOpenCommandPalette?: () => void;
   onCheckForUpdates?: () => void;
@@ -84,6 +85,7 @@ export default function ChatHistorySidebar({
   onOpenTab2,
   onOpenAiSettings,
   onOpenSettings,
+  onOpenAccount,
   onOpenCommandPalette,
   onCheckForUpdates,
   onAnalyzeProject,
@@ -171,6 +173,7 @@ export default function ChatHistorySidebar({
         ...(onOpenSettings
           ? [{ label: t("app.settingsMenu"), action: onOpenSettings, shortcut: "Ctrl+," }]
           : []),
+        ...(onOpenAccount ? [{ label: t("app.account"), action: onOpenAccount }] : []),
       ],
     },
     {
@@ -207,7 +210,7 @@ export default function ChatHistorySidebar({
   return (
     <aside
       className={`glass-panel shrink-0 overflow-hidden border-r border-(--border) bg-[var(--bg-panel)] transition-[width] duration-150 ease-out ${
-        isOpen ? "w-[248px] max-sm:w-full" : "w-0"
+        isOpen ? "w-[360px] max-sm:w-full" : "w-0"
       }`}
     >
       {isOpen && (
