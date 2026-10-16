@@ -10,9 +10,9 @@ Struct is a desktop chat interface for AI coding agents. It brings its own agent
 a workspace-aware tool set, local model support, and an encrypted key store — all in
 one lightweight Electron app. No IDE, no bloat: just you and the model.
 
-[Download](https://lumorix-studios.github.io/LumorixStudiosHq/Downloads) ·
-[Documentation](https://lumorix-studios.github.io/LumorixStudiosHq/Documentation) ·
-[Report an issue](https://github.com/Lumorix-studios/Struct/issues)
+[Download](https://forgebuilds.github.io/ForgeHQ/downloads) ·
+[Documentation](https://forgebuilds.github.io/ForgeHQ/documentation) ·
+[Report an issue](https://github.com/ForgeBuilds/Struct/issues)
 
 </div>
 
@@ -21,7 +21,7 @@ one lightweight Electron app. No IDE, no bloat: just you and the model.
 ## What is Struct?
 
 Struct is a standalone desktop chat app for talking to frontier and local AI models with
-real tools. Point it at a folder and it reads, searches, edits, and runs commands in
+real tools. Point it at a folder or tell it about one and it reads, searches, edits, and runs commands in
 that workspace — with a full tool-call activity feed and per-action approval so you
 always see what the agent is doing.
 
