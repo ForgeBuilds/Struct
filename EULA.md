@@ -3,7 +3,7 @@
 **Last Updated:** September 25, 2026
 
 This End User License Agreement ("EULA") governs your use of Struct
-(the "Application"), published by Lumorix Studios ("Lumorix", "we", "us").
+(the "Application"), published by ForgeBuilds ("ForgeBuilds", "we", "us").
 By downloading, installing, or using the Application, you agree to this EULA.
 
 If you do not agree to these terms, do not download, install, or use the
@@ -12,20 +12,20 @@ Application.
 ## 1. License Grant
 
 Subject to your compliance with this EULA and the LICENSE file included with the
-Software, Lumorix Studios grants you a limited, non-exclusive, non-transferable,
+Software, ForgeBuilds grants you a limited, non-exclusive, non-transferable,
 revocable license to install and use the Application for your personal,
 educational, and internal business purposes.
 
 The Application is licensed under the **Struct Source-Available License 1.0**.
 Commercial redistribution of the Application or any modified version requires
-prior written permission from Lumorix Studios.
+prior written permission from ForgeBuilds
 
 ## 2. No Payment, No Subscription
 
 The Application is provided **free of charge**. There is no subscription, no
 paid tier, no paywall, and no in-app purchase or checkout.
 
-Lumorix Studios does not process, collect, or store any payment or card
+ForgeBuilds does not process, collect, or store any payment or card
 information in connection with the Application. All features are available to
 all users at no cost.
 
@@ -39,12 +39,12 @@ You agree not to:
 
 1. Use the Application to violate any applicable law or regulation.
 2. Upload, transmit, or introduce malicious code, viruses, or harmful material.
-3. Attempt to gain unauthorized access to any system, account, or Lumorix
+3. Attempt to gain unauthorized access to any system, account, or ForgeBuilds
    infrastructure.
-4. Probe, scan, or test the vulnerability of any Lumorix system without prior
+4. Probe, scan, or test the vulnerability of any ForgeBuilds system without prior
    written permission, except as part of an official bug bounty.
-5. Misrepresent your identity or affiliation with Lumorix Studios.
-6. Scrape, harvest, or systematically extract data from the Lumorix website or
+5. Misrepresent your identity or affiliation with ForgeBuilds.
+6. Scrape, harvest, or systematically extract data from the ForgeBuilds website or
    services.
 7. Use the Application to systematically extract its source code in order to
    build a competing commercial product, in a way that violates the LICENSE.
@@ -59,7 +59,7 @@ You are responsible for:
 
 * Complying with each provider's terms of service and usage policies.
 * The content you send to those providers.
-* Any charges your provider bills you — Lumorix Studios does not pay, resell, or
+* Any charges your provider bills you — ForgeBuilds does not pay, resell, or
   manage third-party provider usage.
 
 If you store a provider API key using the Application's key-storage feature, the
@@ -72,10 +72,10 @@ charges incurred through their use.
 You retain all rights to your workspace files, source code, and other content.
 
 The Application is local-first: files the agent reads and writes on your behalf are
-read and written on your device and are not uploaded to Lumorix systems unless you
+read and written on your device and are not uploaded to ForgeBuilds unless you
 configure a remote AI provider or enable cloud sync.
 
-You are responsible for maintaining backups of your work. Lumorix Studios is
+You are responsible for maintaining backups of your work. ForgeBuilds is
 not liable for data loss.
 
 ## 6. Open Source and Feedback
@@ -86,14 +86,14 @@ through the official GitHub repository.
 
 By submitting a contribution, you represent that you hold the necessary rights
 to submit it, and you agree that it may be incorporated and distributed under
-the LICENSE or a future license selected by Lumorix Studios.
+the LICENSE or a future license selected by ForgeBuilds.
 
 ## 7. Intellectual Property
 
 
 ## 8. Updates
 
-Lumorix Studios may provide updates that add, modify, or remove features. You
+ForgeBuilds may provide updates that add, modify, or remove features. You
 should update the Application regularly. We may stop supporting older versions
 at any time.
 
@@ -110,7 +110,7 @@ it.
 
 ## 10. Limitation of Liability
 
-TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, LUMORIX STUDIOS AND ITS
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, ForgeBuilds AND ITS
 CONTRIBUTORS SHALL NOT BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
 CONSEQUENTIAL, SPECIAL, EXEMPLARY, OR PUNITIVE DAMAGES, OR FOR ANY LOSS OF
 PROFITS, DATA, BUSINESS, GOODWILL, OR OTHER INTANGIBLE LOSSES ARISING FROM THE
@@ -137,19 +137,19 @@ posted constitutes acceptance of the updated terms.
 
 ## 13. Discontinuation
 
-Lumorix Studios may discontinue the Application or any feature at any time
+ForgeBuilds may discontinue the Application or any feature at any time
 without notice. Because the Application is provided free of charge, we are not
 obligated to provide advance notice, refund, or compensation.
 
 ## 14. Contact
 
 For questions about this EULA, contact the project maintainer through the
-official GitHub repository or the support channels listed on the Lumorix Studios
-website.
+official GitHub repository or the support channels listed on the <a href = "https://forgebuilds.github.io/ForgeHQ/contact">ForgeBuilds
+website.</a>
 
 ---
 
-Copyright © 2026 Lumorix Studios. All rights reserved.
+Copyright © 2026 ForgeBuilds. All rights reserved.
 
 The Application, its name, logos, and associated branding are the property of
 their respective owners. Third-party libraries and dependencies remain subject
