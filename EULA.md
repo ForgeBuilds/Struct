@@ -144,7 +144,7 @@ obligated to provide advance notice, refund, or compensation.
 ## 14. Contact
 
 For questions about this EULA, contact the project maintainer through the
-official GitHub repository or the support channels listed on the <a href = "https://forgebuilds.github.io/ForgeHQ/contact">ForgeBuilds
+official GitHub repository or the support channels listed on the <a href = "https://forgebuilds.github.io/ForgeHQ/contact" target = "_blank">ForgeBuilds
 website.</a>
 
 ---
