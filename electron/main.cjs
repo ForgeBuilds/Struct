@@ -31,6 +31,84 @@ const { homedir } = require('node:os')
 const { basename, dirname, join } = require('node:path')
 const { pipeline } = require('node:stream/promises')
 
+/* ── Spotify OAuth loopback (Authorization Code + PKCE) ─────────────────────
+ * Spotify only accepts HTTPS or loopback redirect URIs, so the consent
+ * screen's code lands on this tiny loopback server instead of the app's
+ * agenticcoder:// deep link. The port is fixed so the user can register
+ * http://127.0.0.1:43821/callback once in their Spotify app dashboard —
+ * keep in sync with SPOTIFY_REDIRECT_URI in src/spotify.ts. */
+const SPOTIFY_OAUTH_PORT = 43821
+let spotifyOAuthServer = null   // http.Server while a sign-in may be in flight
+let spotifyOAuthWaiter = null   // { resolve, reject, timer } for the pending invoke
+let spotifyOAuthPending = null  // callback that raced ahead of the waiter
+
+function spotifyOAuthFinish(payload) {
+  if (spotifyOAuthWaiter) {
+    const w = spotifyOAuthWaiter
+    spotifyOAuthWaiter = null
+    clearTimeout(w.timer)
+    w.resolve(payload)
+  } else {
+    spotifyOAuthPending = payload
+  }
+  // One redirect, one code — stop listening immediately.
+  if (spotifyOAuthServer) { try { spotifyOAuthServer.close() } catch {} ; spotifyOAuthServer = null }
+}
+
+function spotifyOAuthClose() {
+  if (spotifyOAuthServer) { try { spotifyOAuthServer.close() } catch {} ; spotifyOAuthServer = null }
+  if (spotifyOAuthWaiter) {
+    const w = spotifyOAuthWaiter
+    spotifyOAuthWaiter = null
+    clearTimeout(w.timer)
+    w.reject(new Error('Spotify sign-in was cancelled.'))
+  }
+  spotifyOAuthPending = null
+}
+
+function spotifyOAuthListen() {
+  if (spotifyOAuthServer) return Promise.resolve({ port: SPOTIFY_OAUTH_PORT })
+  return new Promise((resolve, reject) => {
+    const server = require('node:http').createServer((req, res) => {
+      let url
+      try { url = new URL(req.url || '/', 'http://127.0.0.1') } catch { res.writeHead(400); res.end(); return }
+      if (url.pathname !== '/callback') { res.writeHead(404); res.end('Not found'); return }
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+      res.end('<!doctype html><meta charset="utf-8"><title>Struct — Spotify</title>' +
+        '<body style="font:14px system-ui;background:#1f1f1f;color:#eee;padding:40px;margin:0">' +
+        '<p style="font-weight:600">Spotify connected.</p>' +
+        '<p style="color:#aaa">You can close this tab and return to Struct.</p>')
+      const err = url.searchParams.get('error')
+      spotifyOAuthFinish(err
+        ? { error: err, state: url.searchParams.get('state') || '' }
+        : { code: url.searchParams.get('code') || '', state: url.searchParams.get('state') || '' })
+    })
+    server.on('error', (e) => {
+      if (spotifyOAuthServer === server) spotifyOAuthServer = null
+      reject(new Error('Could not open the Spotify callback port 43821 (' + e.message + '). Is another sign-in in progress?'))
+    })
+    // Loopback only — never bind the callback listener to external interfaces.
+    server.listen(SPOTIFY_OAUTH_PORT, '127.0.0.1', () => {
+      spotifyOAuthServer = server
+      resolve({ port: SPOTIFY_OAUTH_PORT })
+    })
+  })
+}
+
+function spotifyOAuthWait(a) {
+  const timeoutSec = Math.max(30, Math.min(900, Number(a && a.timeoutSec) || 300))
+  if (spotifyOAuthPending) { const p = spotifyOAuthPending; spotifyOAuthPending = null; return Promise.resolve(p) }
+  if (spotifyOAuthWaiter) return Promise.reject(new Error('A Spotify sign-in is already waiting for the browser.'))
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      spotifyOAuthWaiter = null
+      if (spotifyOAuthServer) { try { spotifyOAuthServer.close() } catch {} ; spotifyOAuthServer = null }
+      reject(new Error('Spotify sign-in timed out — no redirect received.'))
+    }, timeoutSec * 1000)
+    spotifyOAuthWaiter = { resolve, reject, timer }
+  })
+}
+
 // Software-rendering escape hatch (opt-in). The X11 re-launch above already
 // dodges the Wayland vaInitialize SIGSEGV, so hardware acceleration stays ON
 // by default — forcing SwiftShader for the whole window made every paint,
@@ -858,6 +936,9 @@ async function invoke(cmd, a) {
   if (cmd === 'mail_imap_search') return mailImapSearch(a)
   if (cmd === 'mail_imap_read') return mailImapRead(a)
   if (cmd === 'mail_imap_check') return mailImapCheck(a)
+  if (cmd === 'spotify_oauth_listen') return spotifyOAuthListen()
+  if (cmd === 'spotify_oauth_wait') return spotifyOAuthWait(a)
+  if (cmd === 'spotify_oauth_cancel') { spotifyOAuthClose(); return true }
   if (cmd === 'load_state') return readState(a.key)
   if (cmd === 'save_state') { if (typeof a.value !== 'string') throw new Error('State value must be a string'); return writeState(a.key, a.value) }
   if (cmd === 'fs_read_file') return readFile(String(a.path), 'utf8').catch((e) => { throw new Error('Failed to read ' + a.path + ': ' + e.message) })

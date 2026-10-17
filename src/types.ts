@@ -58,6 +58,10 @@ export interface AISettings {
   autoApproveTools?: boolean;
   /** Limits which tools the agent can use. */
   toolAllowance?: ToolAllowance;
+  /** ISO write-time stamped by saveSettings() — lets the local-vs-cloud merge
+   *  in bootstrapCloud pick the newer side (same policy as chats). Absent on
+   *  rows written before this field existed; the merge treats those as local. */
+  updatedAt?: string;
 }
 
 /** Defaults for every field. Adding a new field here keeps old saved

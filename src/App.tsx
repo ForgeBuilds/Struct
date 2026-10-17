@@ -25,6 +25,7 @@ import ThinkingIndicator from "../components/ThinkingIndicator";
 import {
   loadSettings,
   saveSettings,
+  hasSavedSettings,
   loadSessions,
   saveSessions,
   loadActiveSessionId,
@@ -722,7 +723,26 @@ export default function App() {
         // the provider credential and kills an in-flight streaming turn before
         // the agent reaches its tool loop (which reads as "key unbound" +
         // "tools unavailable").
-        setSettings((prev) => ({ ...snapshot.settings!, apiKey: prev.apiKey }));
+        //
+        // Merge like the chats above — newer updatedAt wins — instead of
+        // blindly adopting the cloud row. A stale row (an upsert that failed,
+        // an edit made while signed out, an app closed inside the 250ms save
+        // debounce) used to overwrite local settings on EVERY launch and auth
+        // event, which is why the model id kept reverting while the
+        // account-fetched BYOK key always survived. A device with no saved row
+        // still seeds from the cloud; a legacy local row with no stamp beats
+        // any cloud row rather than risk another silent revert.
+        const cloud = snapshot.settings!;
+        const hasLocal = await hasSavedSettings();
+        setSettings((prev) => {
+          if (!cloud.model) return prev; // never adopt an empty model
+          if (!hasLocal) return { ...cloud, apiKey: prev.apiKey }; // fresh device
+          const cloudAt = Date.parse(cloud.updatedAt ?? "");
+          const localAt = Date.parse(prev.updatedAt ?? "");
+          const cloudNewer =
+            Number.isFinite(cloudAt) && Number.isFinite(localAt) && cloudAt > localAt;
+          return cloudNewer ? { ...cloud, apiKey: prev.apiKey } : prev;
+        });
       }
       if (snapshot.chats.length > 0) {
         setSessions((prev) => {
@@ -2389,13 +2409,13 @@ MCP call rules:
               >
                 <IoMenu size={15} />
               </button>
-              <div className="flex items-center gap-1.5 text-[var(--text-secondary)]">
-                <span className="text-[10.5px] font-medium text-[var(--text-muted)]">Context</span>
-              </div>
+             
               {workspaceRoot && (
-                <div className="flex items-center gap-1 rounded border border-(--border) bg-(--fill-1) px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]">
+                
+                <div className="flex items-center gap-1 rounded bg-(--fill-1) px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)] hover:bg-(--fill-2)">
+                  <button onClick = {()=>openWorkspaceFolder()} className= " flex items-center gap-2">
                   <span><IoFolderOutline/>
-                  </span> {shortPath(workspaceRoot)}
+                  </span> {shortPath(workspaceRoot)}</button>
                 </div>
               )}
               {activeEditorPath && (

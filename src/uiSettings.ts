@@ -1,6 +1,6 @@
 /*
  * Author: madhusudhan
- * Check the LICENSE in the GitHub repo (https://github.com/Lumorix-studios/Struct) for more information on permissions to use this code.
+ * Check the LICENSE in the GitHub repo (https://github.com/forgebuilds/Struct) for more information on permissions to use this code.
  */
 import { invoke, isNativeRuntime } from "./native";
 export interface UiSettings {

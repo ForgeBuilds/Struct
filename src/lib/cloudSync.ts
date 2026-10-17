@@ -148,6 +148,9 @@ export async function fetchSettings(): Promise<AISettings | null> {
     systemPrompt: row.system_prompt,
     temperature: row.temperature,
     autoApproveTools: row.auto_approve_tools,
+    // Surface the row's write time so the App can merge local-vs-cloud with
+    // "newer updatedAt wins" (mirrors the per-chat merge).
+    updatedAt: row.updated_at,
     apiKey: "", // never synced — BYOK keys are managed separately
   };
 }

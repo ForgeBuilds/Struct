@@ -5,6 +5,13 @@
 
 import { invoke } from "./native";
 import { gmailRead, gmailSearch, gmailSend } from "./gmail";
+import {
+  spotifyNowPlaying,
+  spotifyPlayback,
+  spotifyQueueTrack,
+  spotifySearch,
+  type SpotifyPlaybackAction,
+} from "./spotify";
 
 export type ToolName =
   | "read_file"
@@ -34,7 +41,11 @@ export type ToolName =
   | "analyze_project_structure"
   | "gmail_search"
   | "gmail_read"
-  | "gmail_send";
+  | "gmail_send"
+  | "spotify_search"
+  | "spotify_now_playing"
+  | "spotify_playback"
+  | "spotify_queue";
 
 export interface ToolCall {
   id?: string;
@@ -90,6 +101,8 @@ const DESTRUCTIVE: ToolName[] = [
   "http_request",
   "git_commit",
   "gmail_send",
+  "spotify_playback",
+  "spotify_queue",
 ];
 
 export function isDestructive(name: string): boolean {
@@ -125,6 +138,10 @@ const TOOL_NAME_SET = new Set<string>([
   "gmail_search",
   "gmail_read",
   "gmail_send",
+  "spotify_search",
+  "spotify_now_playing",
+  "spotify_playback",
+  "spotify_queue",
 ]);
 
 export function isToolName(name: string): name is ToolName {
@@ -402,6 +419,57 @@ export const TOOL_JSON_SCHEMAS: Record<ToolName, { description: string; paramete
         body: { type: "string", description: "Plain-text email body." },
       },
       required: ["to", "body"],
+    },
+  },
+  spotify_search: {
+    description:
+      "Search Spotify for tracks by title/artist. Returns track names, artists and Spotify URIs. Use the URIs with spotify_playback or spotify_queue. Requires Spotify connected in the PlugIns panel.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Track search, e.g. 'Bohemian Rhapsody Queen'." },
+        limit: { type: "integer", description: "How many tracks to return (1-20, default 5)." },
+      },
+      required: ["query"],
+    },
+  },
+  spotify_now_playing: {
+    description:
+      "Get the track currently playing on the connected Spotify account (plus device name, play/pause state and progress). Returns 'nothing playing' when idle.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  spotify_playback: {
+    description:
+      "Control the connected Spotify player: play (optionally specific tracks by URI), pause, next, previous, or set volume (0-100). Requires a Premium account and an active Spotify device. Asks for approval.",
+    parameters: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          description: "One of: play, pause, next, previous, volume.",
+        },
+        uris: {
+          type: "string",
+          description:
+            "Optional. Comma-separated Spotify track URIs (from spotify_search) to play — only for action=play.",
+        },
+        volume_percent: {
+          type: "integer",
+          description: "Volume 0-100 — only for action=volume.",
+        },
+      },
+      required: ["action"],
+    },
+  },
+  spotify_queue: {
+    description:
+      "Add one track to the Spotify play queue by URI (get the URI from spotify_search). Requires Premium + an active device. Asks for approval.",
+    parameters: {
+      type: "object",
+      properties: {
+        uri: { type: "string", description: "Spotify track URI, e.g. spotify:track:4uLU6hMCjMI75M1A2tKUQC." },
+      },
+      required: ["uri"],
     },
   },
 };
@@ -1350,6 +1418,104 @@ async function executeToolUncached(
           return { ok: false, output: `Gmail send failed: ${e instanceof Error ? e.message : String(e)}` };
         }
       }
+      case "spotify_search": {
+        try {
+          const query = String(args.query ?? "").trim();
+          if (!query) {
+            return { ok: false, output: 'spotify_search needs a query, e.g. {"query": "Bohemian Rhapsody"}.' };
+          }
+          const limit =
+            typeof args.limit === "number"
+              ? Math.round(args.limit)
+              : typeof args.max_results === "number"
+                ? Math.round(args.max_results)
+                : 5;
+          const tracks = await spotifySearch(query, limit);
+          if (tracks.length === 0) {
+            return { ok: true, output: `No Spotify tracks match "${query}". Try different keywords.` };
+          }
+          const out = tracks
+            .map(
+              (t, i) =>
+                `${i + 1}. ${t.name} — ${t.artists}${t.album ? ` [${t.album}]` : ""} (${Math.round(t.durationMs / 1000)}s)\n   uri=${t.uri}`
+            )
+            .join("\n");
+          return { ok: true, output: out };
+        } catch (e) {
+          return { ok: false, output: `Spotify search failed: ${e instanceof Error ? e.message : String(e)}` };
+        }
+      }
+      case "spotify_now_playing": {
+        try {
+          const np = await spotifyNowPlaying();
+          if (!np.track) {
+            return {
+              ok: true,
+              output: np.deviceName
+                ? `Nothing is playing. Active device: ${np.deviceName}.`
+                : "Nothing is playing and no active Spotify device was reported. Start Spotify on a device first.",
+            };
+          }
+          const pos = `${Math.floor(np.progressMs / 60000)}:${String(Math.floor((np.progressMs % 60000) / 1000)).padStart(2, "0")}`;
+          const dev = np.deviceName ? ` on device "${np.deviceName}"` : "";
+          const vol = np.volumePercent !== null ? `, volume ${np.volumePercent}%` : "";
+          return {
+            ok: true,
+            output: `${np.isPlaying ? "Playing" : "Paused"}: ${np.track.name} — ${np.track.artists}${dev} at ${pos}${vol}`,
+          };
+        } catch (e) {
+          return { ok: false, output: `Spotify now-playing failed: ${e instanceof Error ? e.message : String(e)}` };
+        }
+      }
+      case "spotify_playback": {
+        try {
+          const action = String(args.action ?? "").trim().toLowerCase();
+          if (action !== "play" && action !== "pause" && action !== "next" && action !== "previous" && action !== "volume") {
+            return {
+              ok: false,
+              output: 'Unknown spotify_playback action. Use one of: play, pause, next, previous, volume.',
+            };
+          }
+          const urisArg = String(args.uris ?? "").trim();
+          const uris = urisArg
+            ? urisArg.split(",").map((u) => u.trim()).filter(Boolean)
+            : undefined;
+          const volumePercent =
+            typeof args.volume_percent === "number"
+              ? Math.round(args.volume_percent)
+              : typeof args.volume === "number"
+                ? Math.round(args.volume)
+                : undefined;
+          if (action === "volume" && volumePercent === undefined) {
+            return { ok: false, output: "volume action needs volume_percent (0-100)." };
+          }
+          await spotifyPlayback(action as SpotifyPlaybackAction, { uris, volumePercent });
+          if (action === "play" && uris?.length) {
+            return { ok: true, output: `Playing ${uris.length} track(s): ${uris.join(", ")}` };
+          }
+          return {
+            ok: true,
+            output:
+              action === "volume"
+                ? `Volume set to ${volumePercent}%.`
+                : `Playback action "${action}" sent.`,
+          };
+        } catch (e) {
+          return { ok: false, output: `Spotify playback failed: ${e instanceof Error ? e.message : String(e)}` };
+        }
+      }
+      case "spotify_queue": {
+        try {
+          const uri = String(args.uri ?? "").trim();
+          if (!uri) {
+            return { ok: false, output: "spotify_queue needs a track URI from spotify_search." };
+          }
+          await spotifyQueueTrack(uri);
+          return { ok: true, output: `Queued ${uri}.` };
+        } catch (e) {
+          return { ok: false, output: `Spotify queue failed: ${e instanceof Error ? e.message : String(e)}` };
+        }
+      }
       default:
         return {
           ok: false,
@@ -1391,6 +1557,8 @@ const CACHEABLE_TOOLS = new Set<string>([
   "search_files",
   "gmail_search",
   "gmail_read",
+  "spotify_search",
+  "spotify_now_playing",
 ]);
 
 interface ToolCacheEntry {
@@ -1839,6 +2007,10 @@ export const TOOL_LABELS: Record<ToolName, string> = {
   gmail_search: "Search Gmail",
   gmail_read: "Read Gmail message",
   gmail_send: "Send Gmail",
+  spotify_search: "Search Spotify",
+  spotify_now_playing: "Spotify now playing",
+  spotify_playback: "Control Spotify playback",
+  spotify_queue: "Queue Spotify track",
 };
 
 /** Short description of each tool for the model's system prompt. */
@@ -1871,6 +2043,10 @@ export const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
   gmail_search: 'gmail_search(query?, max_results?) — search Gmail; returns ids + snippets.',
   gmail_read: 'gmail_read(id) — read one Gmail message body (get id from gmail_search).',
   gmail_send: 'gmail_send(to, subject?, body) — send email as the connected account.',
+  spotify_search: 'spotify_search(query, limit?) — search Spotify tracks; returns names + URIs.',
+  spotify_now_playing: 'spotify_now_playing() — the current Spotify track, device and progress.',
+  spotify_playback: 'spotify_playback(action, uris?, volume_percent?) — play/pause/next/previous/volume.',
+  spotify_queue: 'spotify_queue(uri) — add one track to the Spotify play queue.',
 };
 
 /** The protocol instructions injected into the system prompt. Kept short and
@@ -1892,6 +2068,11 @@ Gmail (requires Gmail connected in the PlugIns panel):
 - \`gmail_search(query?, max_results?)\` — search mail (Gmail syntax); returns ids + snippets.
 - \`gmail_read(id)\` — read one message's full body. Always gmail_search first for the id.
 - \`gmail_send(to, subject?, body)\` — send email as the connected account (asks approval).
+Spotify (requires Spotify connected in the PlugIns panel; playback needs Premium + an active device):
+- \`spotify_search(query, limit?)\` — find tracks; returns names + \`spotify:track:…\` URIs.
+- \`spotify_now_playing()\` — the current track, device and progress.
+- \`spotify_playback(action, uris?, volume_percent?)\` — play/pause/next/previous/volume (asks approval). To play specific songs, spotify_search first, then action=play with uris.
+- \`spotify_queue(uri)\` — queue one track by URI (asks approval).
 Git (workspace):
 - \`git_status()\`, \`git_diff(staged?)\`, \`git_commit(message)\`
 System:

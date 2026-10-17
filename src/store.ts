@@ -64,13 +64,27 @@ export async function loadSettings(): Promise<AISettings> {
 }
 
 export async function saveSettings(settings: AISettings): Promise<void> {
-  const raw = JSON.stringify(stripApiKey(settings));
+  // Stamp at write time so the local-vs-cloud merge (App.tsx bootstrapCloud)
+  // can apply "newer updatedAt wins" instead of letting a stale cloud row
+  // silently reset the model on the next launch.
+  const raw = JSON.stringify({
+    ...stripApiKey(settings),
+    updatedAt: new Date().toISOString(),
+  });
   if (inTauri()) {
     const ok = await diskWrite(SETTINGS_KEY, raw);
     if (!ok) lsWrite(SETTINGS_KEY, raw);
   } else {
     lsWrite(SETTINGS_KEY, raw);
   }
+}
+
+/** True once this device has a persisted settings row. The cloud bootstrap
+ *  uses this to decide whether the account row may seed the device (fresh
+ *  install) or must lose to a newer/local-only local row. */
+export async function hasSavedSettings(): Promise<boolean> {
+  const raw = inTauri() ? await diskRead(SETTINGS_KEY) : lsRead(SETTINGS_KEY);
+  return raw !== null;
 }
 
 /**

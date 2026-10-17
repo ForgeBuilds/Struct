@@ -167,6 +167,7 @@ export const UI_TRANSLATIONS: Record<LocaleCode, Record<string, string>> = {
     "cmd.toggleTerminal": "Toggle Terminal",
     "cmd.openSettings": "Open Settings",
     "cmd.openAiSettings": "Open AI Settings",
+    
   },
   hi: {
     "app.settings": "सेटिंग्स",
