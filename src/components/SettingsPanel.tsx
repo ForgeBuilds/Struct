@@ -52,6 +52,7 @@ import {
   saveTokenRateSettings,
   type TokenRateSettings,
 } from "../tokenUsage";
+import PluginsPanel from "../../components/plugins";
 
 
 export type SectionId =
@@ -61,6 +62,7 @@ export type SectionId =
   | "editor"
   | "terminal"
   | "files"
+  | "plugins"
   | "data"
   | "shortcuts"
   | "account"
@@ -91,6 +93,7 @@ interface SettingsPanelProps {
   onAccountRefresh?: () => void;
   /** Open workspace folder — used to discover a project-scoped `.mcp.json`. */
   workspaceRoot?: string | null;
+  
 }
 
 /* ── Small building blocks ─────────────────────────────────────────── */
@@ -167,7 +170,7 @@ function Row({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-2.5 border-b border-(--border) py-3.5 last:border-0 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+    <div className="flex flex-col gap-2.5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
       <div className="min-w-0">
         <p className="text-[12.5px] font-medium text-[var(--text-primary)]">{title}</p>
         {description && (
@@ -244,6 +247,13 @@ const SECTIONS: SectionMeta[] = [
     hint: "Autosave and recent items",
     group: "Workspace",
     keywords: "autosave recent files folders save",
+  },
+  {
+    id: "plugins",
+    label: "Add new plugins",
+    hint: "Expand agent tools",
+    group: "Workspace",
+    keywords: "tools",
   },
   {
     id: "shortcuts",
@@ -327,6 +337,7 @@ export default function SettingsPanel({
     dashboard: "settings.dashboard",
     editor: "settings.files",
     files: "settings.files",
+    plugins: "Plugins",
     shortcuts: "settings.shortcuts",
     terminal: "settings.terminal",
     data: "settings.privacy",
@@ -347,6 +358,7 @@ export default function SettingsPanel({
   // --- AI settings state (mirrors the previous chat settings sidebar) ---
   const [showAiKey, setShowAiKey] = useState(false);
   const [showLocalModels, setShowLocalModels] = useState(false);
+  const [aiTab, setAiTab] = useState<"general" | "mcp">("general");
   const [mcpServers, setMcpServers] = useState<McpServerConfig[]>(() => loadMcpServers());
   const [mcpName, setMcpName] = useState("");
   const [mcpTransport, setMcpTransport] = useState<"http" | "stdio">("http");
@@ -710,7 +722,7 @@ export default function SettingsPanel({
     >
       <div className="panel-in flex h-[min(680px,92vh)] w-full max-w-5xl flex-col overflow-hidden rounded-lg  border-(--border) bg-[var(--bg-base)] sm:flex-row">
         {/* ── Left nav */}
-        <aside className="flex shrink-0 flex-col border-b border-(--border) bg-[var(--bg-panel)] sm:w-[212px] sm:border-b-0 sm:border-r">
+        <aside className="flex shrink-0 flex-col  bg-[var(--bg-panel)] sm:w-[212px]">
           <p className="hidden px-3.5 pb-1.5 pt-3.5 text-[11px] text-[var(--text-muted)] sm:block">
             {t("app.settings")}
           </p>
@@ -779,7 +791,7 @@ export default function SettingsPanel({
               </button>
 
               {buildsInfoOpen && (
-                <div className="absolute bottom-0 left-full z-50 ml-2 w-72 rounded-lg border border-(--border-strong) bg-[var(--bg-elevated)] p-4 text-left shadow-[0_10px_32px_rgba(0,0,0,0.5)]">
+                <div className="absolute bottom-0 left-full z-50 ml-2 w-72 rounded-lg bg-[var(--bg-elevated)] p-4 text-left shadow-[0_10px_32px_rgba(0,0,0,0.5)]">
                   <p className="text-xs font-medium text-[var(--text-primary)]">
                     About builds
                   </p>
@@ -811,7 +823,7 @@ export default function SettingsPanel({
 
         {/* ── Content */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <header className="flex shrink-0 items-center justify-between gap-3 border-b border-(--border) px-4 py-2.5">
+          <header className="flex shrink-0 items-center justify-between gap-3 border-(--border) px-4 py-2.5">
             <div className="min-w-0">
               <h2 className="truncate text-[13px] font-medium text-[var(--text-primary)]">
                 {activeMeta.label}
@@ -937,13 +949,36 @@ export default function SettingsPanel({
                 </div>
               ) : (
               <div>
+                <div className="mb-4 flex w-fit gap-0.5 rounded-md bg-(--fill-1) p-0.5">
+                  {(
+                    [
+                      ["general", "General"],
+                      ["mcp", "MCP servers"],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setAiTab(id)}
+                      className={`rounded px-2.5 py-1 text-[11px] transition ${
+                        aiTab === id
+                          ? "bg-(--fill-2) text-[var(--text-primary)]"
+                          : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {aiTab === "general" ? (
+                  <>
                 <SectionTitle>Provider</SectionTitle>
                 <Row title="AI provider" description="Where chat requests are sent.">
                   <div className="relative shrink-0">
                     <select
                       value={aiSettings.provider}
                       onChange={(e) => handleAiProviderChange(e.target.value as ProviderId)}
-                      className="w-48 appearance-none rounded-md border border-(--border) bg-(--fill-1) py-1.5 pl-2.5 pr-8 text-[12px] text-[var(--text-primary)] outline-none transition focus:border-(--border-strong)"
+                      className="w-48 appearance-none rounded-md  bg-(--fill-1) py-1.5 pl-2.5 pr-8 text-[12px] text-[var(--text-primary)] outline-none transition focus:border-(--border-strong)"
                     >
                       {PROVIDER_OPTIONS.map((p) => (
                         <option key={p.id} value={p.id} className="bg-[var(--bg-elevated)]">
@@ -964,7 +999,7 @@ export default function SettingsPanel({
                     <button
                       type="button"
                       onClick={() => setShowLocalModels(true)}
-                      className="shrink-0 rounded-md border border-(--border-strong) px-2.5 py-1 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
+                      className="bg-(--fill-1) shrink-0 rounded-md  px-2.5 py-1 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
                     >
                       Browse
                     </button>
@@ -994,7 +1029,7 @@ export default function SettingsPanel({
                         }
                       }}
                       disabled={isCheckingPorts}
-                      className="shrink-0 rounded-md border border-(--border-strong) px-2.5 py-1 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)] disabled:opacity-50"
+                      className="shrink-0 rounded-md bg-(--fill-1) px-2.5 py-1 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)] disabled:opacity-50"
                     >
                       {isCheckingPorts ? "Scanning..." : "Auto-Detect Server"}
                     </button>
@@ -1023,7 +1058,7 @@ export default function SettingsPanel({
                     onChange={(e) => updateAi("baseUrl", e.target.value)}
                     placeholder="https://api.openai.com/v1"
                     spellCheck={false}
-                    className="w-56 shrink-0 rounded-md border border-(--border) bg-(--fill-1) px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
+                    className="w-56 shrink-0 rounded-md bg-(--fill-1) px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                   />
                 </Row>
                 <Row title="API key" description={
@@ -1077,7 +1112,7 @@ export default function SettingsPanel({
                           autoComplete="off"
                           aria-label={`${providerById(aiSettings.provider).label} API key`}
                           disabled={accountLoading}
-                          className="w-full rounded-md border border-(--border) bg-(--fill-1) py-1.5 pl-2.5 pr-14 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
+                          className="w-full rounded-md bg-(--fill-1) py-1.5 pl-2.5 pr-14 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                         />
                         <button
                           type="button"
@@ -1102,7 +1137,7 @@ export default function SettingsPanel({
                           type="button"
                           disabled={byokBusy || accountLoading}
                           onClick={() => void handleRemoveByokKey()}
-                          className="shrink-0 rounded-md border border-(--border-strong) px-2.5 py-1.5 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)] disabled:opacity-40"
+                          className="shrink-0 rounded-md bg-(--fill-1) px-2.5 py-1.5 text-[11px] text-[var(--text-secondary)] transition hover:bg-red-500 hover:text-[var(--text-primary)] disabled:opacity-40"
                         >
                           Remove
                         </button>
@@ -1123,8 +1158,8 @@ export default function SettingsPanel({
                       <button
                         type="button"
                         onClick={() => setSection("account")}
-                        className="rounded-md border border-(--border-strong) px-2.5 py-1 text-[11px] font-medium transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
-                        style={{ background: "var(--accent)", color: "var(--on-accent)", borderColor: "transparent" }}
+                        className="rounded-md px-2.5 py-1 text-[11px] font-medium transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
+                        style={{ background: "var(--accent)", color: "var(--on-accent)"}}
                       >
                         Sign in
                       </button>
@@ -1140,7 +1175,7 @@ export default function SettingsPanel({
                     onChange={(e) => updateAi("model", e.target.value)}
                     placeholder="e.g. gpt-4o-mini"
                     spellCheck={false}
-                    className="w-56 shrink-0 rounded-md border border-(--border) bg-(--fill-1) px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
+                    className="w-56 shrink-0 rounded-md border border-transparent bg-(--fill-1) px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                   />
                 </Row>
                 <Row title="Temperature" description="Higher values make output more creative.">
@@ -1157,15 +1192,17 @@ export default function SettingsPanel({
                     onChange={(e) => updateAi("systemPrompt", e.target.value)}
                     rows={4}
                     placeholder="You are a helpful, professional assistant."
-                    className="w-full resize-none rounded-md border border-(--border) bg-(--fill-1) px-2.5 py-2 text-[12.5px] leading-5 text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
+                    className="w-full resize-none rounded-md border border-transparent bg-(--fill-1) px-2.5 py-2 text-[12.5px] leading-5 text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                   />
                 </div>
 
-                <SectionTitle>MCP servers</SectionTitle>
+                  </>
+                ) : (
+                  <>
                 <div className="flex flex-col gap-2 pb-2">
                   {/* Auto-discovery: pick up servers the user already configured
                       in Claude Desktop / Cursor / VS Code / Windsurf / .mcp.json. */}
-                  <div className="rounded-md border border-dashed border-(--border-strong) bg-(--fill-1) px-2.5 py-2">
+                  <div className="rounded-md bg-(--fill-1) px-2.5 py-2">
                     <div className="flex items-center gap-2">
                       <div className="min-w-0 flex-1">
                         <p className="text-[12px] font-medium text-[var(--text-primary)]">
@@ -1181,7 +1218,7 @@ export default function SettingsPanel({
                         type="button"
                         onClick={() => void scanForMcpServers()}
                         disabled={mcpScanBusy}
-                        className="shrink-0 rounded border border-(--border-strong) px-2 py-1 text-[10.5px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)] disabled:opacity-50"
+                        className="shrink-0 rounded-md bg-(--fill-1) px-2.5 py-1 text-[10.5px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)] disabled:opacity-50"
                       >
                         {mcpScanBusy ? "Scanning…" : "Scan"}
                       </button>
@@ -1196,7 +1233,7 @@ export default function SettingsPanel({
                           <button
                             type="button"
                             onClick={importAllDiscovered}
-                            className="rounded border border-(--border-strong) px-2 py-0.5 text-[10px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
+                            className="rounded-md bg-(--fill-1) px-2.5 py-0.5 text-[10px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
                           >
                             Import all
                           </button>
@@ -1208,14 +1245,14 @@ export default function SettingsPanel({
                           return (
                             <div
                               key={`${d.path}:${d.name}:${i}`}
-                              className="flex items-center gap-2 rounded border border-(--border) bg-(--bg-elevated) px-2 py-1.5"
+                              className="flex items-center gap-2 rounded-md bg-(--bg-elevated) px-2 py-1.5"
                             >
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5">
                                   <span className="truncate text-[11.5px] font-medium text-[var(--text-primary)]">
                                     {d.name}
                                   </span>
-                                  <span className="shrink-0 rounded border border-(--border-strong) px-1 py-px text-[9px] uppercase tracking-wide text-[var(--text-faint)]">
+                                  <span className="shrink-0 rounded bg-(--fill-2) px-1 py-px text-[9px] uppercase tracking-wide text-[var(--text-faint)]">
                                     {d.server.transport}
                                   </span>
                                 </div>
@@ -1230,7 +1267,7 @@ export default function SettingsPanel({
                                 type="button"
                                 onClick={() => importDiscoveredServer(d)}
                                 disabled={done}
-                                className="shrink-0 rounded border border-(--border-strong) px-2 py-1 text-[10px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)] disabled:opacity-40"
+                                className="shrink-0 rounded-md bg-(--fill-1) px-2.5 py-1 text-[10px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)] disabled:opacity-40"
                               >
                                 {done ? "Added" : "Import"}
                               </button>
@@ -1248,7 +1285,7 @@ export default function SettingsPanel({
                     </p>
                   )}
                   {mcpServers.map((s) => (
-                    <div key={s.id} className="flex items-center gap-2 rounded-md border border-(--border) bg-(--fill-1) px-2.5 py-2">
+                    <div key={s.id} className="flex items-center gap-2 rounded-md bg-(--fill-1) px-2.5 py-2">
                       <button
                         type="button"
                         onClick={() => toggleMcpServer(s.id)}
@@ -1268,7 +1305,7 @@ export default function SettingsPanel({
                           <span className={`truncate text-[12px] font-medium ${s.enabled ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]"}`}>
                             {s.name}
                           </span>
-                          <span className="shrink-0 rounded border border-(--border-strong) px-1 py-px text-[9px] uppercase tracking-wide text-[var(--text-faint)]">
+                          <span className="shrink-0 rounded bg-(--fill-2) px-1 py-px text-[9px] uppercase tracking-wide text-[var(--text-faint)]">
                             {s.transport}
                           </span>
                         </div>
@@ -1283,7 +1320,7 @@ export default function SettingsPanel({
                         type="button"
                         onClick={() => void testMcpServer(s)}
                         title="Handshake + list tools"
-                        className="shrink-0 rounded border border-(--border-strong) px-2 py-1 text-[10.5px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
+                        className="shrink-0 rounded-md bg-(--fill-1) px-2.5 py-1 text-[10.5px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
                       >
                         Test
                       </button>
@@ -1297,8 +1334,9 @@ export default function SettingsPanel({
                       </button>
                     </div>
                   ))}
+                  <p className="mt-4 text-[11px] text-[var(--text-muted)]">Add manually</p>
                   {/* Transport picker */}
-                  <div className="flex items-center gap-1 self-start rounded-md border border-(--border) bg-(--fill-1) p-0.5">
+                  <div className="flex items-center gap-1 self-start rounded-md bg-(--fill-1) p-0.5">
                     {(["http", "stdio"] as const).map((t) => (
                       <button
                         key={t}
@@ -1320,7 +1358,7 @@ export default function SettingsPanel({
                     onChange={(e) => setMcpName(e.target.value)}
                     placeholder="Server name (e.g. filesystem)"
                     spellCheck={false}
-                    className="w-full rounded-md border border-(--border) bg-(--fill-1) px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
+                    className="w-full rounded-md border border-transparent bg-(--fill-1) px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                   />
                   {mcpTransport === "http" ? (
                     <>
@@ -1330,7 +1368,7 @@ export default function SettingsPanel({
                         onChange={(e) => setMcpUrl(e.target.value)}
                         placeholder="http://localhost:3000/mcp"
                         spellCheck={false}
-                        className="w-full rounded-md border border-(--border) bg-(--fill-1) px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
+                        className="w-full rounded-md border border-transparent bg-(--fill-1) px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                       />
                       <input
                         type="text"
@@ -1338,7 +1376,7 @@ export default function SettingsPanel({
                         onChange={(e) => setMcpHeaders(e.target.value)}
                         placeholder='Headers JSON (optional) — e.g. {"Authorization": "Bearer <your token>"}'
                         spellCheck={false}
-                        className="w-full rounded-md border border-(--border) bg-(--fill-1) px-2.5 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
+                        className="w-full rounded-md border border-transparent bg-(--fill-1) px-2.5 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                       />
                     </>
                   ) : (
@@ -1350,7 +1388,7 @@ export default function SettingsPanel({
                           onChange={(e) => setMcpCommand(e.target.value)}
                           placeholder="Command (e.g. npx)"
                           spellCheck={false}
-                          className="min-w-0 flex-1 rounded-md border border-(--border) bg-(--fill-1) px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
+                          className="min-w-0 flex-1 rounded-md border border-transparent bg-(--fill-1) px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                         />
                         <input
                           type="text"
@@ -1358,7 +1396,7 @@ export default function SettingsPanel({
                           onChange={(e) => setMcpArgs(e.target.value)}
                           placeholder='Args (e.g. -y @modelcontextprotocol/server-filesystem C:\projects)'
                           spellCheck={false}
-                          className="min-w-0 flex-[1.6] rounded-md border border-(--border) bg-(--fill-1) px-2.5 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
+                          className="min-w-0 flex-[1.6] rounded-md border border-transparent bg-(--fill-1) px-2.5 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                         />
                       </div>
                       <input
@@ -1367,7 +1405,7 @@ export default function SettingsPanel({
                         onChange={(e) => setMcpCwd(e.target.value)}
                         placeholder="Working directory (optional) — e.g. %LOCALAPPDATA%\Roblox"
                         spellCheck={false}
-                        className="w-full rounded-md border border-(--border) bg-(--fill-1) px-2.5 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
+                        className="w-full rounded-md border border-transparent bg-(--fill-1) px-2.5 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                       />
                       <input
                         type="text"
@@ -1375,7 +1413,7 @@ export default function SettingsPanel({
                         onChange={(e) => setMcpEnv(e.target.value)}
                         placeholder='Env JSON (optional) — e.g. {"API_TOKEN": "<your token>"}'
                         spellCheck={false}
-                        className="w-full rounded-md border border-(--border) bg-(--fill-1) px-2.5 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
+                        className="w-full rounded-md border border-transparent bg-(--fill-1) px-2.5 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                       />
                     </>
                   )}
@@ -1386,12 +1424,14 @@ export default function SettingsPanel({
                     type="button"
                     onClick={addMcpServer}
                     disabled={!mcpName.trim()}
-                    className="self-start rounded-md border border-(--border-strong) px-3 py-1.5 text-[11px] font-medium text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+                    className="self-start rounded-md bg-(--fill-1) px-3 py-1.5 text-[11px] font-medium text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Add Server
                   </button>
                 </div>
 
+                  </>
+                )}
                 <p className="pt-1 text-[10.5px] text-[var(--text-faint)]">
                   {signedIn
                     ? "AI settings sync to your account. Provider keys are stored separately, encrypted."
@@ -1464,7 +1504,11 @@ export default function SettingsPanel({
                 </Row>
               </div>
             )}
-
+            {section === "plugins" && (
+              <div>
+                <PluginsPanel inline />
+              </div>
+            )}
             {section === "shortcuts" && (
               <div>
                 <SectionTitle>Keyboard shortcuts</SectionTitle>

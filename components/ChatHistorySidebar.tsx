@@ -14,7 +14,6 @@ import { openExternalUrl as openUrl } from "../src/lib/external";
 import { useErrorHandler } from "../src/errorContext";
 import { useTranslation } from "../src/i18n";
 // import appIcon from "../src/assets/images/icon.jpeg";
-import PluginsPanel from "./plugins";
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -31,6 +30,8 @@ interface Props {
   onOpenTab2?: () => void;
   onOpenAiSettings?: () => void;
   onOpenSettings?: () => void;
+  /** Opens Settings directly on the Plugins section. */
+  onOpenPlugins?: () => void;
   onOpenAccount?: () => void;
   /** Opens the command palette (was the top bar's Search pill). */
   onOpenCommandPalette?: () => void;
@@ -85,6 +86,7 @@ export default function ChatHistorySidebar({
   onOpenTab2,
   onOpenAiSettings,
   onOpenSettings,
+  onOpenPlugins,
   onOpenAccount,
   onOpenCommandPalette,
   onCheckForUpdates,
@@ -94,7 +96,6 @@ export default function ChatHistorySidebar({
   contextEntries,
   pinnedPaths,
 }: Props) {
-  const [pluginsOpen, setPluginsOpen] = useState(false);
   const [query, setQuery] = useState("");
 
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -363,12 +364,13 @@ export default function ChatHistorySidebar({
                 })}
               </div>
             ))}
-              <div className="flex shrink-0 items-center gap-1.5 px-4 py-3">
+          
+              <div className="flex shrink-0 items-center gap-1.5 px-4 py-3 m-2">
                 <button
-                  onClick={() => setPluginsOpen(true)}
-                  className="bg-transparent hover:bg-(--fill-1) transition-colors duration-200 rounded-2xl w-20"
+                  onClick={() => onOpenPlugins?.()}
+                  className="bg-transparent hover:bg-(--fill-1) transition-colors duration-200 rounded-2xl w-25"
                 >
-                  <span>PlugIns</span>
+                  <span className = "flex items-center gap-1.25 w-100"><IoAdd/>Add PlugIns</span>
                 </button>
               </div>
           </div>
@@ -381,8 +383,6 @@ export default function ChatHistorySidebar({
           </div> */}
         </div>
       )}
-
-      <PluginsPanel isOpen={pluginsOpen} onClose={() => setPluginsOpen(false)} />
     </aside>
   );
 }

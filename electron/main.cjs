@@ -482,25 +482,43 @@ const MAIL_PORT_IMAP = 993
 const MAIL_HOST_SMTP = 'smtp.gmail.com'
 const MAIL_PORT_SMTP = 465
 
-/** One TLS socket + line reader, shared by SMTP and IMAP sessions. */
+/** One TLS socket, shared by SMTP and IMAP sessions (connect timeout only). */
 function mailConnect(host, port) {
   const tls = require('node:tls')
   return new Promise((resolveP, reject) => {
-    const sock = tls.connect({ host, port, servername: host }, () => resolveP(sock))
-    const timer = setTimeout(() => { try { sock.destroy() } catch {} }, MAIL_TIMEOUT_MS)
-    const clear = () => clearTimeout(timer)
-    sock.once('secureConnect', clear)
-    sock.once('error', (e) => { clear(); reject(e) })
-    // refresh the watchdog on every chunk so slow-but-alive servers survive
-    sock.on('data', () => { clearTimeout(timer); timer.refresh() })
+    let settled = false
+    const sock = tls.connect({ host, port, servername: host }, () => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      resolveP(sock)
+    })
+    const timer = setTimeout(() => {
+      if (settled) return
+      settled = true
+      try { sock.destroy() } catch {}
+      reject(new Error('Mail connection timed out reaching ' + host + ':' + port + ' (check network / firewall / VPN).'))
+    }, MAIL_TIMEOUT_MS)
+    sock.once('error', (e) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      reject(e)
+    })
   })
 }
 
-/** Read server lines until `done(line)` is true; resolves the collected lines. */
-function mailReadLines(sock, done) {
+/** Read server lines until `done(line)` is true; per-read timeout so a hung
+ *  server can never wedge the agent (previously this waited forever). */
+function mailReadLines(sock, done, timeoutMs) {
+  const wait = Number(timeoutMs) > 0 ? Number(timeoutMs) : MAIL_TIMEOUT_MS
   return new Promise((resolveP, reject) => {
     let buf = ''
     const lines = []
+    const timer = setTimeout(() => {
+      cleanup()
+      reject(new Error('Mail server timed out waiting for a response (Gmail may be slow — retry).'))
+    }, wait)
     const onData = (chunk) => {
       buf += chunk.toString('utf8')
       let idx
@@ -512,8 +530,9 @@ function mailReadLines(sock, done) {
       }
     }
     const onErr = (e) => { cleanup(); reject(e) }
-    const onClose = () => { cleanup(); reject(new Error('Mail connection closed')) }
+    const onClose = () => { cleanup(); reject(new Error('Mail connection closed by Gmail (network drop?).')) }
     const cleanup = () => {
+      clearTimeout(timer)
       sock.off('data', onData); sock.off('error', onErr); sock.off('close', onClose)
     }
     sock.on('data', onData)
@@ -611,12 +630,14 @@ async function mailImapLogin(sock, user, pass) {
   } catch (e) {
     const msg = e && e.message ? e.message : String(e)
     if (!/failed/i.test(msg)) throw e
+    // fall through to AUTHENTICATE LOGIN below; keep first error as fallback
+    var firstErr = msg
   }
   const b64 = (s) => Buffer.from(s, 'utf8').toString('base64')
   const tag = mailTag()
   await mailWrite(sock, tag + ' AUTHENTICATE LOGIN\r\n')
   const c0 = await mailReadLines(sock, (l) => l.startsWith('+') || l.startsWith(tag + ' '))
-  if ((c0[c0.length - 1] || '').startsWith(tag + ' ')) throw new Error('Gmail login failed: ' + c0[c0.length - 1])
+  if ((c0[c0.length - 1] || '').startsWith(tag + ' ')) throw new Error('Gmail login failed: ' + c0[c0.length - 1] + (firstErr ? ' (LOGIN also said: ' + firstErr + ')' : ''))
   await mailWrite(sock, b64(user) + '\r\n')
   const c1 = await mailReadLines(sock, (l) => l.startsWith('+') || l.startsWith(tag + ' '))
   if ((c1[c1.length - 1] || '').startsWith(tag + ' ')) throw new Error('Gmail login failed: ' + c1[c1.length - 1])
@@ -627,19 +648,46 @@ async function mailImapLogin(sock, user, pass) {
   throw new Error('Gmail login failed: ' + last2)
 }
 
+/** Turn a raw Gmail IMAP failure line into an actionable message (keeps the
+ *  server detail instead of swallowing it behind one generic sentence). */
+function mailAuthHint(serverLine, user) {
+  const line = String(serverLine || '')
+  const serverBit = line.replace(/^[A-Z0-9]+\s+(OK|NO|BAD)\b/i, '').trim().replace(/^\[.*?\]\s*/, '').trim()
+  if (/application-specific password required|app password/i.test(line)) {
+    return 'Gmail rejected the regular account password — you must use an App Password (Google Account → Security → 2-Step Verification → App passwords), not your normal Google password.' + (serverBit ? ' Gmail said: ' + serverBit : '')
+  }
+  if (/invalid credentials|authenticationfailed|auth.*fail|username and password not accepted/i.test(line)) {
+    return 'Gmail said “invalid credentials” for ' + user + ' — the email or the 16-letter App Password is wrong (paste it without spaces; generating a fresh App Password also fixes revoked ones).' + (serverBit && !/invalid credentials/i.test(serverBit) ? ' Gmail said: ' + serverBit : '')
+  }
+  if (/too many simultaneous|too many connections|try again|temporar/i.test(line)) {
+    return 'Gmail is rate-limiting IMAP logins — wait a minute and retry (close other mail apps signed into the same account).' + (serverBit ? ' Gmail said: ' + serverBit : '')
+  }
+  if (/disabled|imap.*not|access denied|not available/i.test(line)) {
+    return 'Gmail refused IMAP access — enable IMAP in Gmail Settings → Forwarding and POP/IMAP → IMAP access, or check a Workspace admin hasn’t disabled “less-secure / mail client” access.' + (serverBit ? ' Gmail said: ' + serverBit : '')
+  }
+  if (/timed out|connection closed|network|econn|enotfound|eai_again|econnrefused|etimedout/i.test(line)) {
+    return 'Couldn’t reach imap.gmail.com:993 — check network / firewall / VPN / DNS, then retry. Detail: ' + line
+  }
+  return 'Gmail login failed for ' + user + ' — check the email and the 16-letter App Password (Google Account → 2-Step Verification → App passwords).' + (serverBit ? ' Gmail said: ' + serverBit : ' Full response: ' + line)
+}
+
 /** Open an authenticated IMAP session on INBOX. Caller must mailClose(sock). */
 async function mailImapSession(user, pass) {
   const sock = await mailConnect(MAIL_HOST_IMAP, MAIL_PORT_IMAP)
   try {
-    await mailReadLines(sock, (l) => l.startsWith('* OK') || l.startsWith('* PREAUTH'))
+    // A '* BYE' greeting means Gmail refused us outright (ban / rate limit);
+    // surface it instead of hanging until the read timeout.
+    const greet = await mailReadLines(sock, (l) => l.startsWith('* OK') || l.startsWith('* PREAUTH') || l.startsWith('* BYE'))
+    const greetLast = greet[greet.length - 1] || ''
+    if (greetLast.startsWith('* BYE')) throw new Error('Gmail login failed: ' + greetLast)
     await mailImapLogin(sock, user, pass)
     await mailImapCmd(sock, 'SELECT INBOX')
     return sock
   } catch (e) {
     mailClose(sock)
     const msg = e && e.message ? e.message : String(e)
-    if (/auth|login|credential|username|password|invalid|failed/i.test(msg)) {
-      throw new Error('Gmail login failed — check the email and App Password (Google account → 2-Step Verification → App passwords).')
+    if (/auth|login|credential|username|password|invalid|failed|bye|imap/i.test(msg)) {
+      throw new Error(mailAuthHint(msg, user))
     }
     throw e
   }

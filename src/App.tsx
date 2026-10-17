@@ -1587,13 +1587,13 @@ Tool allowance: No Tools Allowed. Do not attempt to use tools or claim to have u
       return;
     }
 
-    // --- Now it's safe to cancel any previous in-flight stream. ---
+    // The activity feed is per-run and is intentionally NOT cleared on send —
+    // tool usage rows should stay visible until the user dismisses each row.
     streamControllerRef.current?.abort();
     streamControllerRef.current = null;
 
     setError(null);
     setMessage("");
-    setActivities([]);
 
     // If there's no active session, create one for this new conversation.
     // Snapshot the current AI settings so this tab remembers its model.
@@ -2356,6 +2356,10 @@ MCP call rules:
               setSettingsOpen(true);
             }}
             onOpenSettings={() => setSettingsOpen(true)}
+            onOpenPlugins={() => {
+              setSettingsSection("plugins");
+              setSettingsOpen(true);
+            }}
             onOpenAccount={() => {
               setSettingsSection("account");
               setSettingsOpen(true);
