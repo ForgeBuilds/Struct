@@ -2,11 +2,28 @@
  * Author: madhusudhan
  * Check the LICENSE in the GitHub repo (https://github.com/Lumorix-studios/Struct) for more information on permissions to use this code.
  */
-import { memo } from "react";
+import { memo, isValidElement, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import type { Components } from "react-markdown";
+
+/**
+ * Plain text out of highlighted code children. With rehype-highlight,
+ * `children` is an array of <span> elements — String(children) on that gives
+ * "[object Object]", which is what the Copy button used to put on the
+ * clipboard.
+ */
+function codeChildrenText(node: ReactNode): string {
+  if (node == null || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(codeChildrenText).join("");
+  if (isValidElement(node)) {
+    const kids = (node.props as { children?: ReactNode }).children;
+    return codeChildrenText(kids);
+  }
+  return "";
+}
 
 const components: Components = {
   code({ className, children, ...props }) {
@@ -14,8 +31,8 @@ const components: Components = {
     const isBlock = match || props.node?.position?.start.line !== props.node?.position?.end.line;
     // Newline char built at runtime so the source stays escape-sequence safe.
     const NL_CH = String.fromCharCode(10);
-    const isInline = !match && !String(children).includes(NL_CH);
-    const codeText = String(children).replace(new RegExp(NL_CH + "$"), "");
+    const codeText = codeChildrenText(children).replace(new RegExp(NL_CH + "$"), "");
+    const isInline = !match && !codeText.includes(NL_CH);
 
     if (!isBlock || isInline) {
       return (

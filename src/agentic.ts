@@ -4,6 +4,7 @@
  */
 
 import { invoke } from "./native";
+import { gmailRead, gmailSearch, gmailSend } from "./gmail";
 
 export type ToolName =
   | "read_file"
@@ -30,7 +31,10 @@ export type ToolName =
   | "web_fetch"
   | "http_request"
   | "env_info"
-  | "analyze_project_structure";
+  | "analyze_project_structure"
+  | "gmail_search"
+  | "gmail_read"
+  | "gmail_send";
 
 export interface ToolCall {
   id?: string;
@@ -71,7 +75,7 @@ export interface FsEntry {
   modified: number | null;
 }
 
-/** Tools that mutate the filesystem / execute code and need user approval. */
+/** Tools that mutate state outside the chat and need user approval. */
 const DESTRUCTIVE: ToolName[] = [
   "write_file",
   "append_file",
@@ -85,6 +89,7 @@ const DESTRUCTIVE: ToolName[] = [
   "run_command",
   "http_request",
   "git_commit",
+  "gmail_send",
 ];
 
 export function isDestructive(name: string): boolean {
@@ -117,6 +122,9 @@ const TOOL_NAME_SET = new Set<string>([
   "http_request",
   "env_info",
   "analyze_project_structure",
+  "gmail_search",
+  "gmail_read",
+  "gmail_send",
 ]);
 
 export function isToolName(name: string): name is ToolName {
@@ -359,6 +367,42 @@ export const TOOL_JSON_SCHEMAS: Record<ToolName, { description: string; paramete
   analyze_project_structure: {
     description: "Perform a deep analysis of the workspace structure to map architecture and dependencies.",
     parameters: { type: "object", properties: {}, required: [] },
+  },
+  gmail_search: {
+    description:
+      "Search the connected Gmail account (Gmail query syntax, e.g. 'from:boss newer_than:7d' or 'in:inbox'). Returns message ids, senders, subjects and snippets. Requires Gmail connected in the PlugIns panel.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Gmail search query. Empty defaults to recent inbox mail." },
+        max_results: { type: "integer", description: "How many messages to return (1-25, default 10)." },
+      },
+      required: [],
+    },
+  },
+  gmail_read: {
+    description:
+      "Read the full body of one Gmail message by id. Get the id from gmail_search first — never guess ids.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Gmail message id from gmail_search." },
+      },
+      required: ["id"],
+    },
+  },
+  gmail_send: {
+    description:
+      "Send an email from the connected Gmail account to one recipient. The sender is always the connected account. Requires Gmail connected in the PlugIns panel.",
+    parameters: {
+      type: "object",
+      properties: {
+        to: { type: "string", description: "Recipient email address." },
+        subject: { type: "string", description: "Email subject." },
+        body: { type: "string", description: "Plain-text email body." },
+      },
+      required: ["to", "body"],
+    },
   },
 };
 
@@ -1252,6 +1296,60 @@ async function executeToolUncached(
           return { ok: false, output: `Analysis failed: ${e instanceof Error ? e.message : String(e)}` };
         }
       }
+      case "gmail_search": {
+        try {
+          const query = String(args.query ?? "in:inbox").trim() || "in:inbox";
+          const max =
+            typeof args.max_results === "number"
+              ? Math.round(args.max_results)
+              : typeof args.maxResults === "number"
+                ? Math.round(args.maxResults)
+                : 10;
+          const msgs = await gmailSearch(query, max);
+          if (msgs.length === 0) {
+            return { ok: true, output: `No Gmail messages match "${query}". Try a broader query or check the spelling.` };
+          }
+          const out = msgs
+            .map(
+              (m, i) =>
+                `${i + 1}. id=${m.uid}\n   From: ${m.from}\n   Subject: ${m.subject}\n   Date: ${m.date}\n   ${m.snippet}`
+            )
+            .join("\n\n");
+          return {
+            ok: true,
+            output:
+              out.length > 12000
+                ? `${out.slice(0, 12000)}\n... [truncated]`
+                : out,
+          };
+        } catch (e) {
+          return { ok: false, output: `Gmail search failed: ${e instanceof Error ? e.message : String(e)}` };
+        }
+      }
+      case "gmail_read": {
+        try {
+          const m = await gmailRead(String(args.id ?? ""));
+          const body = m.body || "(empty body)";
+          const out =
+            `From: ${m.from}\nTo: ${m.to}\nSubject: ${m.subject}\nDate: ${m.date}\n\n` +
+            (body.length > 15000 ? `${body.slice(0, 15000)}\n... [truncated for context]` : body);
+          return { ok: true, output: out };
+        } catch (e) {
+          return { ok: false, output: `Gmail read failed: ${e instanceof Error ? e.message : String(e)}` };
+        }
+      }
+      case "gmail_send": {
+        try {
+          const id = await gmailSend(
+            String(args.to ?? ""),
+            String(args.subject ?? ""),
+            String(args.body ?? "")
+          );
+          return { ok: true, output: `Email sent (Gmail id ${id}).` };
+        } catch (e) {
+          return { ok: false, output: `Gmail send failed: ${e instanceof Error ? e.message : String(e)}` };
+        }
+      }
       default:
         return {
           ok: false,
@@ -1291,6 +1389,8 @@ const CACHEABLE_TOOLS = new Set<string>([
   "list_dir",
   "file_info",
   "search_files",
+  "gmail_search",
+  "gmail_read",
 ]);
 
 interface ToolCacheEntry {
@@ -1736,6 +1836,9 @@ export const TOOL_LABELS: Record<ToolName, string> = {
   http_request: "HTTP request",
   env_info: "Environment info",
   analyze_project_structure: "Analyze project",
+  gmail_search: "Search Gmail",
+  gmail_read: "Read Gmail message",
+  gmail_send: "Send Gmail",
 };
 
 /** Short description of each tool for the model's system prompt. */
@@ -1765,6 +1868,9 @@ export const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
   http_request: 'http_request(url, method?, headers?, body?) — call any HTTP API (REST, JSON) and return status + body.',
   env_info: 'env_info() — report OS/platform, locale, current local time and workspace root.',
   analyze_project_structure: 'analyze_project_structure() — deep scan of the workspace to map architecture.',
+  gmail_search: 'gmail_search(query?, max_results?) — search Gmail; returns ids + snippets.',
+  gmail_read: 'gmail_read(id) — read one Gmail message body (get id from gmail_search).',
+  gmail_send: 'gmail_send(to, subject?, body) — send email as the connected account.',
 };
 
 /** The protocol instructions injected into the system prompt. Kept short and
@@ -1782,6 +1888,10 @@ Files:
 - \`read_active_file()\`, \`get_open_files()\`
 Web:
 - \`http_request(url, method?, headers?, body?)\` — call any REST/JSON API directly.
+Gmail (requires Gmail connected in the PlugIns panel):
+- \`gmail_search(query?, max_results?)\` — search mail (Gmail syntax); returns ids + snippets.
+- \`gmail_read(id)\` — read one message's full body. Always gmail_search first for the id.
+- \`gmail_send(to, subject?, body)\` — send email as the connected account (asks approval).
 Git (workspace):
 - \`git_status()\`, \`git_diff(staged?)\`, \`git_commit(message)\`
 System:

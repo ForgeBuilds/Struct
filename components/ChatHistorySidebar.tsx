@@ -14,7 +14,7 @@ import { openExternalUrl as openUrl } from "../src/lib/external";
 import { useErrorHandler } from "../src/errorContext";
 import { useTranslation } from "../src/i18n";
 // import appIcon from "../src/assets/images/icon.jpeg";
-
+import PluginsPanel from "./plugins";
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -94,13 +94,14 @@ export default function ChatHistorySidebar({
   contextEntries,
   pinnedPaths,
 }: Props) {
+  const [pluginsOpen, setPluginsOpen] = useState(false);
   const [query, setQuery] = useState("");
+
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const { reportError } = useErrorHandler();
   const { t } = useTranslation();
-
   /* Close an open menu when clicking anywhere outside the menu row. */
   useEffect(() => {
     const close = (e: MouseEvent) => {
@@ -362,17 +363,26 @@ export default function ChatHistorySidebar({
                 })}
               </div>
             ))}
+              <div className="flex shrink-0 items-center gap-1.5 px-4 py-3">
+                <button
+                  onClick={() => setPluginsOpen(true)}
+                  className="bg-transparent hover:bg-(--fill-1) transition-colors duration-200 rounded-2xl w-20"
+                >
+                  <span>PlugIns</span>
+                </button>
+              </div>
           </div>
-
-          <div className="flex shrink-0 items-center gap-1.5 border-t border-(--border) px-3 py-2">
-            {/* <img src={appIcon} alt="" className="h-3.5 w-3.5 rounded-[3px]" />
+          {/* <div className="flex shrink-0 items-center gap-1.5 border-t border-(--border) px-3 py-2">
+            <img src={appIcon} alt="" className="h-3.5 w-3.5 rounded-[3px]" />
             <span className="text-[11px] font-semibold text-[var(--text-secondary)]">Struct</span>
             <span className="ml-auto text-[10px] text-[var(--text-faint)]">
               {signedIn ? "Synced to your account." : "Stored on this device."}
-            </span> */}
-          </div>
+            </span>
+          </div> */}
         </div>
       )}
+
+      <PluginsPanel isOpen={pluginsOpen} onClose={() => setPluginsOpen(false)} />
     </aside>
   );
 }

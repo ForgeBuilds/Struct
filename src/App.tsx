@@ -12,7 +12,7 @@ import ChatHistorySidebar from "../components/ChatHistorySidebar.tsx";
 import InfoPanel from "../components/InfoPanel";
 import PrivacyPolicy from "../components/PrivacyPolicy.tsx";
 import CommandPalette from "../components/CommandPalette";
-import StatusBar from "../components/StatusBar.tsx";
+//import StatusBar from "../components/StatusBar.tsx";
 import Tab2 from "../components/Tab2.tsx";
 import Markdown from "./components/Markdown";
 // import BottomPanel, { type PanelTab } from "./components/BottomPanel";
@@ -2568,7 +2568,7 @@ MCP call rules:
                   {activeEditorPath ? (
                     <span
                       title={`The agent will receive this file's contents automatically`}
-                      className="inline-flex items-center gap-1.5 rounded border border-(--border) bg-(--fill-1) px-2 py-0.5 text-[11px] text-[var(--text-secondary)]"
+                      className="inline-flex items-center gap-1.5 rounded  border-(--border) bg-black px-2 py-0.5 text-[11px] text-[var(--text-secondary)]"
                     >
                       <span className="h-1 w-1 rounded-full bg-(--text-muted)" />
                       {activeEditorPath.split(/[\\/]/).pop()}
@@ -2579,11 +2579,11 @@ MCP call rules:
                     </span>
                   )}
                   <label
-                    className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded border border-(--border) bg-(--fill-1) px-2 py-0.5 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2)"
+                    className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded border border-(--border) bg-black px-2 py-0.5 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2)"
                     title="All tools are available; destructive actions follow Auto-approve tools. Read Only blocks changes. No Tools disables tool use."
                   >
                     <span
-                      className={`h-1.5 w-1.5 rounded-full ${
+                      className={`h-1.5 w-1.5 rounded-full  bg-black ${
                         settings.toolAllowance === "none"
                           ? "bg-red-500"
                           : settings.toolAllowance === "read-only"
@@ -2657,11 +2657,11 @@ MCP call rules:
           //   scrollback: uiSettings.terminalScrollback,
           //   cursorBlink: uiSettings.terminalCursorBlink,
           // }} */}
-        <StatusBar
+        {/* <StatusBar
           historySidebarOpen={historySidebarOpen}
           onToggleHistorySidebar={() => setHistorySidebarOpen((v) => !v)}
           workspaceName={workspaceRoot?.split(/[\\/]/).filter(Boolean).pop() ?? null}
-        />
+        /> */}
         <CommandPalette
           isOpen={commandPaletteOpen}
           onClose={() => setCommandPaletteOpen(false)}

@@ -242,6 +242,7 @@ function ollHttp(o) {
     req.end()
   })
 }
+
 async function ollAlive() {
   try {
     const r = await ollHttp({ url: 'http://127.0.0.1:11434/api/version', method: 'GET' })
@@ -466,12 +467,349 @@ async function httpFetch(a) {
 }
 
 
+/* --- Direct mail (IMAP + SMTP over TLS, no OAuth / Cloud Console) --- */
+// Gmail via an App Password (Google account → 2-Step Verification → App
+// passwords). SMTP (smtp.gmail.com:465, implicit TLS) sends; IMAP
+// (imap.gmail.com:993, implicit TLS) searches + reads. Node builtins only —
+// no new deps, nothing extra to ship in the packaged app.
+//
+// Line protocol with dot-stuffing on SMTP DATA, AUTH LOGIN (base64
+// user/pass), untagged-response skipping + {byte-count} literal handling on
+// IMAP, timed sockets throughout so a hung server can never wedge the agent.
+const MAIL_TIMEOUT_MS = 30000
+const MAIL_HOST_IMAP = 'imap.gmail.com'
+const MAIL_PORT_IMAP = 993
+const MAIL_HOST_SMTP = 'smtp.gmail.com'
+const MAIL_PORT_SMTP = 465
+
+/** One TLS socket + line reader, shared by SMTP and IMAP sessions. */
+function mailConnect(host, port) {
+  const tls = require('node:tls')
+  return new Promise((resolveP, reject) => {
+    const sock = tls.connect({ host, port, servername: host }, () => resolveP(sock))
+    const timer = setTimeout(() => { try { sock.destroy() } catch {} }, MAIL_TIMEOUT_MS)
+    const clear = () => clearTimeout(timer)
+    sock.once('secureConnect', clear)
+    sock.once('error', (e) => { clear(); reject(e) })
+    // refresh the watchdog on every chunk so slow-but-alive servers survive
+    sock.on('data', () => { clearTimeout(timer); timer.refresh() })
+  })
+}
+
+/** Read server lines until `done(line)` is true; resolves the collected lines. */
+function mailReadLines(sock, done) {
+  return new Promise((resolveP, reject) => {
+    let buf = ''
+    const lines = []
+    const onData = (chunk) => {
+      buf += chunk.toString('utf8')
+      let idx
+      while ((idx = buf.indexOf('\r\n')) >= 0) {
+        const line = buf.slice(0, idx)
+        buf = buf.slice(idx + 2)
+        lines.push(line)
+        if (done(line)) { cleanup(); resolveP(lines); return }
+      }
+    }
+    const onErr = (e) => { cleanup(); reject(e) }
+    const onClose = () => { cleanup(); reject(new Error('Mail connection closed')) }
+    const cleanup = () => {
+      sock.off('data', onData); sock.off('error', onErr); sock.off('close', onClose)
+    }
+    sock.on('data', onData)
+    sock.once('error', onErr)
+    sock.once('close', onClose)
+  })
+}
+
+function mailWrite(sock, text) {
+  return new Promise((resolveP, reject) => {
+    sock.write(text, 'utf8', (e) => (e ? reject(e) : resolveP()))
+  })
+}
+
+function mailClose(sock) {
+  try { sock.destroy() } catch {}
+}
+
+function mailCreds(a) {
+  const user = String((a && (a.email !== undefined ? a.email : a.user)) || '').trim()
+  const pass = String((a && (a.appPassword !== undefined ? a.appPassword : a.password)) || '').replace(/\s+/g, '')
+  if (!user || !pass) throw new Error('Gmail email + App Password are required.')
+  return { user, pass }
+}
+
+/** SMTP: greet → EHLO → AUTH LOGIN → MAIL/RCPT/DATA → send → QUIT. */
+async function mailSmtpSend(a) {
+  const { user, pass } = mailCreds(a)
+  const to = String(a.to || '').trim()
+  const subject = String(a.subject || '').trim() || '(no subject)'
+  const text = String(a.body !== undefined ? a.body : '')
+  if (!to) throw new Error('Recipient address is required.')
+  const sock = await mailConnect(MAIL_HOST_SMTP, MAIL_PORT_SMTP)
+  try {
+    await mailReadLines(sock, (l) => l.startsWith('220'))
+    const b64 = (s) => Buffer.from(s, 'utf8').toString('base64')
+    const expect = async (cmd, code) => {
+      await mailWrite(sock, cmd)
+      const lines = await mailReadLines(sock, (l) => new RegExp('^' + code + '[ \\-]').test(l))
+      const last = lines[lines.length - 1] || ''
+      if (!last.startsWith(String(code) + ' ')) throw new Error('SMTP rejected ' + cmd.split(' ')[0] + ': ' + last)
+      return lines
+    }
+    await expect('EHLO struct\r\n', 250)
+    await expect('AUTH LOGIN\r\n', 334)
+    await expect(b64(user) + '\r\n', 334)
+    await expect(b64(pass) + '\r\n', 235)
+    await expect('MAIL FROM:<' + user + '>\r\n', 250)
+    await expect('RCPT TO:<' + to + '>\r\n', 250)
+    await expect('DATA\r\n', 354)
+    // Dot-stuffing: a line starting with '.' ends DATA early unless doubled.
+    const stuffed = text.split(/\r?\n/).map((l) => (l.startsWith('.') ? '.' + l : l)).join('\r\n')
+    const raw =
+      'From: ' + user + '\r\n' +
+      'To: ' + to + '\r\n' +
+      'Subject: ' + subject.replace(/[\r\n]+/g, ' ') + '\r\n' +
+      'MIME-Version: 1.0\r\n' +
+      'Content-Type: text/plain; charset="UTF-8"\r\n' +
+      'Content-Transfer-Encoding: 8bit\r\n\r\n' +
+      stuffed + '\r\n.\r\n'
+    await mailWrite(sock, raw)
+    const sent = await mailReadLines(sock, (l) => /^250 /.test(l))
+    await mailWrite(sock, 'QUIT\r\n').catch(() => {})
+    const idLine = sent.find((l) => l.startsWith('250 ')) || ''
+    return { ok: true, response: idLine.replace(/^250[ -]?/, '').trim() }
+  } finally {
+    mailClose(sock)
+  }
+}
+
+let mailTagSeq = 0
+function mailTag() {
+  mailTagSeq = (mailTagSeq + 1) % 100000
+  return 'S' + String(mailTagSeq).padStart(4, '0')
+}
+
+/** Send one tagged command; collect until our tagged completion line. */
+async function mailImapCmd(sock, cmd) {
+  const tag = mailTag()
+  await mailWrite(sock, tag + ' ' + cmd + '\r\n')
+  const lines = await mailReadLines(sock, (l) => l.startsWith(tag + ' '))
+  const done = lines[lines.length - 1] || ''
+  if (/^OK\b/i.test(done.slice(tag.length + 1).trim())) return lines
+  throw new Error('IMAP command failed: ' + done)
+}
+
+function mailQuote(s) {
+  return '"' + String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"'
+}
+
+/** LOGIN, with an AUTHENTICATE LOGIN challenge fallback for picky servers. */
+async function mailImapLogin(sock, user, pass) {
+  try {
+    return await mailImapCmd(sock, 'LOGIN ' + mailQuote(user) + ' ' + mailQuote(pass))
+  } catch (e) {
+    const msg = e && e.message ? e.message : String(e)
+    if (!/failed/i.test(msg)) throw e
+  }
+  const b64 = (s) => Buffer.from(s, 'utf8').toString('base64')
+  const tag = mailTag()
+  await mailWrite(sock, tag + ' AUTHENTICATE LOGIN\r\n')
+  const c0 = await mailReadLines(sock, (l) => l.startsWith('+') || l.startsWith(tag + ' '))
+  if ((c0[c0.length - 1] || '').startsWith(tag + ' ')) throw new Error('Gmail login failed: ' + c0[c0.length - 1])
+  await mailWrite(sock, b64(user) + '\r\n')
+  const c1 = await mailReadLines(sock, (l) => l.startsWith('+') || l.startsWith(tag + ' '))
+  if ((c1[c1.length - 1] || '').startsWith(tag + ' ')) throw new Error('Gmail login failed: ' + c1[c1.length - 1])
+  await mailWrite(sock, b64(pass) + '\r\n')
+  const c2 = await mailReadLines(sock, (l) => l.startsWith(tag + ' '))
+  const last2 = c2[c2.length - 1] || ''
+  if (/^OK\b/i.test(last2.slice(tag.length + 1).trim())) return c2
+  throw new Error('Gmail login failed: ' + last2)
+}
+
+/** Open an authenticated IMAP session on INBOX. Caller must mailClose(sock). */
+async function mailImapSession(user, pass) {
+  const sock = await mailConnect(MAIL_HOST_IMAP, MAIL_PORT_IMAP)
+  try {
+    await mailReadLines(sock, (l) => l.startsWith('* OK') || l.startsWith('* PREAUTH'))
+    await mailImapLogin(sock, user, pass)
+    await mailImapCmd(sock, 'SELECT INBOX')
+    return sock
+  } catch (e) {
+    mailClose(sock)
+    const msg = e && e.message ? e.message : String(e)
+    if (/auth|login|credential|username|password|invalid|failed/i.test(msg)) {
+      throw new Error('Gmail login failed — check the email and App Password (Google account → 2-Step Verification → App passwords).')
+    }
+    throw e
+  }
+}
+
+
 /* --- invoke router A: state + fs --- */
+
+/** Pull {byte-count} literals out of FETCH responses (bodies arrive this way). */
+function mailImapLiterals(lines) {
+  const out = []
+  for (let i = 0; i < lines.length; i++) {
+    if (!/\{\d+\}\s*$/.test(lines[i])) continue
+    let collected = ''
+    let j = i + 1
+    while (j < lines.length && !/^\* /.test(lines[j]) && !/^[A-Z0-9]+ (OK|NO|BAD)/i.test(lines[j])) {
+      collected += (collected ? '\r\n' : '') + lines[j]
+      j++
+    }
+    out.push({ header: lines[i], text: collected })
+  }
+  return out
+}
+
+/** IMAP SEARCH with a Gmail-ish filter: free text, from:, newer_than:Nd. */
+async function mailImapSearch(a) {
+  const { user, pass } = mailCreds(a)
+  const raw = String(a.query !== undefined ? a.query : '').trim()
+  const max = Math.min(Math.max(Number(a.maxResults) || 10, 1), 25)
+  const keys = []
+  let m = raw.match(/from:\s*([^\s]+)/i)
+  const from = m ? m[1] : ''
+  let rest = raw.replace(/from:\s*[^\s]+/gi, ' ')
+  m = rest.match(/newer_than:\s*(\d+)\s*d/i)
+  const days = m ? Number(m[1]) : 0
+  rest = rest.replace(/newer_than:\s*\d+\s*d/gi, ' ').replace(/\bin:inbox\b/gi, ' ').trim()
+  if (from) keys.push('FROM', mailQuote(from))
+  if (days > 0) {
+    const since = new Date(Date.now() - days * 86400000)
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    keys.push('SINCE', since.getDate() + '-' + months[since.getMonth()] + '-' + since.getFullYear())
+  }
+  const words = rest.replace(/[a-z_]+:[^\s]+/gi, ' ').split(/\s+/).filter(Boolean).slice(0, 6)
+  for (const w of words) keys.push('TEXT', mailQuote(w))
+  if (keys.length === 0) keys.push('ALL')
+  const sock = await mailImapSession(user, pass)
+  try {
+    const lines = await mailImapCmd(sock, 'SEARCH ' + keys.join(' '))
+    const ids = []
+    for (const l of lines) {
+      const sm = l.match(/^\* SEARCH\s*(.*)$/)
+      if (sm && sm[1].trim()) ids.push(...sm[1].trim().split(/\s+/).map(Number).filter((n) => n > 0))
+    }
+    ids.sort((x, y) => x - y)
+    const newest = ids.slice(-max).reverse()
+    const out = []
+    for (const id of newest) {
+      const f = await mailImapCmd(
+        sock,
+        'FETCH ' + id + ' (UID ENVELOPE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE TO)])'
+      )
+      const joined = f.join(' ')
+      const grabUid = joined.match(/UID\s+(\d+)/i)
+      const hdr = mailImapLiterals(f).map((x) => x.text).join('\r\n')
+      const grab = (re) => {
+        const mm = hdr.match(re)
+        return mm ? mm[1].trim() : ''
+      }
+      out.push({
+        uid: grabUid ? grabUid[1] : String(id),
+        seq: id,
+        from: grab(/^From:\s*(.+)$/im),
+        subject: grab(/^Subject:\s*(.+)$/im) || '(no subject)',
+        date: grab(/^Date:\s*(.+)$/im),
+        snippet: '',
+      })
+    }
+    await mailWrite(sock, 'LOGOUT\r\n').catch(() => {})
+    return out
+  } finally {
+    mailClose(sock)
+  }
+}
+
+/** Read one message by UID: full headers + preferred text body. */
+async function mailImapRead(a) {
+  const { user, pass } = mailCreds(a)
+  const uid = String(a.uid !== undefined ? a.uid : a.id !== undefined ? a.id : '').trim()
+  if (!uid) throw new Error('Message id is required.')
+  const sock = await mailImapSession(user, pass)
+  try {
+    const f = await mailImapCmd(sock, 'UID FETCH ' + uid + ' (ENVELOPE BODY.PEEK[])')
+    const lits = mailImapLiterals(f)
+    const raw = lits.length > 0 ? lits.map((x) => x.text).join('\r\n') : ''
+    const splitAt = raw.search(/\r?\n\r?\n/)
+    const rawHeaders = splitAt >= 0 ? raw.slice(0, splitAt) : raw
+    let rawBody = splitAt >= 0 ? raw.slice(splitAt).replace(/^\r?\n\r?\n/, '') : ''
+    const grab = (re) => {
+      const mm = rawHeaders.match(re)
+      return mm ? mm[1].trim() : ''
+    }
+    const stripHtml = (html) => html
+      .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, '')
+      .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    const decodePart = (text, enc) => {
+      if (/base64/i.test(enc)) {
+        try { return Buffer.from(text.replace(/\s+/g, ''), 'base64').toString('utf8') } catch { return text }
+      }
+      if (/quoted-printable/i.test(enc)) {
+        return text.replace(/=\r?\n/g, '').replace(/=([0-9A-Fa-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+      }
+      return text
+    }
+    const ct = grab(/^Content-Type:\s*(.+)$/im)
+    const bm = ct.match(/boundary="?([^";\s]+)"?/i)
+    let body = rawBody
+    if (bm) {
+      const parts = rawBody.split('--' + bm[1])
+      let plain = ''
+      let html = ''
+      for (const part of parts) {
+        const ps = part.search(/\r?\n\r?\n/)
+        const ph = ps >= 0 ? part.slice(0, ps) : part
+        const pb = decodePart(ps >= 0 ? part.slice(ps).replace(/^\r?\n\r?\n/, '') : '', (ph.match(/^Content-Transfer-Encoding:\s*(.+)$/im) || [])[1] || '')
+        if (/text\/plain/i.test(ph) && !plain) plain = pb
+        else if (/text\/html/i.test(ph) && !html) html = pb
+      }
+      body = plain || stripHtml(html) || '(empty body)'
+    } else if (/text\/html/i.test(ct)) {
+      body = stripHtml(rawBody)
+    } else {
+      body = decodePart(rawBody, grab(/^Content-Transfer-Encoding:\s*(.+)$/im))
+    }
+    body = body.replace(/=\r?\n/g, '').replace(/=([0-9A-Fa-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    if (!body.trim()) body = '(empty body)'
+    await mailWrite(sock, 'LOGOUT\r\n').catch(() => {})
+    const flat = body.replace(/\s+/g, ' ').trim()
+    return {
+      uid,
+      from: grab(/^From:\s*(.+)$/im),
+      to: grab(/^To:\s*(.+)$/im),
+      subject: grab(/^Subject:\s*(.+)$/im) || '(no subject)',
+      date: grab(/^Date:\s*(.+)$/im),
+      snippet: flat.slice(0, 200),
+      body: body.length > 60000 ? body.slice(0, 60000) + '\n... [truncated]' : body,
+    }
+  } finally {
+    mailClose(sock)
+  }
+}
+
+/** Login probe for the Connect button: IMAP LOGIN + SELECT, nothing else. */
+async function mailImapCheck(a) {
+  const { user, pass } = mailCreds(a)
+  const sock = await mailImapSession(user, pass)
+  await mailWrite(sock, 'LOGOUT\r\n').catch(() => {})
+  mailClose(sock)
+  return { ok: true, email: user }
+}
+
 async function invoke(cmd, a) {
   a = a || {}
   if (cmd === 'get_app_version') return app.getVersion()
   if (cmd === 'home_dir') return homedir()
   if (cmd === 'http_fetch') return httpFetch(a)
+  if (cmd === 'mail_smtp_send') return mailSmtpSend(a)
+  if (cmd === 'mail_imap_search') return mailImapSearch(a)
+  if (cmd === 'mail_imap_read') return mailImapRead(a)
+  if (cmd === 'mail_imap_check') return mailImapCheck(a)
   if (cmd === 'load_state') return readState(a.key)
   if (cmd === 'save_state') { if (typeof a.value !== 'string') throw new Error('State value must be a string'); return writeState(a.key, a.value) }
   if (cmd === 'fs_read_file') return readFile(String(a.path), 'utf8').catch((e) => { throw new Error('Failed to read ' + a.path + ': ' + e.message) })
@@ -587,6 +925,10 @@ async function invokeB(cmd, a) {
   if (cmd === 'check_ollama_installed') return ollInstalled()
   if (cmd === 'check_ollama_running') return ollAlive()
   if (cmd === 'ollama_request') {
+    // The preload bridge has no raw-chunk channel, so we buffer the Ollama
+    // response here and hand the renderer the full NDJSON body. The renderer's
+    // SSE/NDJSON parser reads that Response line-by-line, so the reply still
+    // renders incrementally and token usage records on the final `done` chunk.
     const r = await ollHttp({ url: String(a.url), method: String(a.method || 'GET'), body: a.body !== undefined ? a.body : undefined })
     return { status: r.status, body: r.body }
   }
