@@ -157,7 +157,7 @@ export function checkSupabaseHealth(): Promise<AuthHealth> {
   if (!isSupabaseConfigured) {
     return Promise.resolve({
       ok: false,
-      message: "Supabase is not configured — add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env, then restart the app.",
+      message: "Supabase is not configured — add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env, then rebuild the app (Vite bakes env vars into the bundle at build time) and restart it.",
     });
   }
   if (!healthPromise) {
@@ -304,7 +304,7 @@ export function authErrorMessage(err: unknown): string {
     return (
       "This app's Supabase API key was rejected by the project. " +
       "Open Dashboard → Project Settings → API, copy the current anon public key into " +
-      "your .env as VITE_SUPABASE_ANON_KEY, restart the app, and try again."
+      "your .env as VITE_SUPABASE_ANON_KEY, rebuild the app (Vite bakes env vars into the bundle at build time), then restart it, and try again."
     );
   }
 

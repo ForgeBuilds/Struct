@@ -391,7 +391,21 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
     clearErrors();
     setBusy(true);
     void signInWithOAuth(provider).then(
-      () => {
+      (dataUrl) => {
+        // `skipBrowserRedirect: true` means supabase-js does NOT navigate — we
+        // must open the returned authorization URL ourselves. Use the
+        // preload's `openExternal` (shell.openExternal in the main process),
+        // which opens the provider's consent screen; the user is then
+        // redirected back into the app via the `agenticcoder://auth/callback`
+        // deep link and `handleOAuthRedirect` finishes the session.
+        const opener = window.neoDesktop?.openExternal;
+        if (typeof opener === "function") {
+          void opener(dataUrl);
+        } else {
+          // Plain browser build fallback (OAuth deep link isn't registered
+          // there, so desktop sign-in is what this app expects).
+          window.open(dataUrl, "_blank", "noopener");
+        }
         setBusy(false);
       },
       (e) => {
