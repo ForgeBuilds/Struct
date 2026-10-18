@@ -52,22 +52,24 @@ interface MenuDef {
 
 const DAY = 24 * 60 * 60 * 1000;
 
-function formatRelative(ts: number): string {
+type TranslateFn = (key: string, vars?: Record<string, string | number>) => string;
+
+function formatRelative(ts: number, t: TranslateFn): string {
   const diff = Date.now() - ts;
-  if (diff < 60_000) return "just now";
-  if (diff < 60 * 60_000) return `${Math.floor(diff / 60_000)}m ago`;
-  if (diff < DAY) return `${Math.floor(diff / (60 * 60_000))}h ago`;
+  if (diff < 60_000) return t("history.justNow");
+  if (diff < 60 * 60_000) return t("history.minutesAgo", { count: Math.floor(diff / 60_000) });
+  if (diff < DAY) return t("history.hoursAgo", { count: Math.floor(diff / (60 * 60_000)) });
   if (diff < 7 * DAY) return new Date(ts).toLocaleDateString([], { weekday: "short" });
   return new Date(ts).toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
-type Group = "Today" | "Previous 7 days" | "Older";
+type GroupKey = "history.today" | "history.previous7Days" | "history.older";
 
-function groupFor(ts: number): Group {
+function groupFor(ts: number): GroupKey {
   const diff = Date.now() - ts;
-  if (diff < DAY) return "Today";
-  if (diff < 7 * DAY) return "Previous 7 days";
-  return "Older";
+  if (diff < DAY) return "history.today";
+  if (diff < 7 * DAY) return "history.previous7Days";
+  return "history.older";
 }
 
 const ICON_BUTTON =
@@ -86,7 +88,7 @@ export default function ChatHistorySidebar({
   onOpenTab2,
   onOpenAiSettings,
   onOpenSettings,
-  onOpenPlugins,
+  //onOpenPlugins,
   onOpenAccount,
   onOpenCommandPalette,
   onCheckForUpdates,
@@ -202,12 +204,12 @@ export default function ChatHistorySidebar({
         const model = s.settings?.model || providerById(s.settings?.provider ?? "openai").label;
         return `${s.title ?? ""} ${model}`.toLowerCase().includes(q);
       });
-    const map: Record<Group, ChatSession[]> = { Today: [], "Previous 7 days": [], Older: [] };
+    const map: Record<GroupKey, ChatSession[]> = { "history.today": [], "history.previous7Days": [], "history.older": [] };
     for (const s of filtered) map[groupFor(s.updatedAt)].push(s);
-    return (Object.keys(map) as Group[])
-      .map((label) => ({ label, items: map[label] }))
+    return (Object.keys(map) as GroupKey[])
+      .map((key) => ({ key, label: t(key), items: map[key] }))
       .filter((g) => g.items.length > 0);
-  }, [sessions, query]);
+  }, [sessions, query, t]);
 
   return (
     <aside
@@ -238,8 +240,8 @@ export default function ChatHistorySidebar({
               <button
                 type="button"
                 onClick={onOpenCommandPalette}
-                title="Search commands and files (Ctrl+Shift+P)"
-                aria-label="Search commands and files"
+                title={t("history.commandHint")}
+                aria-label={t("history.commandSearch")}
                 className={`ml-auto ${ICON_BUTTON}`}
               >
                 <IoSearch size={13} />
@@ -279,20 +281,20 @@ export default function ChatHistorySidebar({
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search chats"
+                placeholder={t("history.searchChats")}
                 spellCheck={false}
-                aria-label="Search chats"
+                aria-label={t("history.searchChats")}
                 className="h-6 w-full rounded-md bg-(--fill-1) pl-6 pr-2 text-[11.5px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-faint)] focus:bg-(--fill-2)"
               />
             </div>
-            <button type="button" onClick={onNewChat} title="New chat" aria-label="New chat" className={ICON_BUTTON}>
+            <button type="button" onClick={onNewChat} title={t("history.newChat")} aria-label={t("history.newChat")} className={ICON_BUTTON}>
               <IoAdd size={13} />
             </button>
             <button
               type="button"
               onClick={onClose}
-              title="Close"
-              aria-label="Close chat history"
+              title={t("history.closeHistory")}
+              aria-label={t("history.closeHistory")}
               className={ICON_BUTTON}
             >
               <IoClose size={13} />
@@ -303,11 +305,11 @@ export default function ChatHistorySidebar({
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-2">
             {groups.length === 0 && (
               <p className="px-3 py-6 text-center text-[11px] text-[var(--text-muted)]">
-                {query.trim() ? "No chats match." : "No chats yet."}
+                {query.trim() ? t("history.noChatsMatch") : t("history.noChatsYet")}
               </p>
             )}
             {groups.map((group) => (
-              <div key={group.label} className="pt-3 first:pt-0">
+              <div key={group.key} className="pt-3 first:pt-0">
                 <p className="px-3 pb-1 text-[10.5px] text-[var(--text-faint)]">{group.label}</p>
                 {group.items.map((session) => {
                   const isActive = session.id === activeSessionId;
@@ -332,17 +334,17 @@ export default function ChatHistorySidebar({
                             isActive ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"
                           }`}
                         >
-                          {session.title || "Untitled chat"}
+                          {session.title || t("history.untitledChat")}
                         </span>
                         <span className="mt-0.5 block truncate text-[10.5px] text-[var(--text-muted)]">
-                          {formatRelative(session.updatedAt)}
+                          {formatRelative(session.updatedAt, t)}
                           {model ? ` · ${model}` : ""}
                         </span>
                       </button>
                       <button
                         type="button"
-                        aria-label={confirming ? "Click again to delete" : "Delete chat"}
-                        title={confirming ? "Click again to delete" : "Delete chat"}
+                        aria-label={confirming ? t("history.confirmDelete") : t("history.deleteChat")}
+                        title={confirming ? t("history.confirmDelete") : t("history.deleteChat")}
                         onClick={() => {
                           if (confirming) {
                             onDeleteSession(session.id);
@@ -357,7 +359,7 @@ export default function ChatHistorySidebar({
                             : "w-6 text-[var(--text-muted)] opacity-0 hover:text-[var(--danger)] group-hover:opacity-100"
                         }`}
                       >
-                        {confirming ? "Delete?" : <IoTrashOutline size={12} />}
+                        {confirming ? t("history.deleteConfirm") : <IoTrashOutline size={12} />}
                       </button>
                     </div>
                   );
@@ -365,14 +367,14 @@ export default function ChatHistorySidebar({
               </div>
             ))}
           
-              <div className="flex shrink-0 items-center gap-1.5 px-4 py-3 m-2">
+              {/* <div className="flex shrink-0 items-center gap-1.5 px-4 py-3 m-2">
                 <button
                   onClick={() => onOpenPlugins?.()}
                   className="bg-transparent hover:bg-(--fill-1) transition-colors duration-200 rounded-2xl w-25"
                 >
                   <span className = "flex items-center gap-1.25 w-100"><IoAdd/>Add PlugIns</span>
                 </button>
-              </div>
+              </div> */}
           </div>
           {/* <div className="flex shrink-0 items-center gap-1.5 border-t border-(--border) px-3 py-2">
             <img src={appIcon} alt="" className="h-3.5 w-3.5 rounded-[3px]" />

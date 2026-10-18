@@ -26,6 +26,7 @@ interface Props {
   onClose?: () => void;
   /** Render the panel embedded in the Settings page instead of as a modal. */
   inline?: boolean;
+  onOpenAiSettings?: () => void;
 }
 
 type View = "picker" | "gmail" | "spotify";
@@ -55,6 +56,7 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
   const [spotifyPlan, setSpotifyPlan] = useState("");
   const [spotifyError, setSpotifyError] = useState("");
   const [spotifyBusy, setSpotifyBusy] = useState(false);
+
 
   // Reset the view and Gmail state whenever the panel opens (modal) or is
   // forced to render inline (e.g. inside the Settings panel).
@@ -144,13 +146,13 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
   };
 
   const content = view === "picker" ? (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 m-4">
       <p className="m-0 mb-1 text-[11px] leading-4 text-[var(--text-muted)]">
         {t("plugins.eachUnlocks")}
       </p>
       <button
         onClick={() => setView("gmail")}
-        className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-1) px-3 py-2.5 text-left transition hover:bg-(--fill-2)"
+        className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-1) px-3 py-2.5 text-left transition hover:bg-(--fill-2) w-50"
       >
         <img src={gmailIcon} alt="" className="h-6 w-8 shrink-0" />
         <span className="min-w-0 flex-1">
@@ -169,7 +171,7 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
       </button>
       <button
         onClick={() => setView("spotify")}
-        className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-1) px-3 py-2.5 text-left transition hover:bg-(--fill-2)"
+        className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-1) px-3 py-2.5 text-left transition hover:bg-(--fill-2) w-50"
       >
         <img src={spotifyIcon} alt="" className="h-8 w-8 shrink-0" />
         <span className="min-w-0 flex-1">
@@ -188,7 +190,8 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
       </button>
       <button
         title={t("plugins.comingSoon")}
-        className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-2) px-3 py-2.5 text-left opacity-60 hover:bg-(--fill-3)"
+        onClick ={()=>null}
+        className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-2) px-3 py-2.5 text-left opacity-60 hover:bg-(--fill-3) w-50"
       >
         <img src={robloxIcon} alt="" className="h-8 w-8 shrink-0" />
         <span className="min-w-0 flex-1">
@@ -324,6 +327,7 @@ interface GmailSetupProps {
   gmailBusy: boolean;
   onConnect: () => void;
   onDisconnect: () => void;
+  
 }
 
 const GMAIL_INPUT =

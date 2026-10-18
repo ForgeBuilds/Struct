@@ -209,6 +209,9 @@ interface SectionMeta {
   label: string;
   hint: string;
   group: "Personal" | "Workspace" | "System";
+  labelKey: string;
+  hintKey: string;
+  groupKey: string;
   keywords: string;
 }
 
@@ -218,6 +221,9 @@ const SECTIONS: SectionMeta[] = [
     label: "Account",
     hint: "Profile, sync and signed-in devices",
     group: "Personal",
+    labelKey: "settings.account",
+    hintKey: "settings.hintAccount",
+    groupKey: "settings.navGroupPersonal",
     keywords: "profile email plan sign in sign out sync avatar name",
   },
   {
@@ -225,6 +231,9 @@ const SECTIONS: SectionMeta[] = [
     label: "Appearance",
     hint: "Theme, glass, accent and language",
     group: "Workspace",
+    labelKey: "settings.appearance",
+    hintKey: "settings.hintAppearance",
+    groupKey: "settings.navGroupWorkspace",
     keywords: "theme dark light color colour accent glass translucent blur background contrast",
   },
   {
@@ -232,13 +241,19 @@ const SECTIONS: SectionMeta[] = [
     label: "AI",
     hint: "Providers, models, keys and MCP tools",
     group: "Workspace",
+    labelKey: "settings.ai",
+    hintKey: "settings.hintAi",
+    groupKey: "settings.navGroupWorkspace",
     keywords: "provider model api key byok ollama openai anthropic google groq mcp tools",
   },
   {
     id: "dashboard",
     label: "Dashboard",
-    hint: "Token usage and rate-limit estimates",
+    hint: "Token usage, budgets and rate-limit estimates",
     group: "Workspace",
+    labelKey: "settings.dashboard",
+    hintKey: "settings.hintDashboard",
+    groupKey: "settings.navGroupWorkspace",
     keywords: "tokens usage cost rate limits statistics budget",
   },
   {
@@ -246,6 +261,9 @@ const SECTIONS: SectionMeta[] = [
     label: "Files & Save",
     hint: "Autosave and recent items",
     group: "Workspace",
+    labelKey: "settings.files",
+    hintKey: "settings.hintFiles",
+    groupKey: "settings.navGroupWorkspace",
     keywords: "autosave recent files folders save",
   },
   {
@@ -253,6 +271,9 @@ const SECTIONS: SectionMeta[] = [
     label: "Add new plugins",
     hint: "Expand agent tools",
     group: "Workspace",
+    labelKey: "settings.labelPlugins",
+    hintKey: "settings.hintPlugins",
+    groupKey: "settings.navGroupWorkspace",
     keywords: "tools",
   },
   {
@@ -260,6 +281,9 @@ const SECTIONS: SectionMeta[] = [
     label: "Shortcuts",
     hint: "Keyboard bindings at a glance",
     group: "Workspace",
+    labelKey: "settings.shortcuts",
+    hintKey: "settings.hintShortcuts",
+    groupKey: "settings.navGroupWorkspace",
     keywords: "keyboard keys hotkeys bindings commands",
   },
   {
@@ -267,6 +291,9 @@ const SECTIONS: SectionMeta[] = [
     label: "Terminal",
     hint: "Shell, fonts and scrollback",
     group: "System",
+    labelKey: "settings.terminal",
+    hintKey: "settings.hintTerminal",
+    groupKey: "settings.navGroupSystem",
     keywords: "shell command prompt font cursor scrollback",
   },
   {
@@ -274,6 +301,9 @@ const SECTIONS: SectionMeta[] = [
     label: "Privacy & Data",
     hint: "Local storage, cloud data and recents",
     group: "System",
+    labelKey: "settings.privacy",
+    hintKey: "settings.hintPrivacy",
+    groupKey: "settings.navGroupSystem",
     keywords: "privacy data storage cloud delete clear recents reset",
   },
   {
@@ -281,21 +311,40 @@ const SECTIONS: SectionMeta[] = [
     label: "About",
     hint: "Version, links and build information",
     group: "System",
+    labelKey: "settings.about",
+    hintKey: "settings.hintAbout",
+    groupKey: "settings.navGroupSystem",
     keywords: "version update github links help credits",
   },
 ];
 
-const SHORTCUTS: Array<[string, string]> = [
-  ["Ctrl+Shift+P", "Command palette"],
-  ["Ctrl+B", "Open AI settings"],
-  ["Ctrl+Shift+E", "Toggle code editor"],
-  ["Ctrl+Shift+G", "Toggle git panel"],
-  ["Ctrl+Shift+H", "Toggle chat history"],
-  ["Ctrl+`", "Toggle terminal dock"],
-  ["Ctrl+S", "Save active file"],
-  ["Ctrl+/", "Toggle line comment"],
-  ["Ctrl+,", "Open settings"],
+const SHORTCUTS: Array<[string, string, string]> = [
+  ["Ctrl+Shift+P", "Command palette", "settings.scCommand"],
+  ["Ctrl+B", "Open AI settings", "settings.scAi"],
+  ["Ctrl+Shift+E", "Toggle code editor", "settings.scEditor"],
+  ["Ctrl+Shift+G", "Toggle git panel", "settings.scGit"],
+  ["Ctrl+Shift+H", "Toggle chat history", "settings.scHistory"],
+  ["Ctrl+`", "Toggle terminal dock", "settings.scTerm"],
+  ["Ctrl+S", "Save active file", "settings.scSave"],
+  ["Ctrl+/", "Toggle line comment", "settings.scComment"],
+  ["Ctrl+,", "Open settings", "settings.scSettings"],
 ];
+
+
+const ACCENT_LABEL_KEYS: Record<string, string> = {
+  Blue: "settings.accentBlue",
+  Violet: "settings.accentViolet",
+  Emerald: "settings.accentEmerald",
+  Cyan: "settings.accentCyan",
+  Amber: "settings.accentAmber",
+  Rose: "settings.accentRose",
+  Lime: "settings.accentLime",
+  Magenta: "settings.accentMagenta",
+  Orange: "settings.accentOrange",
+  Sky: "settings.accentSky",
+  Gold: "settings.accentGold",
+  Mint: "settings.accentMint",
+};
 
 const LANGUAGE_LABELS: Record<string, { changeLanguage: string; select: string; selected: string }> = {
   English: { changeLanguage: "Change language", select: "Select...", selected: "Selected" },
@@ -330,28 +379,17 @@ export default function SettingsPanel({
   /** Filters the navigation only — section content is untouched. */
   const [navQuery, setNavQuery] = useState("");
   const navQueryNormalized = navQuery.trim().toLowerCase();
-  const sectionKeyMap: Record<SectionId, string> = {
-    account: "settings.account",
-    appearance: "settings.appearance",
-    ai: "settings.ai",
-    dashboard: "settings.dashboard",
-    editor: "settings.files",
-    files: "settings.files",
-    plugins: "Plugins",
-    shortcuts: "settings.shortcuts",
-    terminal: "settings.terminal",
-    data: "settings.privacy",
-    about: "settings.about",
-  };
-  const visibleSections = (navQueryNormalized
-    ? SECTIONS.filter((s) =>
+  const translatedSections = SECTIONS.map((item) => ({
+    ...item,
+    label: t(item.labelKey) || item.label,
+    hint: t(item.hintKey) || item.hint,
+    group: t(item.groupKey) || item.group,
+  }));
+  const visibleSections = navQueryNormalized
+    ? translatedSections.filter((s) =>
         `${s.label} ${s.hint} ${s.group} ${s.keywords}`.toLowerCase().includes(navQueryNormalized)
       )
-    : SECTIONS
-  ).map((item) => ({
-    ...item,
-    label: t(sectionKeyMap[item.id]) || item.label,
-  }));
+    : translatedSections;
   // Stable callbacks: keep AccountSection (memoised) from re-rendering
   // whenever an unrelated settings field changes.
   const refreshAccount = useCallback(() => onAccountRefresh?.(), [onAccountRefresh]);
@@ -412,7 +450,7 @@ export default function SettingsPanel({
   /** Persist the provider key — encrypted server-side, account only. */
   const handleSaveByokKey = async () => {
     if (!byokEntitled) {
-      setByokMsg("Sign in to store a provider key in your account.");
+      setByokMsg(t("settings.signInToStore"));
       return;
     }
     setByokBusy(true);
@@ -420,17 +458,17 @@ export default function SettingsPanel({
     try {
       await saveRemoteKey(aiSettings.provider, byokDraft);
       onAiChange({ ...aiSettings, apiKey: byokDraft.trim() });
-      setByokMsg("Key saved to your account (encrypted server-side).");
+      setByokMsg(t("settings.keySaved"));
       setByokDraft("");
     } catch (e) {
       let message = e instanceof Error ? e.message : String(e);
       if (/BYOK_ENCRYPTION_KEY secret is missing or not 64 hex chars/i.test(message)) {
         message =
-          "API-key storage is not configured on the server. Set the Supabase secret BYOK_ENCRYPTION_KEY to 64 hexadecimal characters, then redeploy the api-keys function.";
+          t("settings.byokNoServer");
       }
       if (/upgraded plan|paywall|byok requires/i.test(message)) {
         message =
-          "The deployed api-keys function still enforces the old paywall. Redeploy the Supabase function (see supabase/migrations/0006_remove_paywalls.sql).";
+          t("settings.byokPaywall");
       }
       setByokMsg(message);
     } finally {
@@ -445,7 +483,7 @@ export default function SettingsPanel({
     try {
       await removeRemoteKey(aiSettings.provider);
       onAiChange({ ...aiSettings, apiKey: "" });
-      setByokMsg("Key removed from your account.");
+      setByokMsg(t("settings.keyRemoved"));
     } catch (e) {
       setByokMsg(e instanceof Error ? e.message : String(e));
     } finally {
@@ -567,7 +605,7 @@ export default function SettingsPanel({
     if (mcpTransport === "http") {
       const url = mcpUrl.trim();
       if (!url) {
-        setMcpError("URL is required for Streamable-HTTP servers.");
+        setMcpError(t("settings.mcpNeedUrl"));
         return;
       }
       const headers = parseJsonObject(mcpHeaders, "Headers");
@@ -583,7 +621,7 @@ export default function SettingsPanel({
     } else {
       const command = mcpCommand.trim();
       if (!command) {
-        setMcpError("Command is required for stdio servers.");
+        setMcpError(t("settings.mcpNeedCmd"));
         return;
       }
       const env = parseJsonObject(mcpEnv, "Env");
@@ -638,7 +676,7 @@ export default function SettingsPanel({
       setMcpImported([]);
       if (found.length === 0) {
         setMcpError(
-          "No MCP config files found. Struct looks for Claude Desktop, Cursor, VS Code, Windsurf and .mcp.json — add a server manually if you keep your config elsewhere."
+          t("settings.mcpNoneFound")
         );
       }
     } finally {
@@ -686,7 +724,7 @@ export default function SettingsPanel({
       const tools = await listMcpTools(s);
       setMcpTest((prev) => ({
         ...prev,
-        [s.id]: `${tools.length} tool${tools.length === 1 ? "" : "s"}`,
+        [s.id]: t("settings.mcpTools", { count: tools.length, s: tools.length === 1 ? "" : "s" }),
       }));
     } catch (e) {
       setMcpTest((prev) => ({
@@ -779,10 +817,10 @@ export default function SettingsPanel({
           </nav>
           <div className="hidden px-3 py-2.5 text-[10px] text-[var(--text-faint)] sm:block">
             <div ref={buildsInfoRef} className="relative flex items-center justify-between gap-2">
-              <span>Struct 1.12 · Beta</span>
+              <span>{t("settings.versionBeta")}</span>
               <button
                 type="button"
-                aria-label="About builds"
+                aria-label={t("settings.aboutBuilds")}
                 aria-expanded={buildsInfoOpen}
                 className="inline-flex items-center text-[var(--text-faint)] transition hover:text-[var(--text-secondary)]"
                 onClick={() => setBuildsInfoOpen((v) => !v)}
@@ -793,27 +831,23 @@ export default function SettingsPanel({
               {buildsInfoOpen && (
                 <div className="absolute bottom-0 left-full z-50 ml-2 w-72 rounded-lg bg-[var(--bg-elevated)] p-4 text-left shadow-[0_10px_32px_rgba(0,0,0,0.5)]">
                   <p className="text-xs font-medium text-[var(--text-primary)]">
-                    About builds
+                    {t("settings.buildsTitle")}
                   </p>
 
                   <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">
-                    Struct is a free and open-source project. The official builds are
-                    published by Lumorix Studios and are signed with a verified
-                    certificate. The official GitHub repository is{" "}
+                    {t("settings.buildsOfficial").split("{link}")[0]}
                     <a
                       href="https://github.com/Lumorix-studios/Neo"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[var(--text-primary)] hover:underline"
                     >
-                      here
+                      {t("settings.buildsLink")}
                     </a>
                   </p>
 
                   <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">
-                    The "Nightly" builds are automatically generated from the
-                    latest code in the main branch. They may contain new features
-                    and bug fixes, but they are not guaranteed to be stable.
+                    {t("settings.buildsNightly")}
                   </p>
                 </div>
               )}
@@ -845,15 +879,15 @@ export default function SettingsPanel({
 
             {section === "appearance" && (
               <div>
-                <SectionTitle>Theme</SectionTitle>
+                <SectionTitle>{t("settings.theme")}</SectionTitle>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {THEMES.map((t) => {
-                    const selected = settings.themeId === t.id && !settings.customBackground;
+                  {THEMES.map((th) => {
+                    const selected = settings.themeId === th.id && !settings.customBackground;
                     return (
                       <button
-                        key={t.id}
+                        key={th.id}
                         type="button"
-                        onClick={() => onChange({ themeId: t.id, customBackground: null })}
+                        onClick={() => onChange({ themeId: th.id, customBackground: null })}
                         className={`rounded-lg border p-2 text-left transition ${
                           selected
                             ? "border-(--accent) bg-(--fill-1)"
@@ -861,7 +895,7 @@ export default function SettingsPanel({
                         }`}
                       >
                         <div className="mb-1.5 flex gap-1">
-                          {[t.base, t.panel, t.elevated, t.active].map((c) => (
+                          {[th.base, th.panel, th.elevated, th.active].map((c) => (
                             <span
                               key={c}
                               className="h-4 flex-1 rounded-[3px] border border-(--border)"
@@ -870,42 +904,43 @@ export default function SettingsPanel({
                           ))}
                         </div>
                         <span className={`flex items-center gap-1.5 text-[11.5px] ${selected ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}>
-                          {t.label}
+                          {th.id === "neo" ? t("settings.themeDark") : t("settings.themeLight")}
                         </span>
                       </button>
                     );
                   })}
                 </div>
 
-                <SectionTitle>Surface</SectionTitle>
+                <SectionTitle>{t("settings.surface")}</SectionTitle>
                 <Row
-                  title="Glassy surfaces"
-                  description="Dialogs, menus and the sidebar turn translucent with a soft blur behind them."
+                  title={t("settings.glassy")}
+                  description={t("settings.glassyDesc")}
                 >
                   <Toggle checked={settings.glass ?? true} onChange={(v) => onChange({ glass: v })} />
                 </Row>
 
-                <SectionTitle>Accent</SectionTitle>
+                <SectionTitle>{t("settings.accent")}</SectionTitle>
                 <div className="flex items-center gap-2">
-                  {ACCENT_SWATCHES.map((a) => (
+                  {ACCENT_SWATCHES.map((sw) => { const accentKey = ACCENT_LABEL_KEYS[sw.label] ?? sw.label; return (
                     <button
-                      key={a.value}
+                      key={sw.value}
                       type="button"
-                      title={a.label}
-                      onClick={() => onChange({ accent: a.value })}
+                      title={typeof accentKey === "string" && accentKey.startsWith("settings.") ? t(accentKey) : accentKey}
+                      onClick={() => onChange({ accent: sw.value })}
                       className={`h-5 w-5 rounded-full border transition ${
-                        settings.accent === a.value
+                        settings.accent === sw.value
                           ? "border-(--text-primary)"
                           : "border-(--border-strong) hover:border-(--text-muted)"
                       }`}
-                      style={{ background: a.value }}
+                      style={{ background: sw.value }}
                     />
-                  ))}
+                    );
+                  })}
                   <input
                     type="color"
                     value={isValidHex(settings.accent) ? settings.accent : "var(--accent)"}
                     onChange={(e) => onChange({ accent: e.target.value })}
-                    title="Custom accent"
+                    title={t("settings.customAccent")}
                     className="h-6 w-9 cursor-pointer rounded border border-(--border) bg-transparent p-0.5"
                   />
                 </div>
@@ -952,10 +987,10 @@ export default function SettingsPanel({
                 <div className="mb-4 flex w-fit gap-0.5 rounded-md bg-(--fill-1) p-0.5">
                   {(
                     [
-                      ["general", "General"],
-                      ["mcp", "MCP servers"],
+                      ["general", "settings.aiTabGeneral"],
+                      ["mcp", "settings.aiTabMcp"],
                     ] as const
-                  ).map(([id, label]) => (
+                  ).map(([id, labelKey]) => (
                     <button
                       key={id}
                       type="button"
@@ -966,14 +1001,14 @@ export default function SettingsPanel({
                           : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
                       }`}
                     >
-                      {label}
+                      {t(labelKey)}
                     </button>
                   ))}
                 </div>
                 {aiTab === "general" ? (
                   <>
-                <SectionTitle>Provider</SectionTitle>
-                <Row title="AI provider" description="Where chat requests are sent.">
+                <SectionTitle>{t("settings.secProvider")}</SectionTitle>
+                <Row title={t("settings.aiProvider")} description={t("settings.aiProviderDesc")}>
                   <div className="relative shrink-0">
                     <select
                       value={aiSettings.provider}
@@ -991,17 +1026,17 @@ export default function SettingsPanel({
                 {(aiSpec.note || aiNeedsKey) && (
                   <p className="pb-3 text-[11px] leading-4 text-[var(--text-muted)]">
                     {aiSpec.note ??
-                      'API key required — it is sent to your provider as configured; the provider itself rejects invalid keys with a clear error.'}
+                      t("settings.apiKeyNote")}
                   </p>
                 )}
-                <Row title="Local models" description="Browse, pull and run models locally with Ollama.">
+                <Row title={t("settings.localModelsRow")} description={t("settings.localModelsDesc")}>
                   <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => setShowLocalModels(true)}
                       className="bg-(--fill-1) shrink-0 rounded-md  px-2.5 py-1 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
                     >
-                      Browse
+                      {t("settings.browse")}
                     </button>
                     <button
                       type="button"
@@ -1017,7 +1052,7 @@ export default function SettingsPanel({
                               setDiscoveredPort(port);
                               updateAi("baseUrl", port);
                             } else {
-                              setDiscoveredPort("No Ollama server found");
+                              setDiscoveredPort(t("settings.noOllama"));
                             }
                           }
                         } catch (error) {
@@ -1031,27 +1066,27 @@ export default function SettingsPanel({
                       disabled={isCheckingPorts}
                       className="shrink-0 rounded-md bg-(--fill-1) px-2.5 py-1 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)] disabled:opacity-50"
                     >
-                      {isCheckingPorts ? "Scanning..." : "Auto-Detect Server"}
+                      {isCheckingPorts ? t("settings.scanningDots") : t("settings.autoDetect")}
                     </button>
                   </div>
                 </Row>
                 {discoveredPort && (
                   <p
                     className={`mb-3 text-[10px] ${
-                      discoveredPort === "No Ollama server found" ||
+                      discoveredPort === t("settings.noOllama") ||
                       discoveredPort.toLowerCase().includes("could not") ||
                       discoveredPort.toLowerCase().includes("install")
                         ? "text-[var(--danger)]"
                         : "text-[var(--success)]"
                     }`}
                   >
-                    {discoveredPort === "No Ollama server found"
-                      ? "✕ No Ollama server found. Install Ollama, then try again."
-                      : `✓ Connected to server at ${discoveredPort}`}
+                    {discoveredPort === t("settings.noOllama")
+                      ? t("settings.ollamaNotFound")
+                      : t("settings.ollamaConnected", { port: discoveredPort })}
                   </p>
                 )}
-                <SectionTitle>Connection</SectionTitle>
-                <Row title="API endpoint" description="Base URL used for chat requests.">
+                <SectionTitle>{t("settings.secConnection")}</SectionTitle>
+                <Row title={t("settings.apiEndpoint")} description={t("settings.apiEndpointDesc")}>
                   <input
                     type="text"
                     value={aiSettings.baseUrl}
@@ -1090,14 +1125,13 @@ export default function SettingsPanel({
                 </Row>
                 {aiNeedsKey && accountLoading && (
                   <p className="pb-3 text-[11px] leading-4 text-[var(--text-muted)]">
-                    Checking your saved session before loading API keys.
+                    {t("settings.checkingSession")}
                   </p>
                 )}
                 {aiNeedsKey && byokEntitled && (
                   <div className="flex flex-col gap-1.5 pb-3">
                     <p className="text-[10.5px] leading-4 text-[var(--text-muted)]">
-                      Your key is encrypted before it is stored in your account. It is only
-                      decrypted in memory when Struct needs it.
+                      {t("settings.byokNote")}
                     </p>
                     <div className="flex gap-1.5">
                       <div className="relative flex-1">
@@ -1106,7 +1140,7 @@ export default function SettingsPanel({
                           value={byokDraft}
                           onChange={(e) => setByokDraft(e.target.value)}
                           placeholder={
-                            keyConfigured ? "•••••••••••• (enter a new key to replace)" : "Enter API key"
+                            keyConfigured ? t("settings.apiKeyReplace") : t("settings.enterApiKey")
                           }
                           spellCheck={false}
                           autoComplete="off"
@@ -1119,18 +1153,18 @@ export default function SettingsPanel({
                           onClick={() => setShowAiKey((v) => !v)}
                           className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded px-1.5 py-0.5 text-[10.5px] text-[var(--text-muted)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
                         >
-                          {showAiKey ? "Hide" : "Show"}
+                          {showAiKey ? t("settings.hideBtn") : t("settings.showBtn")}
                         </button>
                       </div>
                       <button
                         type="button"
                         disabled={byokBusy || accountLoading || !byokDraft.trim()}
-                        title="Encrypt and save this key to your account"
+                        title={t("settings.saveKeyTitle")}
                         onClick={() => void handleSaveByokKey()}
                         className="shrink-0 rounded-md px-2.5 py-1.5 text-[11px] font-medium transition disabled:opacity-40"
                         style={{ background: "var(--accent)", color: "var(--on-accent)" }}
                       >
-                        Save
+                        {t("settings.saveBtn")}
                       </button>
                       {keyConfigured && (
                         <button
@@ -1139,7 +1173,7 @@ export default function SettingsPanel({
                           onClick={() => void handleRemoveByokKey()}
                           className="shrink-0 rounded-md bg-(--fill-1) px-2.5 py-1.5 text-[11px] text-[var(--text-secondary)] transition hover:bg-red-500 hover:text-[var(--text-primary)] disabled:opacity-40"
                         >
-                          Remove
+                          {t("settings.removeBtn")}
                         </button>
                       )}
                     </div>
@@ -1151,8 +1185,7 @@ export default function SettingsPanel({
                 {aiNeedsKey && byokLocked && (
                   <div className="flex flex-col gap-2 pb-3">
                     <p className="text-[11px] leading-4 text-[var(--text-muted)]">
-                      Provider keys live in your account, encrypted server-side and never written to
-                      disk. Sign in or create an account to add one.
+                      {t("settings.byokLockedNote")}
                     </p>
                     <div className="flex gap-1.5">
                       <button
@@ -1161,37 +1194,37 @@ export default function SettingsPanel({
                         className="rounded-md px-2.5 py-1 text-[11px] font-medium transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
                         style={{ background: "var(--accent)", color: "var(--on-accent)"}}
                       >
-                        Sign in
+                        {t("settings.signInBtn")}
                       </button>
                     </div>
                   </div>
                 )}
 
-                <SectionTitle>Model</SectionTitle>
-                <Row title="Model ID" description="Model identifier sent to the provider.">
+                <SectionTitle>{t("settings.secModel")}</SectionTitle>
+                <Row title={t("settings.modelId")} description={t("settings.modelIdDesc")}>
                   <input
                     type="text"
                     value={aiSettings.model}
                     onChange={(e) => updateAi("model", e.target.value)}
-                    placeholder="e.g. gpt-4o-mini"
+                    placeholder={t("settings.modelPh")}
                     spellCheck={false}
                     className="w-56 shrink-0 rounded-md border border-transparent bg-(--fill-1) px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                   />
                 </Row>
-                <Row title="Temperature" description="Higher values make output more creative.">
+                <Row title={t("settings.temperature")} description={t("settings.temperatureDesc")}>
                   <Slider value={aiSettings.temperature} min={0} max={2} step={0.1} onChange={(v) => updateAi("temperature", v)} />
                 </Row>
-                <SectionTitle>Behavior</SectionTitle>
-                <Row title="Auto-approve tools" description="Agent file edits and shell commands run without asking.">
+                <SectionTitle>{t("settings.secBehavior")}</SectionTitle>
+                <Row title={t("settings.autoApprove")} description={t("settings.autoApproveDesc")}>
                   <Toggle checked={!!aiSettings.autoApproveTools} onChange={(v) => updateAi("autoApproveTools", v)} />
                 </Row>
                 <div className="pb-2 pt-1">
-                  <p className="mb-1.5 text-[12.5px] font-medium text-[var(--text-primary)]">System prompt</p>
+                  <p className="mb-1.5 text-[12.5px] font-medium text-[var(--text-primary)]">{t("settings.systemPrompt")}</p>
                   <textarea
                     value={aiSettings.systemPrompt}
                     onChange={(e) => updateAi("systemPrompt", e.target.value)}
                     rows={4}
-                    placeholder="You are a helpful, professional assistant."
+                    placeholder={t("settings.systemPh")}
                     className="w-full resize-none rounded-md border border-transparent bg-(--fill-1) px-2.5 py-2 text-[12.5px] leading-5 text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                   />
                 </div>
@@ -1206,12 +1239,10 @@ export default function SettingsPanel({
                     <div className="flex items-center gap-2">
                       <div className="min-w-0 flex-1">
                         <p className="text-[12px] font-medium text-[var(--text-primary)]">
-                          Import from other apps
+                          {t("settings.mcpImportTitle")}
                         </p>
                         <p className="text-[10.5px] leading-4 text-[var(--text-muted)]">
-                          Scans Claude Desktop, Cursor, VS&nbsp;Code, Windsurf and{" "}
-                          <code className="font-mono text-[10px]">.mcp.json</code> for servers you
-                          already set up. Imported servers stay fully editable here.
+                          {t("settings.mcpImportDesc")}
                         </p>
                       </div>
                       <button
@@ -1220,7 +1251,7 @@ export default function SettingsPanel({
                         disabled={mcpScanBusy}
                         className="shrink-0 rounded-md bg-(--fill-1) px-2.5 py-1 text-[10.5px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)] disabled:opacity-50"
                       >
-                        {mcpScanBusy ? "Scanning…" : "Scan"}
+                        {mcpScanBusy ? t("settings.mcpScanning") : t("settings.mcpScan")}
                       </button>
                     </div>
 
@@ -1228,14 +1259,14 @@ export default function SettingsPanel({
                       <div className="mt-2 flex flex-col gap-1.5">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] text-[var(--text-faint)]">
-                            {mcpDiscovered.length} found
+                            {t("settings.mcpFound", { count: mcpDiscovered.length })}
                           </span>
                           <button
                             type="button"
                             onClick={importAllDiscovered}
                             className="rounded-md bg-(--fill-1) px-2.5 py-0.5 text-[10px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
                           >
-                            Import all
+                            {t("settings.mcpImportAll")}
                           </button>
                         </div>
                         {mcpDiscovered.map((d, i) => {
@@ -1260,7 +1291,7 @@ export default function SettingsPanel({
                                   {describeServer(d.server)}
                                 </div>
                                 <div className="truncate text-[9.5px] text-[var(--text-faint)]">
-                                  from {d.app}
+                                  {t("settings.mcpFrom", { app: d.app })}
                                 </div>
                               </div>
                               <button
@@ -1269,7 +1300,7 @@ export default function SettingsPanel({
                                 disabled={done}
                                 className="shrink-0 rounded-md bg-(--fill-1) px-2.5 py-1 text-[10px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)] disabled:opacity-40"
                               >
-                                {done ? "Added" : "Import"}
+                                {done ? t("settings.mcpAdded") : t("settings.mcpImport")}
                               </button>
                             </div>
                           );
@@ -1280,8 +1311,7 @@ export default function SettingsPanel({
 
                   {mcpServers.length === 0 && (
                     <p className="text-[11px] leading-4 text-[var(--text-muted)]">
-                      Connect MCP servers to extend the agent with external tools — remote
-                      Streamable-HTTP endpoints or local stdio commands.
+                      {t("settings.mcpEmpty")}
                     </p>
                   )}
                   {mcpServers.map((s) => (
@@ -1289,7 +1319,7 @@ export default function SettingsPanel({
                       <button
                         type="button"
                         onClick={() => toggleMcpServer(s.id)}
-                        title={s.enabled ? "Disable" : "Enable"}
+                        title={s.enabled ? t("settings.mcpDisable") : t("settings.mcpEnable")}
                         className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${
                           s.enabled ? "bg-(--accent)" : "bg-(--fill-3)"
                         }`}
@@ -1319,36 +1349,36 @@ export default function SettingsPanel({
                       <button
                         type="button"
                         onClick={() => void testMcpServer(s)}
-                        title="Handshake + list tools"
+                        title={t("settings.mcpTestTitle")}
                         className="shrink-0 rounded-md bg-(--fill-1) px-2.5 py-1 text-[10.5px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
                       >
-                        Test
+                        {t("settings.mcpTest")}
                       </button>
                       <button
                         type="button"
                         onClick={() => removeMcpServer(s.id)}
-                        aria-label={`Remove ${s.name}`}
+                        aria-label={t("settings.mcpRemove", { name: s.name })}
                         className="shrink-0 rounded p-1 text-[var(--text-muted)] transition hover:bg-red-500/10 hover:text-[var(--danger)]"
                       >
                         <IoClose size={11} />
                       </button>
                     </div>
                   ))}
-                  <p className="mt-4 text-[11px] text-[var(--text-muted)]">Add manually</p>
+                  <p className="mt-4 text-[11px] text-[var(--text-muted)]">{t("settings.mcpAddManual")}</p>
                   {/* Transport picker */}
                   <div className="flex items-center gap-1 self-start rounded-md bg-(--fill-1) p-0.5">
-                    {(["http", "stdio"] as const).map((t) => (
+                    {(["http", "stdio"] as const).map((tr) => (
                       <button
-                        key={t}
+                        key={tr}
                         type="button"
-                        onClick={() => setMcpTransport(t)}
+                        onClick={() => setMcpTransport(tr)}
                         className={`rounded px-2.5 py-1 text-[11px] transition ${
-                          mcpTransport === t
+                          mcpTransport === tr
                             ? "bg-(--fill-2) text-[var(--text-primary)]"
                             : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
                         }`}
                       >
-                        {t === "http" ? "HTTP endpoint" : "Local command"}
+                        {tr === "http" ? t("settings.mcpHttp") : t("settings.mcpStdio")}
                       </button>
                     ))}
                   </div>
@@ -1356,7 +1386,7 @@ export default function SettingsPanel({
                     type="text"
                     value={mcpName}
                     onChange={(e) => setMcpName(e.target.value)}
-                    placeholder="Server name (e.g. filesystem)"
+                    placeholder={t("settings.mcpNamePh")}
                     spellCheck={false}
                     className="w-full rounded-md border border-transparent bg-(--fill-1) px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                   />
@@ -1366,7 +1396,7 @@ export default function SettingsPanel({
                         type="text"
                         value={mcpUrl}
                         onChange={(e) => setMcpUrl(e.target.value)}
-                        placeholder="http://localhost:3000/mcp"
+                        placeholder={t("settings.mcpUrlPh")}
                         spellCheck={false}
                         className="w-full rounded-md border border-transparent bg-(--fill-1) px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                       />
@@ -1374,7 +1404,7 @@ export default function SettingsPanel({
                         type="text"
                         value={mcpHeaders}
                         onChange={(e) => setMcpHeaders(e.target.value)}
-                        placeholder='Headers JSON (optional) — e.g. {"Authorization": "Bearer <your token>"}'
+                         placeholder={t("settings.mcpHeadersPh")}
                         spellCheck={false}
                         className="w-full rounded-md border border-transparent bg-(--fill-1) px-2.5 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                       />
@@ -1386,7 +1416,7 @@ export default function SettingsPanel({
                           type="text"
                           value={mcpCommand}
                           onChange={(e) => setMcpCommand(e.target.value)}
-                          placeholder="Command (e.g. npx)"
+                          placeholder={t("settings.mcpCmdPh")}
                           spellCheck={false}
                           className="min-w-0 flex-1 rounded-md border border-transparent bg-(--fill-1) px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                         />
@@ -1394,7 +1424,7 @@ export default function SettingsPanel({
                           type="text"
                           value={mcpArgs}
                           onChange={(e) => setMcpArgs(e.target.value)}
-                          placeholder='Args (e.g. -y @modelcontextprotocol/server-filesystem C:\projects)'
+                           placeholder={t("settings.mcpArgsPh")}
                           spellCheck={false}
                           className="min-w-0 flex-[1.6] rounded-md border border-transparent bg-(--fill-1) px-2.5 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                         />
@@ -1403,7 +1433,7 @@ export default function SettingsPanel({
                         type="text"
                         value={mcpCwd}
                         onChange={(e) => setMcpCwd(e.target.value)}
-                        placeholder="Working directory (optional) — e.g. %LOCALAPPDATA%\Roblox"
+                         placeholder={t("settings.mcpCwdPh")}
                         spellCheck={false}
                         className="w-full rounded-md border border-transparent bg-(--fill-1) px-2.5 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                       />
@@ -1411,7 +1441,7 @@ export default function SettingsPanel({
                         type="text"
                         value={mcpEnv}
                         onChange={(e) => setMcpEnv(e.target.value)}
-                        placeholder='Env JSON (optional) — e.g. {"API_TOKEN": "<your token>"}'
+                         placeholder={t("settings.mcpEnvPh")}
                         spellCheck={false}
                         className="w-full rounded-md border border-transparent bg-(--fill-1) px-2.5 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                       />
@@ -1426,7 +1456,7 @@ export default function SettingsPanel({
                     disabled={!mcpName.trim()}
                     className="self-start rounded-md bg-(--fill-1) px-3 py-1.5 text-[11px] font-medium text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Add Server
+                    {t("settings.mcpAdd")}
                   </button>
                 </div>
 
@@ -1434,29 +1464,29 @@ export default function SettingsPanel({
                 )}
                 <p className="pt-1 text-[10.5px] text-[var(--text-faint)]">
                   {signedIn
-                    ? "AI settings sync to your account. Provider keys are stored separately, encrypted."
-                    : "AI settings are stored locally on this device. Sign in to sync them and to add provider keys."}
+                    ? t("settings.aiSyncIn")
+                    : t("settings.aiSyncOut")}
                 </p>
               </div>
               ))}
             {section === "editor" && (
               <div>
-                <SectionTitle>Typography</SectionTitle>
-                <Row title="Font size" description="Size of the code text in the editor.">
+                <SectionTitle>{t("settings.edTypography")}</SectionTitle>
+                <Row title={t("settings.edFontSize")} description={t("settings.edFontSizeDesc")}>
                   <Slider value={settings.editorFontSize} min={10} max={18} step={0.5} unit="px" onChange={(v) => onChange({ editorFontSize: v })} />
                 </Row>
-                <Row title="Line height" description="Vertical space per line.">
+                <Row title={t("settings.edLineHeight")} description={t("settings.edLineHeightDesc")}>
                   <Slider value={settings.editorLineHeight} min={16} max={30} step={1} unit="px" onChange={(v) => onChange({ editorLineHeight: v })} />
                 </Row>
 
-                <SectionTitle>Behavior</SectionTitle>
-                <Row title="Word wrap" description="Soft-wrap long lines instead of horizontal scrolling.">
+                <SectionTitle>{t("settings.edBehavior")}</SectionTitle>
+                <Row title={t("settings.edWordWrap")} description={t("settings.edWordWrapDesc")}>
                   <Toggle checked={settings.wordWrap} onChange={(v) => onChange({ wordWrap: v })} />
                 </Row>
-                <Row title="Line numbers" description="Show the gutter with line numbers.">
+                <Row title={t("settings.edLineNums")} description={t("settings.edLineNumsDesc")}>
                   <Toggle checked={settings.showLineNumbers} onChange={(v) => onChange({ showLineNumbers: v })} />
                 </Row>
-                <Row title="Tab size" description="Spaces inserted per indent level.">
+                <Row title={t("settings.edTabSize")} description={t("settings.edTabSizeDesc")}>
                   <div className="flex shrink-0 overflow-hidden rounded-md border border-(--border)">
                     {[2, 4, 8].map((n) => (
                       <button
@@ -1479,18 +1509,18 @@ export default function SettingsPanel({
 
             {section === "files" && (
               <div>
-                <SectionTitle>Auto save</SectionTitle>
-                <Row title="Auto save" description="Persist dirty editor tabs automatically.">
+                <SectionTitle>{t("settings.filesAutoSave")}</SectionTitle>
+                <Row title={t("settings.filesAutoSaveRow")} description={t("settings.filesAutoSaveDesc")}>
                   <Toggle checked={settings.autoSave} onChange={(v) => onChange({ autoSave: v })} />
                 </Row>
                 {settings.autoSave && (
-                  <Row title="Auto save delay" description="How long to wait after the last keystroke.">
+                  <Row title={t("settings.filesDelay")} description={t("settings.filesDelayDesc")}>
                     <Slider value={settings.autoSaveDelayMs} min={500} max={3000} step={250} unit="ms" onChange={(v) => onChange({ autoSaveDelayMs: v })} />
                   </Row>
                 )}
 
-                <SectionTitle>Privacy</SectionTitle>
-                <Row title="Clear recents" description="Removes the recent files and folders lists shown on the empty states.">
+                <SectionTitle>{t("settings.filesPrivacy")}</SectionTitle>
+                <Row title={t("settings.filesClear")} description={t("settings.filesClearDesc")}>
                   <button
                     type="button"
                     onClick={() => {
@@ -1499,7 +1529,7 @@ export default function SettingsPanel({
                     }}
                     className="shrink-0 rounded-md border border-(--border-strong) px-2.5 py-1 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
                   >
-                    Clear
+                    {t("settings.clearBtn")}
                   </button>
                 </Row>
               </div>
@@ -1511,14 +1541,14 @@ export default function SettingsPanel({
             )}
             {section === "shortcuts" && (
               <div>
-                <SectionTitle>Keyboard shortcuts</SectionTitle>
+                <SectionTitle>{t("settings.kbTitle")}</SectionTitle>
                 <div className="overflow-hidden rounded-lg border border-(--border)">
-                  {SHORTCUTS.map(([keys, label], i) => (
+                  {SHORTCUTS.map(([keys, label, labelKey], i) => (
                     <div
                       key={keys}
                       className={`flex items-center justify-between px-3 py-2 ${i % 2 === 0 ? "bg-(--fill-1)" : ""}`}
                     >
-                      <span className="text-[12px] text-[var(--text-secondary)]">{label}</span>
+                      <span className="text-[12px] text-[var(--text-secondary)]">{t(labelKey) || label}</span>
                       <span className="kbd">{keys}</span>
                     </div>
                   ))}
@@ -1529,35 +1559,35 @@ export default function SettingsPanel({
 
             {section === "terminal" && (
               <div>
-                <SectionTitle>Typography</SectionTitle>
-                <Row title="Font size" description="Size of the terminal text.">
+                <SectionTitle>{t("settings.termTypography")}</SectionTitle>
+                <Row title={t("settings.termFontSize")} description={t("settings.termFontSizeDesc")}>
                   <Slider value={settings.terminalFontSize} min={8} max={20} step={0.5} unit="px" onChange={(v) => onChange({ terminalFontSize: v })} />
                 </Row>
 
-                <SectionTitle>Buffer</SectionTitle>
-                <Row title="Scrollback" description="How much output history is kept per terminal.">
+                <SectionTitle>{t("settings.termBuffer")}</SectionTitle>
+                <Row title={t("settings.termScrollback")} description={t("settings.termScrollbackDesc")}>
                   <Slider value={settings.terminalScrollback} min={100} max={10000} step={100} onChange={(v) => onChange({ terminalScrollback: v })} />
                 </Row>
 
-                <SectionTitle>Cursor</SectionTitle>
-                <Row title="Cursor blink" description="Blink the block cursor in terminals.">
+                <SectionTitle>{t("settings.termCursor")}</SectionTitle>
+                <Row title={t("settings.termBlink")} description={t("settings.termBlinkDesc")}>
                   <Toggle checked={settings.terminalCursorBlink} onChange={(v) => onChange({ terminalCursorBlink: v })} />
                 </Row>
 
                 <p className="pt-2 text-[10.5px] text-[var(--text-faint)]">
-                  Changes apply instantly to open terminals; new terminals pick them up automatically.
+                  {t("settings.termNote")}
                 </p>
               </div>
             )}
 
             {section === "dashboard" && (
               <div>
-                <SectionTitle>Usage today</SectionTitle>
+                <SectionTitle>{t("settings.dashToday")}</SectionTitle>
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { label: "Requests", value: usageSnapshot.today.requests },
-                    { label: "Input tokens", value: usageSnapshot.today.input },
-                    { label: "Output tokens", value: usageSnapshot.today.output },
+                    { label: t("settings.dashRequests"), value: usageSnapshot.today.requests },
+                    { label: t("settings.dashInput"), value: usageSnapshot.today.input },
+                    { label: t("settings.dashOutput"), value: usageSnapshot.today.output },
                   ].map((s) => (
                     <div
                       key={s.label}
@@ -1573,7 +1603,7 @@ export default function SettingsPanel({
                   ))}
                 </div>
 
-                <SectionTitle>Last 7 days</SectionTitle>
+                <SectionTitle>{t("settings.dash7")}</SectionTitle>
                 <div className="flex h-24 items-end gap-1.5">
                   {usageSnapshot.last7.map((d) => {
                     const total = d.input + d.output;
@@ -1588,7 +1618,7 @@ export default function SettingsPanel({
                       <div
                         key={d.date}
                         className="flex min-w-0 flex-1 flex-col items-center gap-1"
-                        title={`${d.date}: ${total.toLocaleString()} tokens · ${d.requests} requests`}
+                        title={`${t("settings.dashDayTitle", { date: d.date, total: total.toLocaleString() })} \u00b7 ${t("settings.dashDayReq", { req: d.requests })}`}
                       >
                         <span className="text-[9px] tabular-nums text-[var(--text-faint)]">
                           {total > 0 ? formatTokens(total) : ""}
@@ -1603,8 +1633,8 @@ export default function SettingsPanel({
                   })}
                 </div>
 
-                <SectionTitle>Rate limits</SectionTitle>
-                <Row title="Enforce token limits" description="Pause AI requests when a limit below is hit.">
+                <SectionTitle>{t("settings.dashRates")}</SectionTitle>
+                <Row title={t("settings.dashEnforce")} description={t("settings.dashEnforceDesc")}>
                   <Toggle
                     checked={rateSettings.enabled}
                     onChange={(v) => {
@@ -1614,7 +1644,7 @@ export default function SettingsPanel({
                     }}
                   />
                 </Row>
-                <Row title="Tokens per minute" description="Rolling 60-second window. 0 = unlimited.">
+                <Row title={t("settings.dashPerMin")} description={t("settings.dashPerMinDesc")}>
                   <input
                     type="number"
                     min={0}
@@ -1631,7 +1661,7 @@ export default function SettingsPanel({
                     className="w-24 rounded-md border border-(--border-strong) bg-(--fill-1) px-2 py-1 text-right text-[11.5px] tabular-nums text-[var(--text-primary)] outline-none"
                   />
                 </Row>
-                <Row title="Tokens per day" description="Calendar-day budget. 0 = unlimited.">
+                <Row title={t("settings.dashPerDay")} description={t("settings.dashPerDayDesc")}>
                   <input
                     type="number"
                     min={0}
@@ -1649,10 +1679,10 @@ export default function SettingsPanel({
                   />
                 </Row>
 
-                <SectionTitle>Recent usage</SectionTitle>
+                <SectionTitle>{t("settings.dashRecent")}</SectionTitle>
                 {usageSnapshot.recent.length === 0 ? (
                   <p className="text-[11.5px] text-[var(--text-muted)]">
-                    No AI requests recorded yet.
+                    {t("settings.dashEmpty")}
                   </p>
                 ) : (
                   <div className="flex flex-col gap-1">
@@ -1672,7 +1702,7 @@ export default function SettingsPanel({
                   </div>
                 )}
 
-                <Row title="Reset usage data" description="Clears all recorded token usage history.">
+                <Row title={t("settings.dashReset")} description={t("settings.dashResetDesc")}>
                   <button
                     type="button"
                     onClick={() => {
@@ -1681,13 +1711,12 @@ export default function SettingsPanel({
                     }}
                     className="shrink-0 rounded-md border border-(--border-strong) px-2.5 py-1 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
                   >
-                    Reset
+                    {t("settings.resetBtn")}
                   </button>
                 </Row>
 
                 <p className="pt-2 text-[10.5px] text-[var(--text-faint)]">
-                  Counts include chat and agent rounds — exact when the provider reports usage,
-                  char/4 estimates otherwise. 
+                  {t("settings.dashNote")} 
                 </p>
               </div>
             )}
