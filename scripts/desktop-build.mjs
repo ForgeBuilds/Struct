@@ -20,12 +20,16 @@
  */
 
 import { spawnSync } from 'node:child_process'
-import { access } from 'node:fs/promises'
 import { join } from 'node:path'
 import process from 'node:process'
 
 const root = process.cwd()
-const BUILDER = join(root, 'node_modules', '.bin', 'electron-builder')
+
+// Entry point for electron-builder. On Windows npm generates a platform
+// .cmd shim in node_modules/.bin that cannot be spawned directly (it fails
+// with ENOENT), so always run the packaged cli.js through the current node
+// executable instead.
+const BUILDER = join(root, 'node_modules', 'electron-builder', 'cli.js')
 
 const flags = { bundleOnly: false, help: false }
 const forwarded = []
@@ -48,30 +52,6 @@ if (flags.help) {
   process.exit(0)
 }
 
-async function exists(path) {
-  try {
-    await access(path)
-    return true
-  } catch {
-    return false
-  }
-}
-
-if (!(await exists(BUILDER))) {
-  console.error(
-    [
-      'electron-builder is not installed.',
-      '',
-      'Install it with:',
-      '  npm i -D electron-builder',
-      '',
-      'Until then, build and run the app in development with:',
-      '  npm run build && npx electron .',
-    ].join('\n'),
-  )
-  process.exit(1)
-}
-
 if (!flags.bundleOnly) {
   console.log('[build] Building the renderer...')
   const built = spawnSync('npm', ['run', 'build'], { cwd: root, stdio: 'inherit', shell: true })
@@ -82,7 +62,7 @@ if (!flags.bundleOnly) {
 }
 
 console.log('[build] Packaging with electron-builder...')
-const result = spawnSync(BUILDER, forwarded, { cwd: root, stdio: 'inherit' })
+const result = spawnSync(process.execPath, [BUILDER, ...forwarded], { cwd: root, stdio: 'inherit' })
 if (result.error) {
   console.error(`[build] Failed to run electron-builder: ${result.error.message}`)
   process.exit(1)
