@@ -65,6 +65,12 @@
   "build": {
     "appId": "com.lumorixstudios.agenticcoder",
     "productName": "Struct",
+    "protocols": [
+      {
+        "name": "Struct",
+        "schemes": ["agenticcoder"]
+      }
+    ],
     "files": [
       "electron/**",
       "dist/**",

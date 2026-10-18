@@ -1153,7 +1153,7 @@ else {
 }
 if (gotLock) {
   app.whenReady().then(() => {
-    app.setAsDefaultProtocolClient(APP_PROTOCOL)
+    app.setAsDefaultProtocolClient(APP_PROTOCOL, process.execPath)
     handleDeepLink(process.argv)
     createWindow()
     app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })
