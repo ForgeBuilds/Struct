@@ -15,6 +15,7 @@ import {
   Search01Icon,
 } from "@hugeicons/core-free-icons";
 import ThinkingIndicator from "../../components/ThinkingIndicator";
+import { useTranslation } from "../i18n";
 
 interface AgenticActivityProps {
   items: AgenticActivityType[];
@@ -124,6 +125,7 @@ function WebSearchResults({ results }: { results: WebSearchResult[] }) {
 }
 
 function StructuredOutput({ item }: { item: AgenticActivityType }) {
+  const { t } = useTranslation();
   if (item.tool === "list_dir" && Array.isArray(item.data)) {
     const entries = item.data as FsEntry[];
     return (
@@ -131,8 +133,8 @@ function StructuredOutput({ item }: { item: AgenticActivityType }) {
         <table className="w-full text-left text-[11px] font-mono">
           <thead className="bg-(--fill-2) text-[var(--text-muted)]">
             <tr>
-              <th className="px-2 py-1 font-medium">Name</th>
-              <th className="px-2 py-1 font-medium text-right">Size</th>
+              <th className="px-2 py-1 font-medium">{t("activity.colName")}</th>
+              <th className="px-2 py-1 font-medium text-right">{t("activity.colSize")}</th>
             </tr>
           </thead>
           <tbody>
@@ -173,6 +175,7 @@ export default function AgenticActivity({
   onApprove,
   onDeny,
 }: AgenticActivityProps) {
+  const { t } = useTranslation();
   const [closed, setClosed] = useState<string[]>([]);
   const [expandedRows, setExpandedRows] = useState<string[]>([]);
 
@@ -213,19 +216,19 @@ export default function AgenticActivity({
         {pending && (
           <div className="flex items-center gap-2 text-[11px] text-[var(--text-muted)]">
             <HugeiconsIcon icon={toolIcon(pending.tool)} size={13} strokeWidth={1.8} />
-            <ThinkingIndicator label={`Waiting to use ${toolName(pending.tool)}`} />
+            <ThinkingIndicator label={t("activity.waitingToUse", { tool: toolName(pending.tool) })} />
             <div className="ml-auto flex shrink-0 items-center gap-1">
                 <button
                   onClick={() => onDeny(pending.id)}
                   className="rounded px-2 py-1 text-[11px] text-[var(--text-muted)] transition hover:bg-(--fill-3) hover:text-[var(--text-primary)]"
                 >
-                  Deny
+                  {t("activity.deny")}
                 </button>
                 <button
                   onClick={() => onApprove(pending.id)}
                   className="rounded bg-(--accent) px-2 py-1 text-[11px] font-medium text-(--on-accent) transition hover:opacity-90"
                 >
-                  Approve
+                  {t("activity.approve")}
                 </button>
             </div>
           </div>
@@ -234,7 +237,7 @@ export default function AgenticActivity({
         {total > 0 && (
           <div className="space-y-1">
             <div className="px-1 text-[10px] text-[var(--text-faint)]">
-              {activeCount > 0 ? "Working" : failedCount > 0 ? "Agent activity" : `${total} tool${total === 1 ? "" : "s"} used`}
+              {activeCount > 0 ? t("activity.working") : failedCount > 0 ? t("activity.agentActivity") : t("activity.toolsUsed", { count: total, plural: total === 1 ? "" : "s" })}
               {totals.adds + totals.dels > 0 && (
                 <span className="ml-2 font-mono text-[10px]">
                   <span className="text-[var(--success)]">+{totals.adds}</span> <span className="text-[var(--danger)]">−{totals.dels}</span>
@@ -260,7 +263,7 @@ export default function AgenticActivity({
                   className={`flex w-full items-center gap-2 px-1 py-1 text-left text-[11px] text-[var(--text-muted)] ${hasDetail ? "cursor-pointer hover:text-[var(--text-secondary)]" : ""}`}
                 >
                   <HugeiconsIcon icon={toolIcon(item.tool)} size={13} strokeWidth={1.8} />
-                  <span className="font-medium">{item.status === "done" ? "Used" : item.status === "error" ? "Failed" : item.status === "denied" ? "Denied" : "Using"} {toolName(item.tool)}</span>
+                  <span className="font-medium">{item.status === "done" ? t("activity.used") : item.status === "error" ? t("activity.failed") : item.status === "denied" ? t("activity.denied") : t("activity.using")} {toolName(item.tool)}</span>
                   <span className="min-w-0 truncate font-mono text-[10px] text-[var(--text-faint)]">
                     {toolArgument(item)}
                   </span>

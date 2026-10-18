@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { IoArrowBack, IoClose, IoExtensionPuzzle } from "react-icons/io5";
 import { useErrorHandler } from "../src/errorContext";
+import { useTranslation } from "../src/i18n";
 import {
   connectGmail,
   disconnectGmail,
@@ -38,6 +39,7 @@ type View = "picker" | "gmail" | "spotify";
  * is overflow-hidden and (with glass on) a backdrop-filter containing block.
  */
 export default function PluginsPanel({ isOpen = false, onClose = () => {}, inline = false }: Props) {
+  const { t } = useTranslation();
   const { reportError } = useErrorHandler();
   const [view, setView] = useState<View>("picker");
 
@@ -89,7 +91,7 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
   const submitGmail = async () => {
     setGmailError("");
     if (!gmail.email.trim() || !gmail.appPassword.replace(/\s+/g, "")) {
-      setGmailError("Enter the Gmail address and the 16-character App Password.");
+      setGmailError(t("plugins.gmailValidationError"));
       return;
     }
     setGmailBusy(true);
@@ -117,7 +119,7 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
     setSpotifyError("");
     const id = spotifyClientId.trim();
     if (!id) {
-      setSpotifyError("Paste your Spotify app's Client ID first.");
+      setSpotifyError(t("plugins.spotifyClientIdRequired"));
       return;
     }
     setSpotifyBusy(true);
@@ -144,7 +146,7 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
   const content = view === "picker" ? (
     <div className="flex flex-col gap-2">
       <p className="m-0 mb-1 text-[11px] leading-4 text-[var(--text-muted)]">
-        Each integration unlocks agent tools — e.g. Gmail adds search, read and send.
+        {t("plugins.eachUnlocks")}
       </p>
       <button
         onClick={() => setView("gmail")}
@@ -156,7 +158,7 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
             Gmail
           </span>
           <span className="block truncate text-[10.5px] text-[var(--text-muted)]">
-            {gmailEmail ? `Connected as ${gmailEmail}` : "Search, read and send email"}
+            {gmailEmail ? t("plugins.connectedAs", { name: gmailEmail }) : t("plugins.gmailBlurb")}
           </span>
         </span>
         {gmailEmail && (
@@ -175,7 +177,7 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
             Spotify
           </span>
           <span className="block truncate text-[10.5px] text-[var(--text-muted)]">
-            {spotifyUser ? `Connected as ${spotifyUser}` : "Search, play and queue music"}
+            {spotifyUser ? t("plugins.connectedAs", { name: spotifyUser }) : t("plugins.spotifyBlurb")}
           </span>
         </span>
         {spotifyUser && (
@@ -185,7 +187,7 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
         )}
       </button>
       <button
-        title="Coming soon"
+        title={t("plugins.comingSoon")}
         className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-2) px-3 py-2.5 text-left opacity-60 hover:bg-(--fill-3)"
       >
         <img src={robloxIcon} alt="" className="h-8 w-8 shrink-0" />
@@ -194,7 +196,7 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
             Roblox Studios
           </span>
           <span className="block truncate text-[10.5px] text-[var(--text-muted)]">
-            Visit the mcp section for roblox
+            {t("plugins.robloxBlurb")}
           </span>
         </span>
       </button>
@@ -233,7 +235,7 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
             className="flex w-fit items-center gap-1.5 rounded-md px-2 py-1 -ml-2 text-[11.5px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
           >
             <IoArrowBack size={12} />
-            Plugins
+            {t("plugins.title")}
           </button>
         )}
         {content}
@@ -249,7 +251,7 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
           {(view === "gmail" || view === "spotify") ? (
             <button
               onClick={() => setView("picker")}
-              aria-label="Back to plugins"
+              aria-label={t("plugins.backToPlugins")}
               className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
             >
               <IoArrowBack size={12} />
@@ -259,24 +261,24 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
           )}
           <div>
             <h2 className="m-0 text-[14px] font-semibold text-[var(--text-primary)]">
-              {view === "gmail" ? "Gmail" : view === "spotify" ? "Spotify" : "Plugins"}
+              {view === "gmail" ? "Gmail" : view === "spotify" ? "Spotify" : t("plugins.title")}
             </h2>
             <p className="m-0 text-[11.5px] text-[var(--text-muted)]">
               {view === "gmail"
                 ? gmailEmail
-                  ? `Connected as ${gmailEmail}`
-                  : "Connect the agent to Gmail"
+                  ? t("plugins.connectedAs", { name: gmailEmail })
+                  : t("plugins.connectGmail")
                 : view === "spotify"
                   ? spotifyUser
-                    ? `Connected as ${spotifyUser}`
-                    : "Connect the agent to Spotify"
-                  : "Connect the agent to external services"}
+                    ? t("plugins.connectedAs", { name: spotifyUser })
+                    : t("plugins.connectSpotify")
+                  : t("plugins.connectExternal")}
             </p>
           </div>
         </div>
         <button
           onClick={() => onClose()}
-          aria-label="Close"
+          aria-label={t("plugins.close")}
           className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
         >
           <IoClose size={12} />
@@ -288,16 +290,16 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
       <div className="flex items-center justify-between gap-2 border-t border-(--border) px-5 py-3">
         <span className="text-[10.5px] text-[var(--text-muted)]">
           {view === "gmail"
-            ? "App Password · search + read + send"
+            ? t("plugins.gmailFooter")
             : view === "spotify"
-              ? "OAuth PKCE · search + playback + queue"
-              : "More integrations on the way"}
+              ? t("plugins.spotifyFooter")
+              : t("plugins.moreSoon")}
         </span>
         <button
           onClick={() => onClose()}
           className="rounded-md bg-(--fill-2) px-2.5 py-1 text-[11px] text-[var(--text-primary)] transition hover:bg-(--fill-3)"
         >
-          Close
+          {t("plugins.close")}
         </button>
       </div>
     </div>
@@ -329,6 +331,7 @@ const GMAIL_INPUT =
 
 /** Gmail setup: App Password sign-in → connected readout. */
 function GmailSetup(p: GmailSetupProps) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-3">
       {p.gmailEmail ? (
@@ -338,26 +341,23 @@ function GmailSetup(p: GmailSetupProps) {
             <div className="truncate text-[12.5px] font-medium text-[var(--text-primary)]">
               {p.gmailEmail}
             </div>
-            <div className="text-[10.5px] text-[var(--success)]">Agent can search, read and send</div>
+            <div className="text-[10.5px] text-[var(--success)]">{t("plugins.gmailCapability")}</div>
           </div>
           <button
             onClick={p.onDisconnect}
             className="shrink-0 rounded border border-(--border-strong) px-2 py-1 text-[10.5px] text-[var(--text-secondary)] transition hover:bg-red-500/10 hover:text-[var(--danger)]"
           >
-            Disconnect
+            {t("plugins.disconnect")}
           </button>
         </div>
       ) : (
         <>
           <p className="m-0 text-[11px] leading-4 text-[var(--text-muted)]">
-            No Cloud Console needed. Turn on{" "}
-            <span className="font-medium">2-Step Verification</span> on the Google account, then
-            create an <span className="font-medium">App Password</span> (Google Account → Security
-            → App passwords) and paste it here with the Gmail address.
+            {t("plugins.gmailHelp")}
           </p>
           <label className="flex flex-col gap-1">
             <span className="text-[11px] font-medium text-[var(--text-secondary)]">
-              Gmail address
+              {t("plugins.gmailAddress")}
             </span>
             <input
               value={p.gmail.email}
@@ -368,12 +368,12 @@ function GmailSetup(p: GmailSetupProps) {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium text-[var(--text-secondary)]">App Password</span>
+            <span className="text-[11px] font-medium text-[var(--text-secondary)]">{t("plugins.appPassword")}</span>
             <input
               type="password"
               value={p.gmail.appPassword}
               onChange={(e) => p.setGmail({ ...p.gmail, appPassword: e.target.value })}
-              placeholder="16-character code (spaces are fine)"
+              placeholder={t("plugins.appPasswordPlaceholder")}
               spellCheck={false}
               className={GMAIL_INPUT}
             />
@@ -383,7 +383,7 @@ function GmailSetup(p: GmailSetupProps) {
             disabled={p.gmailBusy}
             className="flex items-center justify-center gap-1.5 rounded-md bg-(--fill-2) px-3 py-1.5 text-[12px] text-[var(--text-primary)] transition hover:bg-(--fill-3) disabled:opacity-50"
           >
-            {p.gmailBusy ? "Connecting…" : "Connect Gmail"}
+            {p.gmailBusy ? t("plugins.connecting") : t("plugins.connectGmailButton")}
           </button>
         </>
       )}
@@ -415,6 +415,7 @@ interface SpotifySetupProps {
  * must be registered in the Spotify dashboard app settings.
  */
 function SpotifySetup(p: SpotifySetupProps) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-3">
       {p.user ? (
@@ -425,41 +426,36 @@ function SpotifySetup(p: SpotifySetupProps) {
               {p.user}
               {p.plan && (
                 <span className="ml-1.5 text-[10.5px] font-normal text-[var(--text-muted)]">
-                  {p.plan === "premium" ? "Premium" : "Free"}
+                  {p.plan === "premium" ? t("plugins.premium") : t("plugins.free")}
                 </span>
               )}
             </div>
             <div className="text-[10.5px] text-[var(--success)]">
               {p.plan === "premium"
-                ? "Agent can search, control playback and queue"
+                ? t("plugins.spotifyPremiumCap")
                 : p.plan === "free"
-                  ? "Agent can search — playback control needs Premium"
-                  : "Connected"}
+                  ? t("plugins.spotifyFreeCap")
+                  : t("plugins.connected")}
             </div>
           </div>
           <button
             onClick={p.onDisconnect}
             className="shrink-0 rounded border border-(--border-strong) px-2 py-1 text-[10.5px] text-[var(--text-secondary)] transition hover:bg-red-500/10 hover:text-[var(--danger)]"
           >
-            Disconnect
+            {t("plugins.disconnect")}
           </button>
         </div>
       ) : (
         <>
           <p className="m-0 text-[11px] leading-4 text-[var(--text-muted)]">
-            Create a free app at{" "}
-            <span className="font-medium">developer.spotify.com/dashboard</span>, open its Settings
-            and add{" "}
-            <span className="font-medium">http://127.0.0.1:43821/callback</span> as a Redirect URI,
-            then paste the Client ID below. Sign-in uses OAuth PKCE — no client secret, the
-            consent screen opens in your browser.
+            {t("plugins.spotifyHelp")}
           </p>
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium text-[var(--text-secondary)]">Client ID</span>
+            <span className="text-[11px] font-medium text-[var(--text-secondary)]">{t("plugins.clientId")}</span>
             <input
               value={p.clientId}
               onChange={(e) => p.setClientId(e.target.value)}
-              placeholder="32-character Client ID"
+              placeholder={t("plugins.clientIdPlaceholder")}
               spellCheck={false}
               className={GMAIL_INPUT}
             />
@@ -469,7 +465,7 @@ function SpotifySetup(p: SpotifySetupProps) {
             disabled={p.busy}
             className="flex items-center justify-center gap-1.5 rounded-md bg-(--fill-2) px-3 py-1.5 text-[12px] text-[var(--text-primary)] transition hover:bg-(--fill-3) disabled:opacity-50"
           >
-            {p.busy ? "Waiting for browser sign-in…" : "Connect Spotify"}
+            {p.busy ? t("plugins.waitingBrowser") : t("plugins.connectSpotifyButton")}
           </button>
         </>
       )}

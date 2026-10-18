@@ -1,5 +1,6 @@
 import { openExternalUrl as openUrl } from "../src/lib/external";
 import { useErrorHandler } from "../src/errorContext";
+import { useTranslation } from "../src/i18n";
 import { IoCallOutline, IoClose, IoLogoGithub, IoMailOutline, IoOpenOutline } from "react-icons/io5";
 
 interface InfoPanelProps {
@@ -9,6 +10,7 @@ interface InfoPanelProps {
 
 export default function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
   const { reportError } = useErrorHandler();
+  const { t } = useTranslation();
   if (!isOpen) return null;
 
   return (
@@ -20,12 +22,12 @@ export default function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
         {/* Header */}
         <div className="flex items-center justify-between border-b border-(--border) px-5 py-4">
           <div>
-            <h2 className="m-0 text-[14px] font-semibold text-[var(--text-primary)]">About & Contact</h2>
-            <p className="m-0 text-[11.5px] text-[var(--text-muted)]">Lumorix Studios</p>
+            <h2 className="m-0 text-[14px] font-semibold text-[var(--text-primary)]">{t("info.aboutContact")}</h2>
+            <p className="m-0 text-[11.5px] text-[var(--text-muted)]">{t("info.lumorixStudios")}</p>
           </div>
           <button
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t("info.close")}
             className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
           >
             <IoClose size={12} />
@@ -35,11 +37,9 @@ export default function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-5 py-5">
           <div className="flex flex-col gap-5">
-            <Section title="About">
+            <Section title={t("info.about")}>
               <p className="m-0 mb-3.5 text-[12.5px] leading-relaxed text-[var(--text-secondary)]">
-                Made by{" "}
-                <span className="font-medium text-[var(--text-primary)]">Lumorix Studios</span>. A
-                GitHub organization for projects, not a registered company.
+                {t("info.aboutDesc")}
               </p>
 
               <ActionButton
@@ -53,12 +53,12 @@ export default function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
                     reportError(error);
                   }
                 }}
-                label="View on GitHub"
+                label={t("info.viewOnGitHub")}
                 sublabel="Lumorix-studios/Struct"
               />
             </Section>
 
-            <Section title="Contact">
+            <Section title={t("info.contact")}>
               <div className="flex flex-col gap-2">
                 <ActionButton
                   icon={
@@ -71,7 +71,7 @@ export default function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
                       reportError(error);
                     }
                   }}
-                  label="Email"
+                  label={t("info.email")}
                   sublabel="madhusudhant207@gmail.com"
                 />
 
@@ -86,7 +86,7 @@ export default function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
                       reportError(error);
                     }
                   }}
-                  label="Phone"
+                  label={t("info.phone")}
                   sublabel="+1 (772) 259-0947"
                 />
               </div>
@@ -96,12 +96,12 @@ export default function InfoPanel({ isOpen, onClose }: InfoPanelProps) {
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-(--border) px-5 py-3">
-          <span className="text-[10.5px] text-[var(--text-muted)]">© 2026 Lumorix Studios</span>
+          <span className="text-[10.5px] text-[var(--text-muted)]">{t("info.copyright")}</span>
           <button
             onClick={onClose}
             className="rounded-md bg-(--accent) px-3.5 py-1.5 text-[12px] font-semibold text-(--on-accent) transition hover:opacity-90"
           >
-            Close
+            {t("info.close")}
           </button>
         </div>
       </div>

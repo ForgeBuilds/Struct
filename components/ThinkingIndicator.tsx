@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { useTranslation } from "../src/i18n";
 
 interface ThinkingIndicatorProps {
   label?: string;
@@ -6,13 +7,15 @@ interface ThinkingIndicatorProps {
 }
 
 export default function ThinkingIndicator({
-  label = "Thinking",
+  label,
   className = "",
 }: ThinkingIndicatorProps) {
+  const { t } = useTranslation();
+  const resolvedLabel = label ?? t("app.thinking");
   return (
     <span
       role="status"
-      aria-label={label}
+      aria-label={resolvedLabel}
       className={`pointer-events-none select-none inline-flex items-center gap-1.5 ${className}`}
     >
       <span aria-hidden="true" className="inline-flex items-center gap-0.5">
@@ -24,7 +27,7 @@ export default function ThinkingIndicator({
           />
         ))}
       </span>
-      {label && <span>{label}</span>}
+      {resolvedLabel && <span>{resolvedLabel}</span>}
     </span>
   );
 }

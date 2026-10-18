@@ -3,6 +3,7 @@ import { openExternalUrl as openUrl } from "../src/lib/external";
 import { useCallback, useState } from "react";
 import { IoClose, IoDownload, IoOpenOutline } from "react-icons/io5";
 import type { UpdateCheckResult } from "../src/lib/updateCheck";
+import { useTranslation } from "../src/i18n";
 
 interface UpdateNotificationProps {
   /** Latest release info from the last check. */
@@ -31,6 +32,7 @@ export default function UpdateNotification({
   available,
   onDismiss,
 }: UpdateNotificationProps) {
+  const { t } = useTranslation();
   const [downloading, setDownloading] = useState(false);
   const [launching, setLaunching] = useState(false);
 
@@ -87,7 +89,7 @@ export default function UpdateNotification({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-[12.5px] font-medium text-[var(--text-primary)]">
-              Update available
+              {t("update.available")}
             </span>
             <span className="text-[12px] text-[var(--text-primary)]">
               v{version}
@@ -99,7 +101,7 @@ export default function UpdateNotification({
             )}
           </div>
           <p className="mt-1 text-[11.5px] leading-4 text-[var(--text-muted)]">
-            A newer version of Struct is ready to install.
+            {t("update.readyToInstall")}
           </p>
         </div>
 
@@ -115,13 +117,13 @@ export default function UpdateNotification({
               <span className="flex h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" />
             )}
             {launching ? (
-              <span className="text-[12px]">Launching…</span>
+              <span className="text-[12px]">{t("update.launching")}</span>
             ) : downloading ? (
-              <span className="text-[12px]">Downloading…</span>
+              <span className="text-[12px]">{t("update.downloading")}</span>
             ) : (
               <>
                 <IoDownload size={12} />
-                <span>Install</span>
+                <span>{t("update.install")}</span>
               </>
             )}
           </button>
@@ -130,7 +132,7 @@ export default function UpdateNotification({
             onClick={handleOpenReleases}
             disabled={downloading || launching}
             className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
-            title="View release notes on GitHub"
+            title={t("update.viewReleaseNotes")}
           >
             <IoOpenOutline size={14} />
           </button>
@@ -139,7 +141,7 @@ export default function UpdateNotification({
             onClick={onDismiss}
             disabled={downloading || launching}
             className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-muted)] transition hover:text-[var(--text-secondary)] disabled:cursor-not-allowed disabled:opacity-40"
-            aria-label="Dismiss"
+            aria-label={t("update.dismiss")}
           >
             <IoClose size={13} />
           </button>

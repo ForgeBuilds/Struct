@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
+import { useTranslation } from "../src/i18n";
 import {
   CommandLineIcon,
   File02Icon,
@@ -44,7 +45,7 @@ const ICONS: Record<CallChipIcon, typeof CommandLineIcon> = {
   search: Search01Icon,
   edit: PencilEdit01Icon
 };
-const WORDS: Record<CallChipStatus, string> = { running: 'running', done: 'done', error: 'failed', idle: 'queued' };
+const WORD_KEYS: Record<CallChipStatus, string> = { running: 'callchip.running', done: 'callchip.done', error: 'callchip.failed', idle: 'callchip.queued' };
 
 const fmt = (ms: number) => (ms < 10000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`);
 const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
@@ -71,6 +72,7 @@ const CallChip: React.FC<CallChipProps> = ({
   className = '',
   style
 }) => {
+  const { t } = useTranslation();
   const rootRef = useRef<HTMLSpanElement>(null);
   const fillRef = useRef<HTMLSpanElement>(null);
   const timerRef = useRef<HTMLSpanElement>(null);
@@ -164,7 +166,7 @@ const CallChip: React.FC<CallChipProps> = ({
   useEffect(() => {
     const ms = showTimer && clock.current.ms ? Math.round(clock.current.ms) : 0;
     const when = status === 'done' && ms ? ` in ${ms} ms` : status === 'error' && ms ? ` after ${ms} ms` : '';
-    setAnnounce(`${name} ${argument}, ${WORDS[status] ?? status}${when}`);
+    setAnnounce(`${name} ${argument}, ${t(WORD_KEYS[status] ?? status)}${when}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
@@ -244,7 +246,7 @@ const CallChip: React.FC<CallChipProps> = ({
         <button
           type="button"
           className="absolute -inset-[5px] m-0 cursor-pointer touch-manipulation appearance-none border-0 bg-transparent p-0 outline-none [border-radius:var(--cc-radius)] [-webkit-tap-highlight-color:transparent]"
-          aria-label={`Retry ${name} ${argument}`}
+          aria-label={t("callchip.retry", { name, argument })}
           onClick={() => onRetry()}
           onPointerDown={() => setPressed(true)}
           onPointerUp={() => setPressed(false)}

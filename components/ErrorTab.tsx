@@ -1,6 +1,7 @@
 
 import { openExternalUrl as openUrl } from "../src/lib/external";
 import { IoClose } from "react-icons/io5";
+import { useTranslation } from "../src/i18n";
 interface ErrorTabProps {
   isOpen: boolean;
   onClose: () => void;
@@ -8,6 +9,7 @@ interface ErrorTabProps {
 }
 
 export default function ErrorTab({ isOpen, onClose, message }: ErrorTabProps) {
+  const { t } = useTranslation();
   if (!isOpen) return null;
 
   return (
@@ -20,7 +22,7 @@ export default function ErrorTab({ isOpen, onClose, message }: ErrorTabProps) {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="text-[13px] font-medium text-[var(--text-primary)]">
-            Something went wrong
+            {t("error.somethingWentWrong")}
           </div>
 
           <button
@@ -39,8 +41,7 @@ export default function ErrorTab({ isOpen, onClose, message }: ErrorTabProps) {
             </p>
           ) : (
             <p className="text-[12px] leading-5 text-[var(--text-secondary)]">
-              An unexpected error occurred. You can close this dialog and try
-              again, or report the issue to help us fix it.
+              {t("error.unexpectedError")}
             </p>
           )}
         </div>
@@ -51,7 +52,7 @@ export default function ErrorTab({ isOpen, onClose, message }: ErrorTabProps) {
             onClick={onClose}
             className="h-8 rounded-md border border-(--border-strong) px-3 text-[12px] text-[var(--text-primary)] transition hover:bg-(--fill-1)"
           >
-            Close
+            {t("error.close")}
           </button>
 
           <button
@@ -64,7 +65,7 @@ export default function ErrorTab({ isOpen, onClose, message }: ErrorTabProps) {
             }}
             className="h-8 rounded-md bg-(--text-primary) px-3 text-[12px] font-medium text-(--bg-base) transition-opacity hover:opacity-90"
           >
-            Report the issue
+            {t("error.reportIssue")}
           </button>
         </div>
 

@@ -8,6 +8,7 @@
 //also cant assure you this will always stay opensource
 //       last modified : 9/24/26
 import { lazy, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useTranslation } from "./i18n";
 import ChatHistorySidebar from "../components/ChatHistorySidebar.tsx";
 import InfoPanel from "../components/InfoPanel";
 import PrivacyPolicy from "../components/PrivacyPolicy.tsx";
@@ -339,6 +340,7 @@ export default function App() {
   const [privacyPolicyOpen, setPrivacyPolicyOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [Tab2Open, setTab2Open] = useState(false);
+  const { t } = useTranslation();
   // In-app update notification banner (from GitHub releases check).
   const [updateNotification, setUpdateNotification] = useState<{
     result: UpdateCheckResult;
@@ -1144,14 +1146,14 @@ export default function App() {
         return next;
       });
     } catch (e) {
-      setError(`Failed to open ${path}: ${e instanceof Error ? e.message : String(e)}`);
+      setError(t("app.failedToOpen", { path, error: e instanceof Error ? e.message : String(e) }));
     }
   };
 
 
   /** Open a workspace folder — the agent reads/writes inside it. */
   const openWorkspaceFolder = async () => {
-    const picked = await openDialog({ title: "Open folder", directory: true });
+    const picked = await openDialog({ title: t("app.openFolder"), directory: true });
     if (!picked.length) return; // user cancelled
     const root = picked[0];
     localStorage.setItem(SHARED_WS_KEY, root);
@@ -1176,7 +1178,7 @@ export default function App() {
         prev.map((t) => (t.path === path ? { ...t, dirty: false } : t))
       );
     } catch (e) {
-      setError(`Failed to save ${path}: ${e instanceof Error ? e.message : String(e)}`);
+      setError(t("app.failedToSave", { path, error: e instanceof Error ? e.message : String(e) }));
     }
   }
 
@@ -1589,8 +1591,8 @@ Tool allowance: No Tools Allowed. Do not attempt to use tools or claim to have u
       if (!trimmedKey) {
         setError(
           signedIn
-            ? `No ${s.label} API key — add one under Settings → AI. Provider keys are stored encrypted in your account.`
-            : `Sign in under Settings → Account to use ${s.label} — provider keys live in your account.`
+            ? t("app.noApiKey", { provider: s.label })
+            : t("app.signInForApiKey", { provider: s.label })
         );
         return;
       }
@@ -1603,7 +1605,7 @@ Tool allowance: No Tools Allowed. Do not attempt to use tools or claim to have u
 
     const base = settings.baseUrl.trim().replace(/\/+$/, "");
     if (!base) {
-      setError("Base URL is empty. Configure it in the AI Settings sidebar (Ctrl+B).");
+      setError(t("app.baseUrlEmpty"));
       return;
     }
 
@@ -1622,7 +1624,7 @@ Tool allowance: No Tools Allowed. Do not attempt to use tools or claim to have u
       const now = Date.now();
       const newSession: ChatSession = {
         id: newId,
-        title: "Untitled chat",
+        title: t("app.untitledChat"),
         messages: [],
         createdAt: now,
         updatedAt: now,
@@ -1915,9 +1917,7 @@ MCP call rules:
             });
             continue;
           }
-          setError(
-            "Struct used all of its tool turns for this request and paused. Send a follow-up message to continue where it left off."
-          );
+          setError(t("app.toolTurnsExhausted"));
           break;
         }
         toolRounds++;
@@ -2168,9 +2168,7 @@ MCP call rules:
         if (failSig && failSig === lastFailSig && !anySuccess) {
           failStreak++;
           if (failStreak >= 4) {
-            setError(
-              "The same tool calls kept failing identically — stopping to avoid an endless loop. Try rephrasing the task or checking that the files exist."
-            );
+            setError(t("app.repeatedToolFailure"));
             break;
           }
         } else {
@@ -2536,7 +2534,7 @@ MCP call rules:
                           index === messages.length - 1 &&
                           msg.content.trim().length === 0 ? (
                           <div className="py-1.5 text-[var(--text-muted)]">
-                            <ThinkingIndicator label="Thinking" />
+                            <ThinkingIndicator label={t("app.thinking")} />
                           </div>
                         ) : (
                           <div className="group/msg min-w-0">
@@ -2548,20 +2546,20 @@ MCP call rules:
                             </div>
                             <div className="mt-1.5 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/msg:opacity-100">
                               <MessageAction
-                                label="Copy"
+                                label={t("app.copy")}
                                 onClick={() => {
                                   void navigator.clipboard.writeText(msg.content);
                                 }}
                               >
                                 <IoCopyOutline size={13} />
                               </MessageAction>
-                              <MessageAction label="Good response" onClick={() => sendFeedback("good")}>
+                              <MessageAction label={t("app.feedbackGood")} onClick={() => sendFeedback("good")}>
                                 <IoThumbsUpSharp size={13} />
                               </MessageAction>
-                              <MessageAction label="Bad response" onClick={() => sendFeedback("bad")}>
+                              <MessageAction label={t("app.feedbackBad")} onClick={() => sendFeedback("bad")}>
                                 <IoThumbsDownSharp size={13} />
                               </MessageAction>
-                              <MessageAction label="Report an issue" onClick={() => sendFeedback("report")}>
+                              <MessageAction label={t("app.feedbackReport")} onClick={() => sendFeedback("report")}>
                                 <IoAlertSharp size={13} />
                               </MessageAction>
                             </div>
@@ -2591,7 +2589,7 @@ MCP call rules:
                 <div className="mb-1.5 flex items-center gap-1.5 px-1">
                   {activeEditorPath ? (
                     <span
-                      title={`The agent will receive this file's contents automatically`}
+                      title={t("agent.activeFileContext")}
                       className="inline-flex items-center gap-1.5 rounded  border-(--border) bg-black px-2 py-0.5 text-[11px] text-[var(--text-secondary)]"
                     >
                       <span className="h-1 w-1 rounded-full bg-(--text-muted)" />
@@ -2599,12 +2597,12 @@ MCP call rules:
                     </span>
                   ) : (
                     <span className="text-[11px] text-[var(--text-faint)]">
-                      No file attached — mention a path and it's sent to the agent automatically
+                      {t("app.noFileAttached")}
                     </span>
                   )}
                   <label
                     className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded border border-(--border) bg-black px-2 py-0.5 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2)"
-                    title="All tools are available; destructive actions follow Auto-approve tools. Read Only blocks changes. No Tools disables tool use."
+                    title={t("app.toolAllowanceTitle")}
                   >
                     <span
                       className={`h-1.5 w-1.5 rounded-full  bg-black ${
@@ -2616,7 +2614,7 @@ MCP call rules:
                       }`}
                     />
                     <select
-                      aria-label="Tool allowance"
+                      aria-label={t("app.toolAllowance")}
                       className="max-w-[145px] cursor-pointer appearance-none bg-transparent outline-none"
                       value={settings.toolAllowance ?? "all"}
                       onChange={(event) => {
@@ -2626,9 +2624,9 @@ MCP call rules:
                         }
                       }}
                     >
-                      <option value="all">All Tools Allowed</option>
-                      <option value="read-only">Read Only</option>
-                      <option value="none">No Tools Allowed</option>
+                      <option value="all">{t("app.toolAll")}</option>
+                      <option value="read-only">{t("app.toolReadOnly")}</option>
+                      <option value="none">{t("app.toolNone")}</option>
                     </select>
                     <span aria-hidden className="text-[9px] opacity-60">▼</span>
                   </label>
@@ -2651,8 +2649,8 @@ MCP call rules:
                   onStop={stopChat}
                   placeholder={
                     settings.apiKey || !spec.needsAuth
-                      ? "Ask the agent to fix, refactor, or build..."
-                      : "Configure your API key in Settings to start chatting"
+                      ? t("app.placeholderWithKey")
+                      : t("app.placeholderNoKey")
                   }
                   models={promptModels}
                   defaultModel={`${settings.provider}:${settings.model}`}
@@ -2661,8 +2659,8 @@ MCP call rules:
                   className="w-full"
                 />
                 <div className="mt-1.5 flex items-center justify-between px-1 text-[10.5px] text-[var(--text-faint)]">
-                  <span>Enter to send · Shift+Enter for a new line</span>
-                  <span>AI can make mistakes — verify important info.</span>
+                  <span>{t("app.keyboardHint")}</span>
+                  <span>{t("agent.verifyInfo")}</span>
                 </div>
               </div>
             </div>
@@ -2692,7 +2690,7 @@ MCP call rules:
           commands={[
             {
               id: "open-ai-settings",
-              label: "Open AI Settings",
+              label: t("app.aiSettings"),
               category: "Settings",
               shortcut: "Ctrl+B",
               action: () => {
@@ -2702,32 +2700,32 @@ MCP call rules:
             },
             {
               id: "toggle-history",
-              label: "Toggle Chat History",
+              label: t("app.toggleChatHistory"),
               category: "View",
               shortcut: "Ctrl+Shift+H",
               action: () => setHistorySidebarOpen((v) => !v),
             },
             {
               id: "open-information",
-              label: "About & Contact",
+              label: t("app.aboutContact"),
               category: "Help",
               action: () => setInfoPanelOpen(true),
             },
             {
               id: "open-privacy",
-              label: "Privacy Policy",
+              label: t("app.privacyPolicy"),
               category: "Help",
               action: () => setPrivacyPolicyOpen(true),
             },
             {
               id: "new-chat",
-              label: "New Chat",
+              label: t("app.newChat"),
               category: "Chat",
               action: newChat,
             },
             {
               id: "stop-stream",
-              label: "Stop Streaming",
+              label: t("app.stopStreaming"),
               category: "Chat",
               shortcut: "Esc",
               action: isLoading ? stopChat : () => {},
@@ -2741,7 +2739,7 @@ MCP call rules:
             // },
             {
               id: "open-workspace",
-              label: "Open Workspace Folder",
+              label: t("app.openWorkspaceFolder"),
               category: "View",
               shortcut: "Ctrl+Shift+O",
               action: () => openWorkspaceRef.current(),
@@ -2749,7 +2747,7 @@ MCP call rules:
 
             {
               id: "open-settings",
-              label: "Open Settings",
+              label: t("app.openSettings"),
               category: "Settings",
               shortcut: "Ctrl+,",
               action: () => setSettingsOpen(true),

@@ -16,6 +16,7 @@ import React, {
 
 import { animate, useMotionValue, useMotionValueEvent, useReducedMotion } from 'motion/react';
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
+import { useTranslation } from "../src/i18n";
 import {
   ArrowDown01Icon,
   Attachment01Icon,
@@ -224,7 +225,7 @@ const STYLE = `
 `;
 
 const PromptBar: React.FC<PromptBarProps> = ({
-  placeholder = 'Ask anything',
+  placeholder = '',
   value,
   onValueChange,
   sources = DEFAULT_SOURCES,
@@ -256,6 +257,8 @@ const PromptBar: React.FC<PromptBarProps> = ({
   className = ''
 }) => {
   const reduce = useReducedMotion();
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder || t("promptBar.placeholder");
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const glowRef = useRef<HTMLSpanElement>(null);
@@ -640,31 +643,31 @@ const PromptBar: React.FC<PromptBarProps> = ({
           className="absolute inset-x-0 bottom-[calc(100%+8px)] z-[2] origin-bottom rounded-xl p-1 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.35),0_1px_2px_rgba(0,0,0,0.08)] [animation:prompt-bar-pop_180ms_cubic-bezier(0.23,1,0.32,1)_both] [background:var(--pb-menu)] data-[kind=model]:right-auto data-[kind=model]:w-[min(256px,100%)] data-[kind=model]:origin-bottom-left data-[kind=model]:max-h-[min(300px,55vh)] data-[kind=model]:overflow-y-auto data-[kind=effort]:right-auto data-[kind=effort]:w-[248px] data-[kind=effort]:origin-bottom-left data-[kind=effort]:px-3.5 data-[kind=effort]:pt-3 data-[kind=effort]:pb-3.5 motion-reduce:[animation:none]"
           role={open === 'effort' ? 'dialog' : 'listbox'}
           aria-label={
-            open === 'at' ? 'Sources' : open === 'slash' ? 'Commands' : open === 'model' ? 'Models' : 'Effort'
+            open === 'at' ? t('promptBar.menuSources') : open === 'slash' ? t('promptBar.menuCommands') : open === 'model' ? t('promptBar.menuModels') : t('promptBar.menuEffort')
           }
           data-kind={open}
         >
           {open === 'effort' ? (
             <>
               <div className="flex items-center gap-2 text-[13px] leading-[18px]">
-                <span className="[color:color-mix(in_srgb,var(--pb-ink)_55%,transparent)]">Effort</span>
+                <span className="[color:color-mix(in_srgb,var(--pb-ink)_55%,transparent)]">{t('promptBar.effortLabel')}</span>
                 <span className="font-medium">{level}</span>
                 <span
                   className="ml-auto inline-flex [color:color-mix(in_srgb,var(--pb-ink)_55%,transparent)]"
-                  title="Higher effort thinks longer before answering"
+                  title={t('promptBar.effortTooltip')}
                 >
                   <HugeiconsIcon icon={HelpCircleIcon} size={14} strokeWidth={1.8} />
                 </span>
               </div>
               <div className="mt-3 flex justify-between text-[12px] leading-4 [color:color-mix(in_srgb,var(--pb-ink)_55%,transparent)]">
-                <span>Faster</span>
-                <span>Smarter</span>
+                <span>{t('promptBar.effortFaster')}</span>
+                <span>{t('promptBar.effortSmarter')}</span>
               </div>
               <div
                 className="relative mt-2 h-[22px] cursor-pointer touch-none rounded-[11px] outline-none select-none [background:color-mix(in_srgb,var(--pb-ink)_8%,transparent)]"
                 role="slider"
                 tabIndex={0}
-                aria-label="Effort"
+                aria-label={t('promptBar.effortAria')}
                 aria-valuemin={0}
                 aria-valuemax={efforts.length - 1}
                 aria-valuenow={effortIndex}
@@ -756,7 +759,7 @@ const PromptBar: React.FC<PromptBarProps> = ({
               ))}
               {list.length === 0 ? (
                 <div className="flex h-9 items-center px-2 text-[12px] [color:color-mix(in_srgb,var(--pb-ink)_55%,transparent)]">
-                  No matches for “{query}”
+                  {t('promptBar.noMatches', { query })}
                 </div>
               ) : null}
             </>
@@ -790,7 +793,7 @@ const PromptBar: React.FC<PromptBarProps> = ({
                 <button
                   type="button"
                   className="inline-grid h-[18px] w-[18px] cursor-pointer place-items-center rounded-[5px] border-0 bg-transparent p-0 text-inherit opacity-60 outline-none [transition:opacity_120ms_ease,background-color_120ms_ease] hover:opacity-100 hover:[background:color-mix(in_srgb,var(--pb-ink)_10%,transparent)]"
-                  aria-label={`Remove ${file}`}
+                  aria-label={t('promptBar.removeFile', { file })}
                   onClick={() => setAttachments(a => a.filter((_, j) => j !== i))}
                 >
                   <HugeiconsIcon icon={Cancel01Icon} size={10} strokeWidth={2.5} />
@@ -806,7 +809,7 @@ const PromptBar: React.FC<PromptBarProps> = ({
           rows={1}
           value={draft}
           disabled={disabled}
-          placeholder={listening ? 'Listening…' : placeholder}
+          placeholder={listening ? t("promptBar.listening") : resolvedPlaceholder}
           aria-label="Prompt"
           onChange={e => {
             setDraft(e.target.value);
@@ -826,7 +829,7 @@ const PromptBar: React.FC<PromptBarProps> = ({
           <button
             type="button"
             className="inline-grid h-7 w-7 flex-none cursor-pointer touch-manipulation place-items-center rounded-lg border-0 bg-transparent p-0 outline-none select-none [color:color-mix(in_srgb,var(--pb-ink)_60%,transparent)] [font:inherit] [-webkit-tap-highlight-color:transparent] [transition:background-color_150ms_ease,color_150ms_ease,transform_160ms_cubic-bezier(0.23,1,0.32,1)] active:[transform:scale(0.94)] data-[on]:[background:color-mix(in_srgb,var(--pb-ink)_8%,transparent)] data-[on]:[color:var(--pb-ink)] motion-reduce:active:[transform:none] [@media(hover:hover)_and_(pointer:fine)]:hover:[background:color-mix(in_srgb,var(--pb-ink)_8%,transparent)] [@media(hover:hover)_and_(pointer:fine)]:hover:[color:var(--pb-ink)]"
-            aria-label="Add files and sources"
+            aria-label={t('promptBar.addFiles')}
             aria-expanded={plusOpen}
             data-on={plusOpen ? '' : undefined}
             onMouseDown={e => e.preventDefault()}
@@ -844,7 +847,7 @@ const PromptBar: React.FC<PromptBarProps> = ({
             <button
               type="button"
               className="inline-flex h-7 min-w-0 cursor-pointer touch-manipulation items-center gap-1 rounded-lg border-0 bg-transparent px-2 text-[12px] font-medium outline-none select-none [color:color-mix(in_srgb,var(--pb-ink)_70%,transparent)] [font:inherit] [-webkit-tap-highlight-color:transparent] [transition:background-color_150ms_ease,color_150ms_ease] data-[on]:[background:color-mix(in_srgb,var(--pb-ink)_8%,transparent)] data-[on]:[color:var(--pb-ink)] [@media(hover:hover)_and_(pointer:fine)]:hover:[background:color-mix(in_srgb,var(--pb-ink)_8%,transparent)] [@media(hover:hover)_and_(pointer:fine)]:hover:[color:var(--pb-ink)] data-[max]:[color:var(--pb-spark)]! "
-              aria-label="Choose model"
+              aria-label={t('promptBar.chooseModel')}
               title={model.name}
               aria-expanded={modelOpen}
               data-on={modelOpen ? '' : undefined}
@@ -891,7 +894,7 @@ const PromptBar: React.FC<PromptBarProps> = ({
             <button
               type="button"
               className="inline-grid h-7 w-7 flex-none cursor-pointer touch-manipulation place-items-center rounded-lg border-0 bg-transparent p-0 outline-none select-none [color:color-mix(in_srgb,var(--pb-ink)_60%,transparent)] [font:inherit] [-webkit-tap-highlight-color:transparent] [transition:background-color_150ms_ease,color_150ms_ease,transform_160ms_cubic-bezier(0.23,1,0.32,1)] active:[transform:scale(0.94)] data-[on]:[background:color-mix(in_srgb,var(--pb-ink)_8%,transparent)] data-[on]:[color:var(--pb-ink)] motion-reduce:active:[transform:none] [@media(hover:hover)_and_(pointer:fine)]:hover:[background:color-mix(in_srgb,var(--pb-ink)_8%,transparent)] [@media(hover:hover)_and_(pointer:fine)]:hover:[color:var(--pb-ink)]"
-              aria-label={listening ? 'Stop dictation' : 'Dictate'}
+              aria-label={listening ? t('promptBar.stopDictation') : t('promptBar.dictate')}
               aria-pressed={listening}
               data-on={listening ? '' : undefined}
               onMouseDown={e => e.preventDefault()}

@@ -22,6 +22,7 @@ import {
   formatModelSize,
   type LocalModelInfo,
 } from "../src/localModels";
+import { useTranslation } from "../src/i18n";
 
 interface Props {
   onClose: () => void;
@@ -42,6 +43,7 @@ const POPULAR_MODELS = [
 ];
 
 export default function LocalModels({ onClose, onSelectModel, selectedModel }: Props) {
+  const { t } = useTranslation();
   const [installed, setInstalled] = useState(false);
   const [running, setRunning] = useState(false);
   const [models, setModels] = useState<LocalModelInfo[]>([]);
@@ -87,24 +89,24 @@ export default function LocalModels({ onClose, onSelectModel, selectedModel }: P
           // app — we reuse it instead of spawning a duplicate that would die
           // on bind. Stop will find and stop it by port ownership.
           setSuccess(
-            "Connected to an existing Ollama server on port 11434 (started outside this app). Stop will stop it."
+            t("localModels.reusedExternal")
           );
         } else if (status.adopted) {
           // The server was an orphan left behind by a previous session — we
           // re-adopted it, so Stop works on it again.
           setSuccess(
-            "Re-connected to the Ollama server left running by a previous session. Stop works again."
+            t("localModels.adoptedOrphan")
           );
         } else {
-          setSuccess("Ollama server started successfully.");
+          setSuccess(t("localModels.started"));
         }
         const modelList = await listLocalModels();
         setModels(modelList);
       } else {
-        setError("Failed to start the Ollama server.");
+        setError(t("localModels.startFailed"));
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to start the Ollama server.");
+      setError(e instanceof Error ? e.message : t("localModels.startFailed"));
     }
     // Trailing statements instead of `finally`: try/finally is a construct the
     // React Compiler bails out on, which would opt this whole component out of
@@ -122,20 +124,20 @@ export default function LocalModels({ onClose, onSelectModel, selectedModel }: P
       if (status?.stopped) {
         setRunning(false);
         setModels([]);
-        setSuccess("Ollama server stopped.");
+        setSuccess(t("localModels.stopped"));
       } else if (status?.stillRunningExternal) {
         // Port 11434 is held by something we could not identify as Ollama,
         // so we never touch it.
         setSuccess(
-          "Port 11434 is held by another program the app can't identify as Ollama, so it was left running. Close that program to free the port."
+          t("localModels.portBusy")
         );
       } else {
-        setError("No Ollama server is running.");
+        setError(t("localModels.notRunning"));
         setRunning(false);
         setModels([]);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to stop the Ollama server.");
+      setError(e instanceof Error ? e.message : t("localModels.stopFailed"));
     }
     setStopping(false);
     setTimeout(() => setSuccess(null), 4000);
@@ -156,10 +158,10 @@ export default function LocalModels({ onClose, onSelectModel, selectedModel }: P
         setPullName("");
         setShowPullInput(false);
       } else {
-        setError(`Failed to pull model "${modelName}".`);
+        setError(t("localModels.pullFailed", { name: modelName }));
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : `Failed to pull model "${modelName}".`);
+      setError(e instanceof Error ? e.message : t("localModels.pullFailed", { name: modelName }));
     }
     setPulling(null);
     setTimeout(() => setSuccess(null), 3000);
@@ -175,10 +177,10 @@ export default function LocalModels({ onClose, onSelectModel, selectedModel }: P
         const modelList = await listLocalModels();
         setModels(modelList);
       } else {
-        setError(`Failed to delete model "${name}".`);
+        setError(t("localModels.deleteFailed", { name }));
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : `Failed to delete model "${name}".`);
+      setError(e instanceof Error ? e.message : t("localModels.deleteFailed", { name }));
     }
     setDeleting(null);
     setTimeout(() => setSuccess(null), 3000);
@@ -200,13 +202,13 @@ export default function LocalModels({ onClose, onSelectModel, selectedModel }: P
     <div className="flex h-full w-full flex-col bg-[var(--bg-panel)] text-[var(--text-primary)]">
       <header className="flex h-10 shrink-0 items-center justify-between border-b border-(--border) px-3">
         <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-          Local Models
+          {t("localModels.title")}
         </span>
         <div className="flex items-center gap-0.5">
           <button
             type="button"
-            aria-label="Refresh"
-            title="Refresh status"
+            aria-label={t("localModels.refresh")}
+            title={t("localModels.refreshStatus")}
             onClick={() => void refreshStatus()}
             className="flex h-6 w-6 items-center justify-center rounded-md text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
           >
@@ -214,8 +216,8 @@ export default function LocalModels({ onClose, onSelectModel, selectedModel }: P
           </button>
           <button
             type="button"
-            aria-label="Close"
-            title="Close"
+            aria-label={t("localModels.close")}
+            title={t("localModels.close")}
             onClick={onClose}
             className="flex h-6 w-6 items-center justify-center rounded-md text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
           >
@@ -230,16 +232,16 @@ export default function LocalModels({ onClose, onSelectModel, selectedModel }: P
           <section>
             <h3 className="mb-2.5 flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
               <IoServer size={13} />
-              Server Status
+              {t("localModels.serverStatus")}
             </h3>
 
             {!installed ? (
               <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/[0.08] px-3 py-2.5">
                 <IoAlertCircle size={15} className="mt-0.5 shrink-0 text-[var(--warning)]" />
                 <div className="text-[11.5px] leading-5 text-[var(--warning)]">
-                  <p className="m-0 font-medium">Ollama is not installed</p>
+                  <p className="m-0 font-medium">{t("localModels.notInstalledTitle")}</p>
                   <p className="m-0 mt-1 text-[11px] text-[var(--text-muted)]">
-                    Install Ollama from{" "}
+                    {t("localModels.installOllamaFrom")}{" "}
                     <a
                       href="https://ollama.com"
                       target="_blank"
@@ -248,7 +250,7 @@ export default function LocalModels({ onClose, onSelectModel, selectedModel }: P
                     >
                       ollama.com
                     </a>{" "}
-                    to run local AI models on your device.
+                    {t("localModels.installOllamaTail")}
                   </p>
                 </div>
               </div>
@@ -261,7 +263,7 @@ export default function LocalModels({ onClose, onSelectModel, selectedModel }: P
                     }`}
                   />
                   <span className="text-[12.5px] font-medium">
-                    {running ? "Server running" : "Server stopped"}
+                    {running ? t("localModels.serverRunning") : t("localModels.serverStopped")}
                   </span>
                   <span className="text-[10.5px] text-[var(--text-muted)]">localhost:11434</span>
                 </div>
@@ -274,7 +276,7 @@ export default function LocalModels({ onClose, onSelectModel, selectedModel }: P
                     className="flex items-center justify-center gap-1.5 rounded-md bg-(--accent) px-3 py-2 text-[12px] font-semibold text-(--on-accent) transition hover:opacity-90 disabled:opacity-50"
                   >
                     <IoPlay size={13} />
-                    {starting ? "Starting…" : "Start Server"}
+                    {starting ? t("localModels.starting") : t("localModels.startServer")}
                   </button>
                 ) : (
                   <button
@@ -284,7 +286,7 @@ export default function LocalModels({ onClose, onSelectModel, selectedModel }: P
                     className="flex items-center justify-center gap-1.5 rounded-md border border-red-500/25 bg-red-500/[0.08] px-3 py-2 text-[12px] font-semibold text-[var(--danger)] transition hover:bg-red-500/[0.14] disabled:opacity-50"
                   >
                     <IoStop size={13} />
-                    {stopping ? "Stopping…" : "Stop Server"}
+                    {stopping ? t("localModels.stopping") : t("localModels.stopServer")}
                   </button>
                 )}
               </div>
@@ -320,7 +322,7 @@ export default function LocalModels({ onClose, onSelectModel, selectedModel }: P
                   className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
                 >
                   <IoDownload size={12} />
-                  Pull Model
+                  {t("localModels.pullModel")}
                 </button>
               </div>
 
@@ -334,7 +336,7 @@ export default function LocalModels({ onClose, onSelectModel, selectedModel }: P
                       onKeyDown={(e) => {
                         if (e.key === "Enter") void handlePull(pullName);
                       }}
-                      placeholder="e.g. llama3.2"
+                      placeholder={t("localModels.pullPlaceholder")}
                       spellCheck={false}
                       className="min-w-0 flex-1 rounded-md border border-(--border) bg-(--fill-1) px-2.5 py-2 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                     />
@@ -344,7 +346,7 @@ export default function LocalModels({ onClose, onSelectModel, selectedModel }: P
                       disabled={!pullName.trim() || pulling !== null}
                       className="shrink-0 rounded-md bg-(--accent) px-3 py-2 text-[12px] font-semibold text-(--on-accent) transition hover:opacity-90 disabled:opacity-50"
                     >
-                      {pulling ? "Pulling…" : "Pull"}
+                      {pulling ? t("localModels.pulling") : t("localModels.pull")}
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -364,7 +366,7 @@ export default function LocalModels({ onClose, onSelectModel, selectedModel }: P
 
               {models.length === 0 ? (
                 <p className="py-4 text-center text-[11.5px] text-[var(--text-faint)]">
-                  No models installed yet. Pull one to get started.
+                  {t("localModels.noModels")}
                 </p>
               ) : (
                 <div className="flex flex-col gap-1.5">
@@ -398,7 +400,7 @@ export default function LocalModels({ onClose, onSelectModel, selectedModel }: P
                             {model.name}
                           </span>
                           <span className="block text-[10px] text-[var(--text-muted)]">
-                            {model.details?.parameter_size ?? "Unknown size"} ·{" "}
+                            {model.details?.parameter_size ?? t("localModels.unknownSize")} ·{" "}
                             {formatModelSize(model.size)}
                           </span>
                         </span>
@@ -407,7 +409,7 @@ export default function LocalModels({ onClose, onSelectModel, selectedModel }: P
                         type="button"
                         onClick={() => void handleDelete(model.name)}
                         disabled={deleting === model.name}
-                        title={`Delete ${model.name}`}
+                        title={t("localModels.deleteModel", { name: model.name })}
                         className="shrink-0 rounded-md p-1.5 text-[var(--text-muted)] opacity-0 transition hover:bg-red-500/10 hover:text-[var(--danger)] group-hover:opacity-100 disabled:opacity-30"
                       >
                         <IoTrash size={13} />
@@ -422,13 +424,10 @@ export default function LocalModels({ onClose, onSelectModel, selectedModel }: P
           {/* How it works */}
           <section>
             <h3 className="mb-2 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-              How it works
+              {t("localModels.howItWorks")}
             </h3>
             <p className="m-0 text-[11px] leading-5 text-[var(--text-secondary)]">
-              Local models run entirely on your device using{" "}
-              <span className="text-[var(--text-primary)]">Ollama</span>. No data leaves your computer.
-              Start the server, pull a model, then select it to chat with it. The selected
-              model will be used as your AI provider.
+              {t("localModels.howItWorksDesc")}
             </p>
           </section>
         </div>
