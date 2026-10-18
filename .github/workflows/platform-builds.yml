@@ -106,6 +106,13 @@ jobs:
       - name: Build renderer
         run: npm run build
 
+      - name: Install NSIS
+        run: choco install nsis
+
+      - name: Add NSIS to PATH
+        run: echo "C:\Program Files (x86)\NSIS" >> $GITHUB_PATH
+        shell: bash
+
       - name: Build Windows installer
         run: npm run build:desktop:unsigned -- --win nsis
         env:
