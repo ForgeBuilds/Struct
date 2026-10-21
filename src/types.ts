@@ -10,6 +10,7 @@ export type ProviderId =
   | "anthropic"
   | "google"
   | "ollama"
+  | "llamacpp"
   | "custom";
 
 export type ToolAllowance = "all" | "read-only" | "none";

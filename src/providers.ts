@@ -694,6 +694,41 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
       `Connection failed (${status}). Ensure Ollama is running on "${s.baseUrl}" and that the model "${s.model}" is pulled (try: ollama pull ${s.model}).`,
   },
 
+  llamacpp: {
+    id: "llamacpp",
+    label: "llama.cpp (local)",
+    note: "Managed local runtime. Models are downloaded and served by llama-server.",
+    defaultBaseUrl: "http://127.0.0.1:18080",
+    defaultModel: "local",
+    needsAuth: false,
+    authHeader: null,
+    authScheme: "bearer",
+    authQueryParam: null,
+    extraHeaders: {},
+    // llama-server exposes the OpenAI-compatible API, so the request shape is
+    // identical to the "custom" provider.
+    buildUrl: (s) => `${s.baseUrl.replace(/\/+$/, "")}/v1/chat/completions`,
+    buildBody: (s, history, opts) => ({
+      model: s.model,
+      messages: [{ role: "system", content: s.systemPrompt }, ...toOpenAiMessages(history)],
+      temperature: s.temperature,
+      max_tokens: opts?.maxOutputTokens,
+      stream: true,
+      ...(opts?.enableTools && !nativeToolsUnsupported(s)
+        ? { tools: openAiTools(opts), tool_choice: "auto" }
+        : {}),
+    }),
+    extractDelta: (j) => {
+      const c = (j as OpenAiShape)?.choices?.[0]?.delta?.content;
+      return typeof c === "string" && c.length > 0 ? c : null;
+    },
+    extractContent: (j) => (j as OpenAiShape)?.choices?.[0]?.message?.content ?? "",
+    extractUsage: openAiUsage,
+    validateAuth: () => null,
+    authErrorHint: (status, s) =>
+      `Connection failed (${status}). Ensure the local llama-server is running on "${s.baseUrl}" and that a model is loaded.`,
+  },
+
   custom: {
     id: "custom",
     label: "Custom (OpenAI-compatible)",

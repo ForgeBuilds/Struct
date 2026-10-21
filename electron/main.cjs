@@ -31,6 +31,9 @@ const { homedir } = require('node:os')
 const { basename, dirname, join } = require('node:path')
 const { pipeline } = require('node:stream/promises')
 
+/* Managed llama.cpp runtime: GGUF downloads + local inference server. */
+const llamacpp = require('./llamacpp.cjs')
+
 /* ── Spotify OAuth loopback (Authorization Code + PKCE) ─────────────────────
  * Spotify only accepts HTTPS or loopback redirect URIs, so the consent
  * screen's code lands on this tiny loopback server instead of the app's
@@ -294,6 +297,66 @@ function termCreate(a) {
   return id
 }
 
+
+/* --- llama.cpp (managed local runtime) proxy --- */
+/* Ports the app is allowed to reach on the loopback interface. The default
+ * 18080 is always permitted; any other port is added when the app starts a
+ * server on it. Requests to anything else are rejected so this proxy can
+ * never be used to talk to an unrelated local service. */
+const LLAMA_DEFAULT_PORT = 18080
+const llamaAllowedPorts = new Set([LLAMA_DEFAULT_PORT])
+
+/** Validate a loopback URL against the allowed llama-server ports. */
+function llamaUrl(raw) {
+  let p
+  try {
+    p = new URL(String(raw))
+  } catch {
+    throw new Error('Invalid llama.cpp URL: ' + raw)
+  }
+  const port = p.port || (p.protocol === 'https:' ? '443' : '80')
+  if (p.hostname !== '127.0.0.1' && p.hostname !== 'localhost') {
+    throw new Error('llama.cpp requests must target the loopback interface.')
+  }
+  if (!llamaAllowedPorts.has(Number(port))) {
+    throw new Error(`llama.cpp requests to port ${port} are not allowed.`)
+  }
+  return p
+}
+
+/**
+ * Perform an HTTP request against the local llama-server.
+ *
+ * The preload bridge has no raw-chunk channel, so the response body is
+ * buffered here and handed to the renderer as a whole. The renderer's SSE
+ * parser still processes it line by line, so the reply renders incrementally.
+ */
+function llamaHttp(o) {
+  const p = llamaUrl(o.url)
+  const lib = p.protocol === 'https:' ? require('node:https') : require('node:http')
+  return new Promise((resolveP, reject) => {
+    const req = lib.request(
+      p,
+      {
+        method: o.method || 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 600000,
+      },
+      (res) => {
+        let t = ''
+        res.setEncoding('utf8')
+        res.on('data', (c) => {
+          t += c
+        })
+        res.on('end', () => resolveP({ status: res.statusCode || 0, body: t }))
+      },
+    )
+    req.on('timeout', () => req.destroy(new Error('llama.cpp request timed out')))
+    req.on('error', reject)
+    if (o.body) req.write(o.body)
+    req.end()
+  })
+}
 
 /* --- ollama proxy + lifecycle --- */
 let ollamaChild = null
@@ -1066,6 +1129,69 @@ async function invokeB(cmd, a) {
   if (cmd === 'list_local_models') return ollTags()
   if (cmd === 'pull_local_model') return ollPull(String(a.modelName !== undefined ? a.modelName : a.model_name !== undefined ? a.model_name : ''))
   if (cmd === 'delete_local_model') return ollDel(String(a.modelName !== undefined ? a.modelName : a.model_name !== undefined ? a.model_name : ''))
+
+  /* --- llama.cpp (managed local runtime) --- */
+  if (cmd === 'llamacpp_hardware') return llamacpp.detectHardware()
+  if (cmd === 'llamacpp_runtime_status') return llamacpp.runtimeStatus()
+  if (cmd === 'llamacpp_search_models') {
+    return llamacpp.searchModels(String(a.query ?? a.search ?? ''), {
+      limit: a.limit !== undefined ? a.limit : a.limit_count,
+    })
+  }
+  if (cmd === 'llamacpp_list_files') {
+    return llamacpp.listModelFiles(String(a.repoId ?? a.repo_id ?? ''))
+  }
+  if (cmd === 'llamacpp_estimate_fit') {
+    const hw = a.hardware ? a.hardware : await llamacpp.detectHardware()
+    return llamacpp.estimateFit(Number(a.size ?? a.fileSize ?? 0), hw, {
+      contextLength: a.contextLength ?? a.context_length,
+    })
+  }
+  if (cmd === 'llamacpp_install_runtime') {
+    // Progress is streamed to the renderer as `llamacpp:progress` events.
+    return llamacpp.installRuntime((p) => emitToRenderer('llamacpp:progress', p))
+  }
+  if (cmd === 'llamacpp_download_model') {
+    const spec = a.spec ?? a
+    return llamacpp.downloadModel(spec, (p) => emitToRenderer('llamacpp:progress', p))
+  }
+  if (cmd === 'llamacpp_cancel_download') {
+    return llamacpp.cancelDownload(String(a.id ?? ''))
+  }
+  if (cmd === 'llamacpp_list_models') return llamacpp.listLocalModels()
+  if (cmd === 'llamacpp_delete_model') {
+    return llamacpp.deleteLocalModel(String(a.id ?? a.modelId ?? ''))
+  }
+  if (cmd === 'llamacpp_start_server') {
+    const modelId = String(a.modelId ?? a.id ?? '')
+    const port = Number(a.port) || LLAMA_DEFAULT_PORT
+    // Allow the proxy to reach the server on this port.
+    llamaAllowedPorts.add(port)
+    try {
+      return await llamacpp.startServer(modelId, {
+        port,
+        contextLength: a.contextLength ?? a.context_length,
+        threads: a.threads,
+        gpuLayers: a.gpuLayers ?? a.gpu_layers,
+        jinja: !!a.jinja,
+      })
+    } catch (e) {
+      // The server never came up — stop allowing the port again.
+      llamaAllowedPorts.delete(port)
+      throw e
+    }
+  }
+  if (cmd === 'llamacpp_stop_server') return llamacpp.stopServer()
+  if (cmd === 'llamacpp_server_status') return llamacpp.serverStatus()
+  if (cmd === 'llamacpp_server_models') return llamacpp.listServerModels()
+  if (cmd === 'llamacpp_request') {
+    const r = await llamaHttp({
+      url: String(a.url),
+      method: String(a.method || 'GET'),
+      body: a.body !== undefined && a.body !== null ? a.body : undefined,
+    })
+    return { status: r.status, body: r.body }
+  }
   if (cmd === 'mcp_discover_configs') {
     const r = a.workspaceRoot !== undefined ? a.workspaceRoot : a.workspace_root
     return mcpCands(r !== undefined ? r : null)
@@ -1164,6 +1290,8 @@ if (gotLock) {
     terms.clear()
     for (const k of Array.from(mcpProcs.keys())) { try { mcpStopSync(k) } catch {} }
     if (ollamaChild && !ollamaChild.killed) { try { ollamaChild.kill() } catch {} }
+    // Stop the managed llama-server so it does not outlive the app.
+    try { llamacpp.stopServer() } catch {}
   })
 }
 

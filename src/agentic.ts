@@ -626,7 +626,7 @@ export function agenticSystemPrompt(
 
   let mcp = "";
   if (mcpTools && mcpTools.length > 0) {
-    mcp = "\\n\\n## 🔌 DYNAMIC MCP MODULES\\n" + 
+    mcp = "\\n\\n## DYNAMIC MCP MODULES\\n" + 
           "The following external tools are available via MCP. Call them as `mcp_<server>_<tool>`:\\n" +
           mcpTools.map(t => `- \`${t.server}_${t.tool}\`: ${t.description}${t.signature ? `\n  ${t.signature}` : ""}`).join("\\n");
   }

@@ -8,12 +8,14 @@ import { TOOL_LABELS } from "../agentic";
 import { diffStats } from "../../src/diff";
 import { IoChevronForward } from "react-icons/io5";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { IconSvgElement } from "@hugeicons/react";
 import {
   CommandLineIcon,
-  File02Icon,
-  PencilEdit01Icon,
   Search01Icon,
 } from "@hugeicons/core-free-icons";
+import { MdEditNote } from "react-icons/md";
+import { FaFile, FaIcons } from "react-icons/fa6";
+import type { IconType } from "react-icons";
 import ThinkingIndicator from "../../components/ThinkingIndicator";
 import { useTranslation } from "../i18n";
 
@@ -33,13 +35,36 @@ function duration(ms: number | undefined): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
-function toolIcon(tool: string) {
-  if (/search|list_dir|find|grep|glob|status|diff/i.test(tool)) return Search01Icon;
-  if (/write|append|replace|edit|delete|move|rename|copy|create/i.test(tool)) {
-    return PencilEdit01Icon;
+/** Icons come from two different libraries, so we keep track of which kind each
+ *  one is and render it with the matching component. */
+type ToolIconSpec =
+  | { kind: "huge"; icon: IconSvgElement }
+  | { kind: "react"; Icon: IconType };
+
+function toolIcon(tool: string): ToolIconSpec {
+  if (/search|list_dir|find|grep|glob|status|diff/i.test(tool)) {
+    return { kind: "huge", icon: Search01Icon };
   }
-  if (/read|file|dir|open|info/i.test(tool)) return File02Icon;
-  return CommandLineIcon;
+  if (/write|append|replace|edit|delete|move|rename|copy|create/i.test(tool)) {
+    return { kind: "react", Icon: MdEditNote };
+  }
+  if (/read|file|dir|open|info/i.test(tool)) {
+    return { kind: "react", Icon: FaFile };
+  }
+  if (/run|exec|command|shell|terminal|process/i.test(tool)) {
+    return { kind: "huge", icon: CommandLineIcon };
+  }
+  return { kind: "react", Icon: FaIcons };
+}
+
+/** Renders the icon for a tool, picking the right component for the icon set. */
+function ToolIcon({ tool }: { tool: string }) {
+  const spec = toolIcon(tool);
+  if (spec.kind === "huge") {
+    return <HugeiconsIcon icon={spec.icon} size={13} strokeWidth={1.8} className="shrink-0" />;
+  }
+  const { Icon } = spec;
+  return <Icon size={13} className="shrink-0" />;
 }
 
 function toolArgument(item: AgenticActivityType): string {
@@ -215,7 +240,7 @@ export default function AgenticActivity({
       <div className="space-y-1">
         {pending && (
           <div className="flex items-center gap-2 text-[11px] text-[var(--text-muted)]">
-            <HugeiconsIcon icon={toolIcon(pending.tool)} size={13} strokeWidth={1.8} />
+            <ToolIcon tool={pending.tool} />
             <ThinkingIndicator label={t("activity.waitingToUse", { tool: toolName(pending.tool) })} />
             <div className="ml-auto flex shrink-0 items-center gap-1">
                 <button
@@ -262,7 +287,7 @@ export default function AgenticActivity({
                   }}
                   className={`flex w-full items-center gap-2 px-1 py-1 text-left text-[11px] text-[var(--text-muted)] ${hasDetail ? "cursor-pointer hover:text-[var(--text-secondary)]" : ""}`}
                 >
-                  <HugeiconsIcon icon={toolIcon(item.tool)} size={13} strokeWidth={1.8} />
+                  <ToolIcon tool={item.tool} />
                   <span className="font-medium">{item.status === "done" ? t("activity.used") : item.status === "error" ? t("activity.failed") : item.status === "denied" ? t("activity.denied") : t("activity.using")} {toolName(item.tool)}</span>
                   <span className="min-w-0 truncate font-mono text-[10px] text-[var(--text-faint)]">
                     {toolArgument(item)}

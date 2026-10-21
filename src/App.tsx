@@ -160,16 +160,29 @@ const MAX_TOOL_OUTPUT = 24000;
 
 
 async function platformFetch(url: string, init: RequestInit): Promise<Response> {
-  // Inside Electron, loopback Ollama traffic goes through the main process so
-  // a locked-down OLLAMA_ORIGINS never 403s the packaged origin.
+  // Inside Electron, loopback traffic to the local model servers goes through
+  // the main process so a locked-down OLLAMA_ORIGINS never 403s the packaged
+  // origin, and so the llama-server CORS rules never reject the renderer.
   if (window.neoDesktop) {
     try {
       const parsed = new URL(url);
-      if (
-        (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost") &&
-        parsed.port === "11434"
-      ) {
+      const loopback =
+        parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost";
+      if (loopback && parsed.port === "11434") {
         const native = await invoke<{ status: number; body: string }>("ollama_request", {
+          url,
+          method: init.method ?? "GET",
+          body: typeof init.body === "string" ? init.body : null,
+        });
+        return new Response(native.body, {
+          status: native.status,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      // The managed llama-server runs on 18080 by default; the native side
+      // validates the port against the set of servers we started.
+      if (loopback && parsed.port === "18080") {
+        const native = await invoke<{ status: number; body: string }>("llamacpp_request", {
           url,
           method: init.method ?? "GET",
           body: typeof init.body === "string" ? init.body : null,
@@ -442,6 +455,13 @@ export default function App() {
     pending: "",
     timer: null,
   });
+  // Raw (unstripped) assistant text of the round being streamed. The visible
+  // text is derived from it, but the derivation (stripping tool-call markup)
+  // is far too expensive to run on every delta — see scheduleStreamingAssistantContent.
+  const streamRawRef = useRef("");
+  // Identifies the current streaming run. A previous run that is still
+  // unwinding must not flush its pending text into the next run's bubble.
+  const streamRunRef = useRef(0);
   const mountedRef = useRef(true);
   // Whether the user is scrolled near the bottom (auto-follow).
   const autoScrollRef = useRef(true);
@@ -1016,21 +1036,38 @@ export default function App() {
   // Network providers can deliver dozens of tiny deltas per frame. Coalesce
   // those updates so markdown parsing and the rest of the chat shell do not
   // rerender for every token.
-  const scheduleStreamingAssistantContent = (content: string) => {
+  //
+  // The expensive part is `stripToolCalls`: it scans the *whole* accumulated
+  // text for tool-call markup, so running it per delta makes a stream cost
+  // O(n²) in the number of characters (a 32k-char answer took ~360ms of pure
+  // CPU). Rendering is already throttled to one update per 50ms, so we do
+  // the stripping there too — the visible result is identical, but the work is
+  // now proportional to the number of *renders*, not the number of deltas.
+  const scheduleStreamingAssistantContent = (raw: string) => {
     if (!mountedRef.current) return;
     const state = streamRenderRef.current;
-    state.pending = content;
+    state.pending = raw;
     if (state.timer !== null) return;
     state.timer = window.setTimeout(() => {
       state.timer = null;
       const pending = state.pending;
       state.pending = "";
-      setLastAssistantContent(pending);
+      if (!pending) return;
+      const shown = stabilizeStreamingMarkdown(stripToolCalls(pending));
+      streamedContentRef.current = shown;
+      setLastAssistantContent(shown);
     }, 50);
   };
 
-  const flushStreamingAssistantContent = () => {
+  // Flush any pending render immediately. `runId` identifies the streaming run
+  // that is flushing. A run that has been superseded (a newer run already
+  // started) must not render its text into the newer run's bubble.
+  const flushStreamingAssistantContent = (runId?: number) => {
     const state = streamRenderRef.current;
+    if (runId !== undefined && runId !== streamRunRef.current) {
+      // This run has been superseded — leave the newer run's state alone.
+      return;
+    }
     if (state.timer !== null) {
       window.clearTimeout(state.timer);
       state.timer = null;
@@ -1038,7 +1075,9 @@ export default function App() {
     if (state.pending) {
       const pending = state.pending;
       state.pending = "";
-      setLastAssistantContent(pending);
+      const shown = stabilizeStreamingMarkdown(stripToolCalls(pending));
+      streamedContentRef.current = shown;
+      setLastAssistantContent(shown);
     }
   };
 
@@ -1052,15 +1091,31 @@ export default function App() {
     });
   };
 
+  // Invalidate the in-flight streaming run: it must not write anything into
+  // the chat anymore (used when the chat is cleared or a session is switched).
+  const invalidateStreamingRun = () => {
+    streamRunRef.current++;
+    if (streamRenderRef.current.timer !== null) {
+      window.clearTimeout(streamRenderRef.current.timer);
+      streamRenderRef.current.timer = null;
+    }
+    streamRenderRef.current.pending = "";
+    streamRawRef.current = "";
+    streamedContentRef.current = "";
+  };
+
   const stopChat = () => {
     // Abort the in-flight request. The stream loop detects the abort and
-    // finalizes whatever content we collected so far.
+    // finalizes whatever content we collected so far. The run is *not*
+    // invalidated here — the partial output must still be committed.
     streamControllerRef.current?.abort();
     setIsLoading(false);
   };
 
   const newChat = () => {
     streamControllerRef.current?.abort();
+    // The run must not write into the cleared chat.
+    invalidateStreamingRun();
     // Resolve any in-flight approval so the tool loop unwinds instead of
     // hanging on a promise that will never be settled.
     approvalRef.current?.resolve(false);
@@ -1078,6 +1133,8 @@ export default function App() {
 
   const selectSession = (id: string) => {
     streamControllerRef.current?.abort();
+    // The run must not write into the session we are switching to.
+    invalidateStreamingRun();
     approvalRef.current?.resolve(false);
     approvalRef.current = null;
     setPendingApproval(null);
@@ -1256,6 +1313,7 @@ export default function App() {
     promptSuffix = "",
         mcpTools?: Map<string, McpToolEntry>,
     modelOverride?: { provider: ProviderId; model: string },
+    runId?: number,
   ): Promise<StreamRoundResult> => {
     const effectiveSettings: AISettings = {
       ...settings,
@@ -1430,14 +1488,20 @@ Tool allowance: No Tools Allowed. Do not attempt to use tools or claim to have u
           usageOut = u.output ?? 0;
           sawUsage = true;
         }
+        const text = s.extractContent(data);
+        // No stream to read: the whole response arrives at once. Render it
+        // through the same raw -> visible pipeline so it is not lost.
+        if (text && runId === streamRunRef.current) {
+          scheduleStreamingAssistantContent(streamRawRef.current + text);
+        }
         void recordUsage(
           settings.provider,
           settings.model,
           sawUsage && usageIn > 0 ? usageIn : estimateTokens(JSON.stringify(body)),
-          sawUsage && usageOut > 0 ? usageOut : estimateTokens(s.extractContent(data))
+          sawUsage && usageOut > 0 ? usageOut : estimateTokens(text)
         );
         return {
-          text: s.extractContent(data),
+          text,
           nativeCalls: nativeAccToCalls(acc0),
           usageIn: sawUsage && usageIn > 0 ? usageIn : 0,
         };
@@ -1449,7 +1513,10 @@ Tool allowance: No Tools Allowed. Do not attempt to use tools or claim to have u
     const decoder = new TextDecoder("utf-8");
     let buffer = "";
     let round = "";
-    const base = streamedContentRef.current;
+    // Raw text of the previous rounds. The visible text is derived from it by
+    // stripToolCalls, which now runs once per rendered frame rather than once
+    // per delta — so we must keep the *raw* text here, not the stripped one.
+    const base = streamRawRef.current;
     const nativeAcc: NativeToolAcc[] = [];
 
     try {
@@ -1492,10 +1559,11 @@ Tool allowance: No Tools Allowed. Do not attempt to use tools or claim to have u
             const delta = s.extractDelta(json);
             if (delta) {
               round += delta;
-
-              const shown = stabilizeStreamingMarkdown(stripToolCalls(base + round));
-              streamedContentRef.current = shown;
-              scheduleStreamingAssistantContent(shown);
+              // Hand the *raw* text to the renderer; it strips tool markup
+              // once per throttled frame instead of once per delta.
+              if (runId === streamRunRef.current) {
+                scheduleStreamingAssistantContent(base + round);
+              }
             }
           } catch {
             continue;
@@ -1514,9 +1582,11 @@ Tool allowance: No Tools Allowed. Do not attempt to use tools or claim to have u
             const delta = s.extractDelta(json);
             if (delta) {
               round += delta;
-              const shown = stabilizeStreamingMarkdown(stripToolCalls(base + round));
-              streamedContentRef.current = shown;
-              scheduleStreamingAssistantContent(shown);
+              // Hand the *raw* text to the renderer; it strips tool markup
+              // once per throttled frame instead of once per delta.
+              if (runId === streamRunRef.current) {
+                scheduleStreamingAssistantContent(base + round);
+              }
             }
           } catch {
             // Ignore an incomplete non-JSON trailer.
@@ -1557,6 +1627,12 @@ Tool allowance: No Tools Allowed. Do not attempt to use tools or claim to have u
               usageIn = u.input ?? 0;
               usageOut = u.output ?? 0;
               sawUsage = true;
+            }
+            // The non-streaming response never went through a delta, so render
+            // it here. It goes through the same raw -> visible pipeline, which
+            // strips tool markup and stabilizes the markdown.
+            if (round && runId === streamRunRef.current) {
+              scheduleStreamingAssistantContent(base + round);
             }
           }
         }
@@ -1789,7 +1865,11 @@ MCP call rules:
     }
 
     setIsLoading(true);
-    streamedContentRef.current = "";
+    // Any run that is still unwinding must no longer touch the chat bubble.
+    // This also drops any text/timer left pending by a previous run, so a
+    // stale timer cannot fire into this run's bubble.
+    invalidateStreamingRun();
+    const runId = streamRunRef.current;
 
     const abortCtrl = new AbortController();
     streamControllerRef.current = abortCtrl;
@@ -1833,8 +1913,17 @@ MCP call rules:
           agentic,
           abortCtrl.signal,
           promptSuffix,
-          mcpTools
+          mcpTools,
+          undefined,
+          runId
         );
+        // Keep the raw text of every round so the next round can append to it
+        // (the visible text is derived from this, never the other way round).
+        // This happens *before* the abort check so the text of an aborted
+        // round is still preserved for the final commit.
+        if (runId === streamRunRef.current) {
+          streamRawRef.current += round.text;
+        }
         if (abortCtrl.signal.aborted) break;
         // Adopt the provider's exact context size for the pill/readout. The
         // conversation itself lives in `messages`, so this value follows it
@@ -2243,8 +2332,18 @@ MCP call rules:
         }
       }
 
-      // Commit whatever visible text accumulated across all rounds.
-      const finalVisible = streamedContentRef.current.trim();
+      // Commit whatever visible text accumulated across all rounds. Flush the
+      // throttled renderer first, otherwise the final chunk — which has not
+      // been rendered yet — would be missing from the committed message.
+      flushStreamingAssistantContent(runId);
+      if (runId !== streamRunRef.current) {
+        // A newer run took over while this one was unwinding — its bubble
+        // owns the chat now, so this run must not write to it.
+        return;
+      }
+      // Derive the committed text from the complete raw text so nothing can be
+      // lost, even if the last frame was never rendered.
+      const finalVisible = stabilizeStreamingMarkdown(stripToolCalls(streamRawRef.current)).trim();
       if (finalVisible) {
         setLastAssistantContent(finalVisible);
       } else if (ranTools > 0) {
@@ -2267,9 +2366,17 @@ MCP call rules:
         removeEmptyAssistant();
       }
     } catch (err) {
+      if (runId !== streamRunRef.current) {
+        // Superseded by a newer run — leave the chat to the newer run.
+        return;
+      }
       if (abortCtrl.signal.aborted) {
-        // User stopped the generation; keep partial output.
-        const partial = stripToolCalls(streamedContentRef.current).trim();
+        // User stopped the generation; keep partial output. Flush first so the
+        // text that has not been rendered yet is not lost.
+        flushStreamingAssistantContent(runId);
+        // Derive the partial text from the complete raw text so nothing is
+        // lost, even if the last frame was never rendered.
+        const partial = stripToolCalls(streamRawRef.current).trim();
         if (partial) {
           setLastAssistantContent(partial);
         } else {
@@ -2281,12 +2388,16 @@ MCP call rules:
         removeEmptyAssistant();
       }
     } finally {
-      flushStreamingAssistantContent();
-      setIsLoading(false);
-      streamControllerRef.current = null;
-      approvalRef.current?.resolve(false);
-      approvalRef.current = null;
-      setPendingApproval(null);
+      flushStreamingAssistantContent(runId);
+      if (runId === streamRunRef.current) {
+        // Only the current run may tear down the shared streaming state; a
+        // superseded run would otherwise cancel the newer run's request.
+        setIsLoading(false);
+        streamControllerRef.current = null;
+        approvalRef.current?.resolve(false);
+        approvalRef.current = null;
+        setPendingApproval(null);
+      }
     }
   };
 
