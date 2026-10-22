@@ -2,21 +2,6 @@
  * Author: madhusudhan
  * Check the LICENSE in the GitHub repo (https://github.com/Lumorix-studios/Struct) for more information on permissions to use this code.
  */
-/**
- * Multi-provider AI configuration.
- *
- * Each provider describes how to:
- *  - build the request URL (including auth in the query string where needed,
- *    e.g. Google's `?key=...` parameter)
- *  - attach the API key (Bearer header, raw `x-api-key` header, query param,
- *    or none for self-hosted services like Ollama)
- *  - build the provider-specific request body
- *  - extract a text delta from a single decoded stream chunk
- *  - extract the full content from a non-streaming (or failed-stream) response
- *  - validate the API key format *before* a round-trip so we fail fast and
- *    with an actionable message
- *  - produce a helpful hint when the provider returns an auth / config error
- */
 import type { AISettings, Message, NativeToolCall, ProviderId } from "./types";
 import { ANTHROPIC_TOOLS, GEMINI_FUNCTION_DECLARATIONS, OPENAI_TOOLS } from "./agentic";
 
@@ -439,7 +424,7 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     id: "openai",
     label: "OpenAI",
     defaultBaseUrl: "https://api.openai.com/v1",
-    defaultModel: "gpt-4o-mini",
+    defaultModel: "",
     needsAuth: true,
     authHeader: "Authorization",
     authScheme: "bearer",
@@ -476,7 +461,7 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     label: "OpenRouter",
     note: "Auto-routes to the best available model.",
     defaultBaseUrl: "https://openrouter.ai/api/v1",
-    defaultModel: "anthropic/claude-3.5-sonnet",
+    defaultModel: "nvidia/nemotron-3-ultra-550b-a55b:free",
     needsAuth: true,
     authHeader: "Authorization",
     authScheme: "bearer",
@@ -550,7 +535,7 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     label: "NVIDIA NIM",
     note: "NVIDIA-hosted OpenAI-compatible inference API.",
     defaultBaseUrl: "https://integrate.api.nvidia.com/v1",
-    defaultModel: "meta/llama-3.1-8b-instruct",
+    defaultModel: "",
     needsAuth: true,
     authHeader: "Authorization",
     authScheme: "bearer",
@@ -584,7 +569,7 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     id: "anthropic",
     label: "Anthropic",
     defaultBaseUrl: "https://api.anthropic.com",
-    defaultModel: "claude-3-5-sonnet-20241022",
+    defaultModel: "",
     needsAuth: true,
     authHeader: "x-api-key",
     authScheme: "apikey", // raw value, NOT "Bearer ..."
@@ -620,7 +605,7 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     id: "google",
     label: "Google Gemini",
     defaultBaseUrl: "https://generativelanguage.googleapis.com/v1beta",
-    defaultModel: "gemini-1.5-flash",
+    defaultModel: "",
     needsAuth: true,
     authHeader: null, // key goes in the URL query string
     authScheme: "bearer",
@@ -665,7 +650,7 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     label: "Ollama",
     note: "Self-hosted local model runner. No API key needed.",
     defaultBaseUrl: "http://127.0.0.1:11434",
-    defaultModel: "qwen2.5-coder",
+    defaultModel: "",
     needsAuth: false,
     authHeader: null,
     authScheme: "bearer",
@@ -734,7 +719,7 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     label: "Custom (OpenAI-compatible)",
     note: "Any OpenAI-compatible endpoint (e.g. a local proxy).",
     defaultBaseUrl: "",
-    defaultModel: "gpt-4o-mini",
+    defaultModel: "",
     needsAuth: true,
     authHeader: "Authorization",
     authScheme: "bearer",

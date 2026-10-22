@@ -34,7 +34,6 @@ const { promisify } = require('node:util')
 const gunzip = promisify(zlib.gunzip)
 const inflateRaw = promisify(zlib.inflateRaw)
 
-const HF_BASE = 'https://huggingface.co'
 const LLAMA_CPP_REPO = 'ggml-org/llama.cpp'
 const USER_AGENT = 'Neo/1.0 (+https://github.com/ForgeBuilds/Struct)'
 
@@ -128,30 +127,6 @@ function httpRequest(url, options = {}) {
 }
 
 /** Fetch and parse a JSON document. */
-async function fetchJson(url, options = {}) {
-  const res = await httpRequest(url, options)
-  const text = await readAll(res)
-  if (res.statusCode < 200 || res.statusCode >= 300) {
-    throw new Error(`Request failed (${res.statusCode}): ${text.slice(0, 200)}`)
-  }
-  try {
-    return JSON.parse(text)
-  } catch {
-    throw new Error('The server returned a malformed JSON response.')
-  }
-}
-
-function readAll(res) {
-  return new Promise((resolveP, reject) => {
-    let out = ''
-    res.setEncoding('utf8')
-    res.on('data', (c) => {
-      out += c
-    })
-    res.on('end', () => resolveP(out))
-    res.on('error', reject)
-  })
-}
 
 /* ── archive extraction ─────────────────────────────────────────────────── */
 
@@ -524,30 +499,6 @@ async function installRuntime(onProgress) {
  * `gguf` block of each repo's metadata carries the total weight size and
  * the architecture, which is what we need for the compatibility estimate.
  */
-async function searchModels(query, options = {}) {
-  const limit = Math.min(Math.max(Number(options.limit) || 20, 1), 50)
-  const params = new URLSearchParams({
-    filter: 'gguf',
-    limit: String(limit),
-    sort: 'downloads',
-    direction: '-1',
-    full: 'true',
-  })
-  if (query && String(query).trim()) params.set('search', String(query).trim())
-  const data = await fetchJson(`${HF_BASE}/api/models?${params.toString()}`)
-  if (!Array.isArray(data)) return []
-  return data.map((m) => ({
-    id: String(m.id || ''),
-    downloads: Number(m.downloads) || 0,
-    likes: Number(m.likes) || 0,
-    pipelineTag: m.pipeline_tag || null,
-    license: licenseOf(m.tags),
-    tags: Array.isArray(m.tags) ? m.tags.slice(0, 24) : [],
-    totalSize: Number((m.gguf || {}).total) || 0,
-    architecture: (m.gguf || {}).architecture || null,
-    contextLength: Number((m.gguf || {}).context_length) || 0,
-  }))
-}
 
 function licenseOf(tags) {
   if (!Array.isArray(tags)) return null
@@ -563,42 +514,6 @@ function licenseOf(tags) {
  * and BF16/FP16 weights are skipped because they are either unwieldy or
  * bigger than the machine can hold.
  */
-async function listModelFiles(repoId) {
-  const safe = String(repoId || '').trim()
-  // Allow raw slashes (owner/repo) or URL-encoded (%2F)
-  if (!safe || !/^[\w.-]+(\/[\w.-]+|%2F)+[\w.-]*$/.test(safe)) {
-    throw new Error('Invalid Hugging Face repository id.')
-  }
-  const data = await fetchJson(
-    `${HF_BASE}/api/models/${safe.replace(/%2F/g, '/')}?blobs=true`,
-  )
-  const siblings = Array.isArray(data.siblings) ? data.siblings : []
-  const files = []
-  for (const s of siblings) {
-    const name = String(s.rfilename || '')
-    if (!name.toLowerCase().endsWith('.gguf')) continue
-    if (/\.\d+-of-\.\d+\.gguf$/i.test(name)) continue
-    if (/(^|\/)(BF16|F16|F32|FP16|FP32)\//i.test(name)) continue
-    if (/-(BF16|F16|F32|FP16|FP32)\.gguf$/i.test(name)) continue
-    const size = Number(s.size) || Number((s.lfs || {}).size) || 0
-    const sha = (s.lfs || {}).sha256 || null
-    files.push({
-      name,
-      size,
-      sha256: sha,
-      quant: quantizationOf(name),
-    })
-  }
-  files.sort((a, b) => a.size - b.size)
-  return {
-    repoId: safe,
-    files,
-    totalSize: Number((data.gguf || {}).total) || 0,
-    architecture: (data.gguf || {}).architecture || null,
-    contextLength: Number((data.gguf || {}).context_length) || 0,
-    license: licenseOf(data.tags),
-  }
-}
 
 /** Extract the quantization tag (e.g. `Q4_K_M`) from a GGUF file name. */
 function quantizationOf(name) {
@@ -619,66 +534,6 @@ function quantizationOf(name) {
  * A "risky" verdict is still allowed — the user may know better than we do
  * (swap, a GPU with VRAM, a smaller context) — but it is surfaced in the UI.
  */
-function estimateFit(fileSize, hardware, options = {}) {
-  const size = Math.max(Number(fileSize) || 0, 0)
-  const ram = Number(hardware.ramBytes) || 0
-  const disk = Number(hardware.freeDiskBytes) || 0
-  const ctx = Math.min(Number(options.contextLength) || 4096, 8192)
-  // KV cache is roughly 0.5 MB per token for a mid-size model at 4k context.
-  const kvBytes = ctx * 512 * 1024
-  const requiredRam = Math.round(size * 1.15 + kvBytes + 256 * 1024 * 1024)
-
-  const out = {
-    fileSize: size,
-    requiredRamBytes: requiredRam,
-    status: 'ok',
-    reason: null,
-    canRun: true,
-  }
-  if (size === 0) {
-    out.status = 'unknown'
-    out.reason = 'The model size is unknown.'
-    return out
-  }
-  if (disk > 0 && size > disk * 0.95) {
-    out.status = 'impossible'
-    out.canRun = false
-    out.reason = 'Not enough free disk space.'
-    return out
-  }
-  if (ram > 0 && requiredRam > ram * 0.9) {
-    out.status = 'impossible'
-    out.canRun = false
-    out.reason = 'Not enough RAM.'
-    return out
-  }
-  if (ram > 0 && requiredRam > ram * 0.65) {
-    out.status = 'risky'
-    out.reason = 'Tight on RAM — expect slow inference or swapping.'
-    return out
-  }
-  if (ram > 0 && requiredRam > ram * 0.45) {
-    out.status = 'tight'
-    out.reason = 'Fits, but only with limited headroom.'
-  }
-  return out
-}
-
-/* ── downloads ─────────────────────────────────────────────────────────── */
-
-/** In-flight downloads, keyed by an id handed back to the renderer. */
-const downloads = new Map()
-let downloadSeq = 0
-
-function cancelDownload(id) {
-  const d = downloads.get(id)
-  if (!d) return false
-  d.cancelled = true
-  try {
-    d.req.destroy()
-  } catch {}
-  return true
-}
 
 /**
  * Download a GGUF file from Hugging Face.
@@ -687,196 +542,6 @@ function cancelDownload(id) {
  * final name once it is complete, so an interrupted download can never be
  * mistaken for a usable model. Progress is reported through `onProgress`.
  */
-async function downloadModel(spec, onProgress) {
-  const repoId = String(spec.repoId || '').trim()
-  const fileName = String(spec.fileName || '').trim()
-  if (!/^[\w.-]+\/[\w.-]+$/.test(repoId)) throw new Error('Invalid repository id.')
-  if (!fileName || fileName.includes('..')) throw new Error('Invalid file name.')
-
-  const id = `dl_${++downloadSeq}`
-  const encoded = fileName.split('/').map(encodeURIComponent).join('/')
-  const url = `${HF_BASE}/${repoId}/resolve/main/${encoded}?download=true`
-  const expectedSize = Number(spec.size) || 0
-  const sha256 = spec.sha256 || null
-
-  await mkdir(downloadsDir(), { recursive: true })
-  await mkdir(modelsDir(), { recursive: true })
-  // The partial file is named after the *target*, not after the attempt, so a
-  // retry of the same download resumes where the previous one stopped.
-  const partKey = crypto
-    .createHash('sha1')
-    .update(`${repoId}/${fileName}`)
-    .digest('hex')
-    .slice(0, 16)
-  const partPath = join(downloadsDir(), `${partKey}.part`)
-  const finalPath = join(modelsDir(), `${repoId.replace(/[\\/]/g, '__')}__${basename(fileName)}`)
-
-  const state = { id, cancelled: false, req: null }
-  downloads.set(id, state)
-
-  try {
-    // Resume support: if a previous attempt left a partial file, ask the
-    // server for the remaining bytes only.
-    let from = 0
-    try {
-      const st = await stat(partPath)
-      if (st.size > 0 && st.size < expectedSize) from = st.size
-    } catch {}
-
-    const headers = { Accept: 'application/octet-stream' }
-    if (from > 0) headers.Range = `bytes=${from}-`
-
-    const res = await httpRequest(url, { headers, timeout: 0 })
-    if (res.statusCode >= 400) {
-      throw new Error(`The download server returned ${res.statusCode}.`)
-    }
-    const append = from > 0 && res.statusCode === 206
-    if (from > 0 && !append) from = 0
-
-    state.req = res
-    let received = from
-    const total = expectedSize || Number(res.headers['content-length']) || 0
-    let lastReport = 0
-
-    const out = createWriteStream(partPath, append ? { flags: 'a' } : { flags: 'w' })
-    res.on('data', (chunk) => {
-      received += chunk.length
-      const now = Date.now()
-      if (now - lastReport >= 200) {
-        lastReport = now
-        onProgress({
-          id,
-          received,
-          total,
-          percent: total > 0 ? Math.min(100, Math.round((received / total) * 100)) : 0,
-          phase: 'downloading',
-        })
-      }
-    })
-    await pipeline(res, out)
-    if (state.cancelled) throw new Error('The download was cancelled.')
-
-    const finalSize = (await stat(partPath)).size
-    if (expectedSize > 0 && finalSize !== expectedSize) {
-      throw new Error(
-        `The downloaded file is ${finalSize} bytes but ${expectedSize} were expected.`,
-      )
-    }
-    if (sha256) await verifySha256(partPath, sha256)
-
-    await rename(partPath, finalPath)
-    onProgress({ id, received: finalSize, total: finalSize, percent: 100, phase: 'done' })
-    return { id, path: finalPath, size: finalSize, fileName, repoId }
-  } catch (e) {
-    if (state.cancelled) {
-      onProgress({ id, received: 0, total: expectedSize, percent: 0, phase: 'cancelled' })
-    }
-    throw e
-  } finally {
-    downloads.delete(id)
-  }
-}
-
-/** Verify the sha256 of a downloaded file against the value HF published. */
-async function verifySha256(path, expected) {
-  const hash = crypto.createHash('sha256')
-  const stream = createReadStream(path)
-  await new Promise((resolveP, reject) => {
-    stream.on('data', (c) => hash.update(c))
-    stream.on('end', resolveP)
-    stream.on('error', reject)
-  })
-  const actual = hash.digest('hex')
-  if (actual !== expected) {
-    throw new Error('The downloaded file is corrupt (checksum mismatch).')
-  }
-}
-
-/* ── local model registry ──────────────────────────────────────────────── */
-
-/**
- * List the GGUF models that were downloaded into the local model directory.
- *
- * The file name encodes the source repository (`<owner>__<repo>__<file>`),
- * which we split back apart so the UI can show the human-readable name.
- */
-async function listLocalModels() {
-  await mkdir(modelsDir(), { recursive: true })
-  const names = await readdir(modelsDir())
-  const out = []
-  for (const name of names) {
-    if (!name.toLowerCase().endsWith('.gguf')) continue
-    const full = join(modelsDir(), name)
-    let st
-    try {
-      st = await stat(full)
-    } catch {
-      continue
-    }
-    const m = /^([^_]+)__([^_]+)__(.+)$/.exec(name)
-    out.push({
-      id: name,
-      path: full,
-      fileName: m ? m[3] : name,
-      repoId: m ? `${m[1]}/${m[2]}` : null,
-      displayName: m ? m[2] : name.replace(/\.gguf$/i, ''),
-      quant: quantizationOf(name),
-      size: st.size,
-      modifiedAt: st.mtimeMs,
-    })
-  }
-  out.sort((a, b) => b.modifiedAt - a.modifiedAt)
-  return out
-}
-
-/** Delete a downloaded model. */
-async function deleteLocalModel(id) {
-  const name = basename(String(id || ''))
-  if (!name.toLowerCase().endsWith('.gguf')) {
-    throw new Error('Invalid model id.')
-  }
-  await rm(join(modelsDir(), name), { force: true })
-  return { id: name }
-}
-
-/* ── server lifecycle ──────────────────────────────────────────────────── */
-
-/**
- * The running `llama-server`, if any.
- *
- * Only one server runs at a time; it serves the model the user selected.
- */
-const server = {
-  proc: null,
-  port: 0,
-  modelPath: null,
-  modelId: null,
-  startedAt: 0,
-  logs: [],
-}
-
-const DEFAULT_PORT = 18080
-
-/** Current state of the local server (safe to send to the renderer). */
-function serverStatus() {
-  return {
-    running: !!server.proc && server.proc.exitCode === null,
-    port: server.port,
-    url: server.port ? `http://127.0.0.1:${server.port}` : null,
-    modelId: server.modelId,
-    modelPath: server.modelPath,
-    startedAt: server.startedAt || 0,
-    logs: server.logs.slice(-60),
-  }
-}
-
-/** Append a line to the (bounded) server log buffer. */
-function pushLog(line) {
-  const text = String(line).replace(/\s+$/, '')
-  if (!text) return
-  server.logs.push(text)
-  if (server.logs.length > 400) server.logs.splice(0, server.logs.length - 400)
-}
 
 /** Stop the running server (if any) and wait for it to exit. */
 async function stopServer() {
@@ -1028,12 +693,12 @@ module.exports = {
   downloadsDir,
   serverBinaryPath,
   detectHardware,
-  searchModels,
-  listModelFiles,
+
+
   quantizationOf,
-  estimateFit,
-  downloadModel,
-  cancelDownload,
+
+
+
   runtimeStatus,
   installRuntime,
   listLocalModels,

@@ -33,7 +33,6 @@ import {
 } from "../serverManager";
 import { ensureOllamaReady } from "../localModels";
 import LocalModels from "../../components/LocalModels";
-import LlamaCppModels from "../../components/LlamaCppModels";
 import AccountSection from "./AccountSection";
 import type { NeoUser, Profile as AccountProfile } from "../lib/auth";
 import { byokAllowed, saveRemoteKey, removeRemoteKey } from "../lib/byok";
@@ -972,17 +971,6 @@ export default function SettingsPanel({
             {section === "ai" &&
               (showLocalModels ? (
                 <div className="h-full">
-                  {aiSettings.provider === "llamacpp" ? (
-                    <LlamaCppModels
-                      onClose={() => setShowLocalModels(false)}
-                      onSelectModel={async (model) => {
-                        const err = (await onSelectLocalModel(model.id)) ?? null;
-                        if (!err) setShowLocalModels(false);
-                        return err;
-                      }}
-                      selectedModelId={aiSettings.model ?? null}
-                    />
-                  ) : (
                     <LocalModels
                       onClose={() => setShowLocalModels(false)}
                       onSelectModel={async (modelName) => {
@@ -993,7 +981,7 @@ export default function SettingsPanel({
                       }}
                       selectedModel={aiSettings.model}
                     />
-                  )}
+                  )
                 </div>
               ) : (
               <div>
