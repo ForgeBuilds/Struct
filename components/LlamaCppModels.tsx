@@ -9,6 +9,7 @@ import {
   IoCloudDownloadOutline,
   IoHardwareChipOutline,
   IoChevronBack,
+  IoPersonCircle,
   IoServer,
   IoDownloadOutline,
   IoInformationCircleOutline,
@@ -82,142 +83,6 @@ interface LlamaCppFileLike {
   quant: string | null;
   sha256: string | null;
 }
-
-/** Curated popular models shown in the catalog view — no search required. */
-interface CatalogEntry {
-  repoId: string;
-  name: string;
-  description: string;
-  sizeRange: string;
-  recommendedQuant: string;
-  architecture: string;
-  tags: string[];
-  downloads: number;
-}
-
-const CATALOG_MODELS: CatalogEntry[] = [
-  {
-    repoId: "TheBloke/Llama-3.2-3B-Instruct-GGUF",
-    name: "Llama 3.2 3B Instruct",
-    description: "Small, fast model that's great for everyday chat and instruction-following.",
-    sizeRange: "1.8–3 GB",
-    recommendedQuant: "Q4_K_M",
-    architecture: "Llama 3",
-    tags: ["chat", "instruct"],
-    downloads: 120000,
-  },
-  {
-    repoId: "TheBloke/Llama-3.1-8B-Instruct-GGUF",
-    name: "Llama 3.1 8B Instruct",
-    description: "Meta's balanced model — a strong all-rounder for chat and coding.",
-    sizeRange: "4.5–9 GB",
-    recommendedQuant: "Q4_K_M",
-    architecture: "Llama 3",
-    tags: ["chat", "coding"],
-    downloads: 310000,
-  },
-  {
-    repoId: "TheBloke/Llama-3.1-70B-Instruct-GGUF",
-    name: "Llama 3.1 70B Instruct",
-    description: "Meta's largest Llama 3 model — powerful reasoning, heavy on resources.",
-    sizeRange: "32–45 GB",
-    recommendedQuant: "Q4_K_M",
-    architecture: "Llama 3",
-    tags: ["chat", "reasoning", "coding"],
-    downloads: 89000,
-  },
-  {
-    repoId: "TheBloke/Mistral-7B-Instruct-v0.2-GGUF",
-    name: "Mistral 7B Instruct v0.2",
-    description: "Very popular 7B instruction model with good performance for its size.",
-    sizeRange: "3.8–8 GB",
-    recommendedQuant: "Q4_K_M",
-    architecture: "Mistral",
-    tags: ["chat", "instruct"],
-    downloads: 420000,
-  },
-  {
-    repoId: "TheBloke/Qwen2.5-7B-Instruct-GGUF",
-    name: "Qwen 2.5 7B Instruct",
-    description: "Alibaba's strong 7B model — excels at Chinese and English reasoning.",
-    sizeRange: "4–8 GB",
-    recommendedQuant: "Q4_K_M",
-    architecture: "Qwen",
-    tags: ["chat", "reasoning", "bilingual"],
-    downloads: 56000,
-  },
-  {
-    repoId: "TheBloke/Qwen2.5-14B-Instruct-GGUF",
-    name: "Qwen 2.5 14B Instruct",
-    description: "Alibaba's powerful 14B model — strong reasoning and multilingual support.",
-    sizeRange: "7.5–15 GB",
-    recommendedQuant: "Q4_K_M",
-    architecture: "Qwen",
-    tags: ["chat", "reasoning", "bilingual"],
-    downloads: 28000,
-  },
-  {
-    repoId: "TheBloke/Phi-3-mini-4k-instruct-GGUF",
-    name: "Phi-3 Mini 4K Instruct",
-    description: "Tiny 3.8B model from Microsoft — surprisingly capable for its size.",
-    sizeRange: "1.9–4 GB",
-    recommendedQuant: "Q4_K_M",
-    architecture: "Phi-3",
-    tags: ["tiny", "chat"],
-    downloads: 180000,
-  },
-  {
-    repoId: "TheBloke/gemma-2b-it-GGUF",
-    name: "Gemma 2B Instruct",
-    description: "Google's lightweight 2B model — fast and efficient on low-RAM machines.",
-    sizeRange: "1.2–2.5 GB",
-    recommendedQuant: "Q4_K_M",
-    architecture: "Gemma",
-    tags: ["tiny", "chat"],
-    downloads: 95000,
-  },
-  {
-    repoId: "TheBloke/gemma-2-9b-it-GGUF",
-    name: "Gemma 2 9B Instruct",
-    description: "Google's 9B model — good quality-to-size ratio for chat tasks.",
-    sizeRange: "4.8–10 GB",
-    recommendedQuant: "Q4_K_M",
-    architecture: "Gemma 2",
-    tags: ["chat", "instruct"],
-    downloads: 72000,
-  },
-  {
-    repoId: "TheBloke/deepseek-v2.5-16b-chat-GGUF",
-    name: "DeepSeek V2.5 16B Chat",
-    description: "Strong 16B model — good coding and reasoning capabilities.",
-    sizeRange: "8–17 GB",
-    recommendedQuant: "Q4_K_M",
-    architecture: "DeepSeek",
-    tags: ["chat", "coding", "reasoning"],
-    downloads: 53000,
-  },
-  {
-    repoId: "TheBloke/codellama-7B-GGUF",
-    name: "Code Llama 7B",
-    description: "Meta's code-specialized model — trained for coding tasks and infill.",
-    sizeRange: "3.8–8 GB",
-    recommendedQuant: "Q4_K_M",
-    architecture: "Code Llama",
-    tags: ["coding", "instruct"],
-    downloads: 340000,
-  },
-  {
-    repoId: "TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF",
-    name: "TinyLlama 1.1B Chat",
-    description: "Extremely lightweight 1.1B model — runs on almost anything.",
-    sizeRange: "0.6–1.2 GB",
-    recommendedQuant: "Q4_K_M",
-    architecture: "TinyLlama",
-    tags: ["tiny", "chat"],
-    downloads: 110000,
-  },
-];
-
 export default function LlamaCppModels({
   onSelectModel,
   selectedModelId,
@@ -232,6 +97,8 @@ export default function LlamaCppModels({
   const [server, setServer] = useState<LlamaCppServerStatus | null>(null);
   const [models, setModels] = useState<LlamaCppLocalModel[]>([]);
   const [searchResults, setSearchResults] = useState<LlamaCppSearchResult[]>([]);
+  const [catalogModels, setCatalogModels] = useState<LlamaCppSearchResult[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
   const [repoFiles, setRepoFiles] = useState<LlamaCppRepoFiles | null>(null);
   const [selectedRepo, setSelectedRepo] = useState<LlamaCppSearchResult | null>(null);
   const [query, setQuery] = useState("");
@@ -239,7 +106,7 @@ export default function LlamaCppModels({
   const [searching, setSearching] = useState(false);
   const [starting, setStarting] = useState(false);
   const [stopping, setStopping] = useState(false);
-  const [downloading, setDownloading] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState<{ id: string; fileName: string } | null>(null);
   const [fit, setFit] = useState<LlamaCppFit | null>(null);
   const [fitFile, setFitFile] = useState<string | null>(null);
   const progressRef = useRef<Map<string, LlamaCppProgress>>(new Map());
@@ -268,6 +135,14 @@ export default function LlamaCppModels({
       const unsub = await onProgress((p) => {
         if (cancelled) return;
         progressRef.current.set(p.id ?? "runtime", p);
+        // When a download starts we only know the file name (used as a
+        // placeholder id). Once the real download id arrives from the
+        // Electron backend, adopt it so progress can be looked up.
+        if (p.id && p.id !== "runtime") {
+          setDownloading((d) =>
+            d ? { ...d, id: p.id } : d,
+          );
+        }
         if (p.phase === "done" || p.phase === "cancelled") {
           setDownloading(null);
           void refreshAll();
@@ -284,6 +159,24 @@ export default function LlamaCppModels({
 
   useEffect(() => {
     void refreshAll();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setCatalogLoading(true);
+      try {
+        const results = await searchModels("", 20);
+        if (!cancelled) setCatalogModels(results);
+      } catch {
+        // ignore
+      } finally {
+        if (!cancelled) setCatalogLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -419,53 +312,19 @@ export default function LlamaCppModels({
     }
   }, [toast]);
 
-  const handleSelectCatalogModel = useCallback(async (entry: CatalogEntry) => {
-    setSelectedRepo({
-      id: entry.repoId,
-      downloads: entry.downloads,
-      likes: 0,
-      pipelineTag: "text-generation",
-      license: null,
-      tags: entry.tags,
-      totalSize: 0,
-      architecture: entry.architecture,
-      contextLength: 0,
-    } as LlamaCppSearchResult);
-    clearMessages();
-    try {
-      const files = await listRepoFiles(entry.repoId);
-      setRepoFiles(files);
-      setSelectedRepo({
-        id: entry.repoId,
-        downloads: entry.downloads,
-        likes: 0,
-        pipelineTag: "text-generation",
-        license: files.license ?? null,
-        tags: files.architecture ? [files.architecture] : entry.tags,
-        totalSize: files.totalSize,
-        architecture: files.architecture ?? entry.architecture,
-        contextLength: files.contextLength ?? 0,
-      } as LlamaCppSearchResult);
-      setView("files");
-    } catch (e) {
-      toast(
-        e instanceof Error ? e.message : t("llamacpp.listFilesFailed"),
-        true,
-      );
-    }
-  }, [toast, dismissAfter]);
 
   const handleDownload = useCallback(async (file: LlamaCppFileLike) => {
     if (!selectedRepo) return;
     clearMessages();
-    setDownloading(file.name);
+    setDownloading({ id: file.name, fileName: file.name });
     try {
-      await downloadModel({
+      const result = await downloadModel({
         repoId: selectedRepo.id,
         fileName: file.name,
         size: file.size,
         sha256: file.sha256 ?? null,
       });
+      setDownloading({ id: result.id, fileName: file.name });
       toast(t("llamacpp.downloadStarted", { name: file.name }), false);
       dismissAfter(2000);
       await refreshAll();
@@ -481,10 +340,9 @@ export default function LlamaCppModels({
   }, [selectedRepo, toast, dismissAfter, refreshAll]);
 
   const handleCancel = useCallback(async () => {
-    const id = downloading;
-    if (!id) return;
+    if (!downloading) return;
     try {
-      await cancelDownload(id);
+      await cancelDownload(downloading.id);
       setDownloading(null);
       toast(t("llamacpp.downloadCancelled"), false);
       dismissAfter(2000);
@@ -546,8 +404,11 @@ export default function LlamaCppModels({
   const runtimeInstalled = runtime?.installed ?? false;
   const serverRunning = server?.running ?? false;
   const isSelected = (m: LlamaCppLocalModel) => m.id === selectedModelId;
-  const progressFor = (fileName: string) => progressRef.current.get(fileName);
-  const isDownloading = (fileName: string) => downloading === fileName;
+  const progressFor = (fileName: string) =>
+    downloading?.fileName === fileName
+      ? progressRef.current.get(downloading.id)
+      : undefined;
+  const isDownloading = (fileName: string) => downloading?.fileName === fileName;
 
   const filesSorted = useMemo(() => {
     const files = repoFiles?.files ?? [];
@@ -578,14 +439,19 @@ export default function LlamaCppModels({
         </button>
       </div>
 
+      {catalogLoading && (
+        <p className="py-4 text-center text-[11.5px] text-[var(--text-faint)]">
+          {t("llamacpp.searching")}
+        </p>
+      )}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {CATALOG_MODELS.map((entry) => {
+        {catalogModels.map((repo) => {
           const isInstalled = downloadedFileNames.has(
-            entry.repoId.split("/").pop() ?? "",
+            repo.id.split("/").pop() ?? "",
           );
           return (
             <div
-              key={entry.repoId}
+              key={repo.id}
               className="group flex flex-col gap-2.5 rounded-lg border border-(--border) bg-(--fill-1) p-3.5 transition hover:border-(--border-strong) hover:bg-(--fill-2)"
             >
               <div className="flex items-start justify-between gap-2">
@@ -594,19 +460,21 @@ export default function LlamaCppModels({
                 </div>
                 <div className="min-w-0 flex-1">
                   <h4 className="text-[12px] font-medium text-[var(--text-primary)]">
-                    {entry.name}
+                    {repo.id.split("/").pop()?.replace(/-/g, " ")}
                   </h4>
                   <p className="mt-0.5 line-clamp-2 text-[10px] leading-4 text-[var(--text-muted)]">
-                    {entry.description}
+                    {repo.architecture ?? "GGUF model"} · {formatBytes(repo.totalSize)}
                   </p>
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-1 text-[9.5px]">
-                <span className="rounded-full border border-(--border) px-1.5 py-0 text-[var(--text-secondary)]">
-                  {entry.architecture}
-                </span>
-                {entry.tags.map((tag) => (
+                {repo.architecture && (
+                  <span className="rounded-full border border-(--border) px-1.5 py-0 text-[var(--text-secondary)]">
+                    {repo.architecture}
+                  </span>
+                )}
+                {repo.tags.slice(0, 2).map((tag) => (
                   <span
                     key={tag}
                     className="rounded-full border border-(--border) px-1.5 py-0 text-[var(--text-secondary)]"
@@ -617,11 +485,9 @@ export default function LlamaCppModels({
               </div>
 
               <div className="flex items-center justify-between text-[10.5px] text-[var(--text-muted)]">
+                <span>{formatBytes(repo.totalSize)}</span>
                 <span>
-                  {t("llamacpp.catalogSize")}: {entry.sizeRange}
-                </span>
-                <span>
-                  {entry.downloads.toLocaleString()} {t("llamacpp.downloads")}
+                  {repo.downloads.toLocaleString()} {t("llamacpp.downloads")}
                 </span>
               </div>
 
@@ -634,7 +500,7 @@ export default function LlamaCppModels({
               <button
                 type="button"
                 disabled={serverRunning || isInstalled}
-                onClick={() => void handleSelectCatalogModel(entry)}
+                onClick={() => void handleSelectRepo(repo)}
                 className={
                   serverRunning
                     ? "flex items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-medium text-[var(--text-secondary)] cursor-not-allowed"
@@ -1019,7 +885,12 @@ export default function LlamaCppModels({
             disabled={starting || models.length === 0}
             onClick={() => {
               if (models.length === 0) return;
-              void handleStartServer(models[0].id);
+              // Prefer the user's currently selected model; fall back to the
+              // first available one so the server always has a file to serve.
+              const pick =
+                (selectedModelId && models.find((m) => m.id === selectedModelId)) ||
+                models[0];
+              void handleStartServer(pick.id);
             }}
             className="flex items-center justify-center gap-1.5 rounded-md bg-(--accent) px-3 py-2 text-[12px] font-semibold text-(--on-accent) transition hover:opacity-90 disabled:opacity-50"
           >
@@ -1060,7 +931,10 @@ export default function LlamaCppModels({
         </p>
       )}
       <div className="flex flex-col gap-1.5">
-        {models.map((model) => (
+        {models.map((model) => {
+          const owner = model.repoId?.split("/")[0] ?? null;
+          const isServing = serverRunning && server?.modelId === model.id;
+          return (
           <div
             key={model.id}
             className={`group flex items-center gap-2 rounded-lg border px-3 py-2 transition ${
@@ -1090,14 +964,49 @@ export default function LlamaCppModels({
               </span>
               <span className="min-w-0">
                 <span className="block truncate text-[12px] font-medium text-[var(--text-primary)]">
-                  {model.fileName}
+                  {model.displayName}
                 </span>
-                <div className="block text-[10px] text-[var(--text-muted)]">
-                  {model.quant ? `${model.quant} · ` : ""}
+                <div className="flex flex-wrap items-baseline gap-1 text-[10px] text-[var(--text-muted)]">
+                  {owner && (
+                    <span className="inline-flex items-center gap-0.5 text-[var(--text-secondary)]">
+                      <IoPersonCircle size={10} className="text-[var(--text-secondary)]" />
+                      {owner}
+                    </span>
+                  )}
+                  <span>·</span>
+                  {model.fileName}
+                  <span>·</span>
+                  {model.quant || "—"}
+                  <span>·</span>
                   {formatBytes(model.size)}
-                  {serverRunning && server?.modelId === model.id ? ` · ${t("llamacpp.serving")}` : ""}
+                  {isServing ? (
+                    <span className="text-[var(--success)]">· {t("llamacpp.serving")}</span>
+                  ) : null}
                 </div>
               </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!serverRunning) {
+                  void handleStartServer(model.id);
+                }
+              }}
+              disabled={starting || serverRunning}
+              title={
+                isServing
+                  ? t("llamacpp.loadModelRunning")
+                  : serverRunning
+                    ? t("llamacpp.loadModelRunning")
+                    : t("llamacpp.loadModelA11y", { name: model.fileName })
+              }
+              className="shrink-0 rounded-md px-2 py-1 text-[11px] font-medium text-[var(--text-secondary)] hover:bg-(--fill-2) hover:text-[var(--text-primary)] disabled:cursor-not-allowed"
+            >
+              {isServing ? (
+                <IoCheckmarkCircle size={12} className="text-[var(--success)]" />
+              ) : (
+                t("llamacpp.loadModel")
+              )}
             </button>
             <button
               type="button"
@@ -1109,7 +1018,8 @@ export default function LlamaCppModels({
               <IoTrash size={13} />
             </button>
           </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

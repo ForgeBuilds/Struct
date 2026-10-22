@@ -1604,20 +1604,71 @@ export default function SettingsPanel({
                   ].map((s) => (
                     <div
                       key={s.label}
-                      className="rounded-lg border border-(--border) bg-(--fill-1) px-3 py-2.5"
+                      className="relative overflow-hidden rounded-lg border border-(--border) bg-(--fill-1) px-3 py-2.5"
                     >
-                      <p className="text-[10px] uppercase tracking-wide text-[var(--text-faint)]">
+                      <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-(--accent) to-transparent opacity-60" />
+                      <p className="text-[9px] uppercase tracking-wide text-[var(--text-faint)]">
                         {s.label}
                       </p>
-                      <p className="mt-1 text-[15px] font-semibold tabular-nums text-[var(--text-primary)]">
+                      <p className="mt-0.5 text-[15px] font-semibold tabular-nums text-[var(--text-primary)]">
                         {formatTokens(s.value)}
                       </p>
                     </div>
                   ))}
                 </div>
 
+                <div className="mt-3 flex items-baseline justify-between rounded-lg border border-(--border) bg-(--fill-1) px-3 py-2.5">
+                  <div>
+                    <p className="text-[9px] uppercase tracking-wide text-[var(--text-faint)]">
+                      {t("settings.dashTotalTokens")}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">
+                      {t("settings.dashTotalDesc")}
+                    </p>
+                  </div>
+                  <p className="text-[15px] font-semibold tabular-nums text-[var(--text-primary)]">
+                    {formatTokens(usageSnapshot.totalTokens)}
+                  </p>
+                </div>
+
+                {rateSettings.maxTokensPerDay > 0 && (() => {
+                  const todayTotal = usageSnapshot.today.input + usageSnapshot.today.output;
+                  const dailyLimit = rateSettings.maxTokensPerDay;
+                  const dailyPct = Math.min(100, Math.round((todayTotal / dailyLimit) * 100));
+                  const dailyRemaining = Math.max(0, dailyLimit - todayTotal);
+                  return (
+                    <>
+                      <SectionTitle>{t("settings.dashBudget")}</SectionTitle>
+                      <div className="rounded-lg border border-(--border) bg-(--fill-1) px-3 py-2.5">
+                        <div className="mb-1.5 flex items-center justify-between text-[10.5px]">
+                          <span className="text-[var(--text-muted)]">
+                            {t("settings.dashDailyBudget", {
+                              used: formatTokens(todayTotal),
+                              limit: formatTokens(dailyLimit),
+                            })}
+                          </span>
+                          <span className="tabular-nums font-medium text-[var(--text-primary)]">
+                            {dailyPct}%
+                          </span>
+                        </div>
+                        <div className="h-2.5 w-full rounded-full bg-(--fill-2)">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{
+                              width: `${dailyPct}%`,
+                              backgroundColor: dailyPct >= 90 ? "var(--danger)" : dailyPct >= 75 ? "var(--warning)" : "var(--accent)",
+                            }}
+                          />
+                        </div>
+                        <div className="mt-1 text-[10px] text-[var(--text-faint)]">
+                          {t("settings.dashRemaining", { remaining: formatTokens(dailyRemaining) })}
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
                 <SectionTitle>{t("settings.dash7")}</SectionTitle>
-                <div className="flex h-24 items-end gap-1.5">
+                <div className="flex h-28 items-end gap-1.5">
                   {usageSnapshot.last7.map((d) => {
                     const total = d.input + d.output;
                     const max = Math.max(
@@ -1634,12 +1685,14 @@ export default function SettingsPanel({
                         title={`${t("settings.dashDayTitle", { date: d.date, total: total.toLocaleString() })} \u00b7 ${t("settings.dashDayReq", { req: d.requests })}`}
                       >
                         <span className="text-[9px] tabular-nums text-[var(--text-faint)]">
-                          {total > 0 ? formatTokens(total) : ""}
+                          {total > 0 ? formatTokens(total) : "—"}
                         </span>
-                        <div
-                          className="w-full rounded-t-sm bg-(--accent)/70"
-                          style={{ height: `${Math.max(4, Math.round((total / max) * 72))}px` }}
-                        />
+                        <div className="relative w-full">
+                          <div
+                            className="w-full rounded-t-sm bg-gradient-to-t from-(--accent)/70 to-(--accent)/40"
+                            style={{ height: `${Math.max(4, Math.round((total / max) * 80))}px` }}
+                          />
+                        </div>
                         <span className="text-[9.5px] text-[var(--text-faint)]">{dayLabel}</span>
                       </div>
                     );

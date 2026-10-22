@@ -565,11 +565,12 @@ function licenseOf(tags) {
  */
 async function listModelFiles(repoId) {
   const safe = String(repoId || '').trim()
-  if (!safe || !/^[\w.-]+\/[\w.-]+$/.test(safe)) {
+  // Allow raw slashes (owner/repo) or URL-encoded (%2F)
+  if (!safe || !/^[\w.-]+(\/[\w.-]+|%2F)+[\w.-]*$/.test(safe)) {
     throw new Error('Invalid Hugging Face repository id.')
   }
   const data = await fetchJson(
-    `${HF_BASE}/api/models/${encodeURIComponent(safe)}?blobs=true`,
+    `${HF_BASE}/api/models/${safe.replace(/%2F/g, '/')}?blobs=true`,
   )
   const siblings = Array.isArray(data.siblings) ? data.siblings : []
   const files = []
