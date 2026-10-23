@@ -591,6 +591,35 @@ async function waitForReady(port, timeoutMs = 120000) {
 }
 
 /**
+ * List local GGUF model files installed in the model directory.
+ */
+async function listLocalModels() {
+  const modelsDir = modelsDir()
+  let files = []
+  try {
+    const entries = await readdir(modelsDir, { withFileTypes: true })
+    for (const entry of entries) {
+      if (entry.isFile()) {
+        const stat = await stat(join(modelsDir, entry.name))
+        files.push({
+          id: entry.name,
+          path: join(modelsDir, entry.name),
+          fileName: entry.name,
+          repoId: null,
+          displayName: entry.name,
+          quant: null,
+          size: stat.size,
+          modifiedAt: stat.mtimeMs,
+        })
+      }
+    }
+  } catch {
+    // If we can't read the directory, return empty list
+  }
+  return files
+}
+
+/**
  * Start `llama-server` for a local model.
  *
  * The server speaks the OpenAI-compatible API, so the renderer can talk to it
@@ -667,6 +696,32 @@ async function startServer(modelId, options = {}) {
   }
   server.startedAt = Date.now()
   return serverStatus()
+}
+
+/**
+ * Delete a local model file from the model directory.
+ */
+async function deleteLocalModel(id) {
+  const modelsDir = modelsDir()
+  const modelPath = join(modelsDir, id)
+  try {
+    await rm(modelPath)
+    return { id }
+  } catch {
+    return { id: null }
+  }
+}
+
+/** Get the status of the running llama-server. */
+function serverStatus() {
+  return {
+    running: server.proc && server.proc.exitCode === null,
+    port: server.port || 0,
+    url: server.port ? `http://127.0.0.1:${server.port}` : null,
+    modelId: server.modelId || null,
+    modelPath: server.modelPath || null,
+    startedAt: server.startedAt || 0,
+  }
 }
 
 /** Ask the running server which models it serves. */

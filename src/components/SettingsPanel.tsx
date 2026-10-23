@@ -1592,9 +1592,9 @@ export default function SettingsPanel({
                   ].map((s) => (
                     <div
                       key={s.label}
-                      className="relative overflow-hidden rounded-lg border border-(--border) bg-(--fill-1) px-3 py-2.5"
+                      className="relative overflow-hidden rounded-lg bg-(--fill-1) px-3 py-2.5"
                     >
-                      <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-(--accent) to-transparent opacity-60" />
+                    
                       <p className="text-[9px] uppercase tracking-wide text-[var(--text-faint)]">
                         {s.label}
                       </p>
@@ -1605,7 +1605,7 @@ export default function SettingsPanel({
                   ))}
                 </div>
 
-                <div className="mt-3 flex items-baseline justify-between rounded-lg border border-(--border) bg-(--fill-1) px-3 py-2.5">
+                <div className="mt-3 flex items-baseline justify-between rounded-lg bg-(--fill-1) px-3 py-2.5">
                   <div>
                     <p className="text-[9px] uppercase tracking-wide text-[var(--text-faint)]">
                       {t("settings.dashTotalTokens")}
@@ -1627,7 +1627,7 @@ export default function SettingsPanel({
                   return (
                     <>
                       <SectionTitle>{t("settings.dashBudget")}</SectionTitle>
-                      <div className="rounded-lg border border-(--border) bg-(--fill-1) px-3 py-2.5">
+                      <div className="rounded-lg bg-(--fill-1) px-3 py-2.5">
                         <div className="mb-1.5 flex items-center justify-between text-[10.5px]">
                           <span className="text-[var(--text-muted)]">
                             {t("settings.dashDailyBudget", {
@@ -1655,7 +1655,8 @@ export default function SettingsPanel({
                     </>
                   );
                 })()}
-                <SectionTitle>{t("settings.dash7")}</SectionTitle>
+                
+                {/* <SectionTitle>{t("settings.dash7")}</SectionTitle> **THis graph is pretty much repeating what the other functions do so removing is more beneficial
                 <div className="flex h-28 items-end gap-1.5">
                   {usageSnapshot.last7.map((d) => {
                     const total = d.input + d.output;
@@ -1685,7 +1686,7 @@ export default function SettingsPanel({
                       </div>
                     );
                   })}
-                </div>
+                </div> */}
 
                 <SectionTitle>{t("settings.dashRates")}</SectionTitle>
                 <Row title={t("settings.dashEnforce")} description={t("settings.dashEnforceDesc")}>
@@ -1733,7 +1734,7 @@ export default function SettingsPanel({
                   />
                 </Row>
 
-                <SectionTitle>{t("settings.dashRecent")}</SectionTitle>
+                {/* <SectionTitle>{t("settings.dashRecent")}</SectionTitle>
                 {usageSnapshot.recent.length === 0 ? (
                   <p className="text-[11.5px] text-[var(--text-muted)]">
                     {t("settings.dashEmpty")}
@@ -1754,7 +1755,7 @@ export default function SettingsPanel({
                       </div>
                     ))}
                   </div>
-                )}
+                )} */}
 
                 <Row title={t("settings.dashReset")} description={t("settings.dashResetDesc")}>
                   <button
@@ -1908,7 +1909,7 @@ export default function SettingsPanel({
                   ))}
                 </div>
 
-</div>
+           </div>
             )}
             </div>
           </div>

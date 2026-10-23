@@ -1,7 +1,7 @@
 /*
  * Gmail for Struct's agent — App Password auth + direct IMAP/SMTP via main.
  *
- * No Google Cloud Console, no OAuth: the user enables 2-Step Verification on
+ * the user enables 2-Step Verification on
  * their Google account, creates an App Password, and pastes email + password
  * here. All protocol work (IMAP search/read, SMTP send) runs in the Electron
  * main process over TLS (node builtins) — the renderer never touches sockets.

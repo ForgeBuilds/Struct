@@ -1,3 +1,6 @@
+
+//If youre trying to change the string content from say one of the functions go 
+// to i18n.ts to change it as i did this to maintain the multiple language compatibility and i apologize if its obscure 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { IoArrowBack, IoClose, IoExtensionPuzzle } from "react-icons/io5";
@@ -31,14 +34,7 @@ interface Props {
 
 type View = "picker" | "gmail" | "spotify";
 
-/**
- * Plugins panel — the sidebar entry point for connecting the agent to external
- * services. Each tile opens its own setup view; Gmail signs in with an App
- * Password (2-Step Verification, no Cloud Console) over direct IMAP/SMTP.
- *
- * Portaled to document.body so it isn't clipped by the sidebar <aside>, which
- * is overflow-hidden and (with glass on) a backdrop-filter containing block.
- */
+
 export default function PluginsPanel({ isOpen = false, onClose = () => {}, inline = false }: Props) {
   const { t } = useTranslation();
   const { reportError } = useErrorHandler();
@@ -190,7 +186,7 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
       </button>
       <button
         title={t("plugins.comingSoon")}
-        onClick ={()=>null}
+        onClick ={()=>alert("Visit the mcp section inside the AI settings section")}
         className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-2) px-3 py-2.5 text-left opacity-60 hover:bg-(--fill-3) w-50"
       >
         <img src={robloxIcon} alt="" className="h-8 w-8 shrink-0" />
