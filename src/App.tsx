@@ -2519,14 +2519,18 @@ MCP call rules:
                 <IoMenu size={15} />
               </button>
              
-              {workspaceRoot && (
+             {workspaceRoot && (
+              <div className="flex items-center gap-1 rounded bg-(--fill-1) px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)] hover:bg-(--fill-2)">
+                <button
+                  type="button"
                 
-                <div className="flex items-center gap-1 rounded bg-(--fill-1) px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)] hover:bg-(--fill-2)">
-                  <button onClick = {()=>openWorkspaceFolder()} className= " flex items-center gap-2">
-                  <span><IoFolderOutline/>
-                  </span> {shortPath(workspaceRoot)}</button>
-                </div>
-              )}
+                  className="flex items-center gap-2"
+                >
+                  <IoFolderOutline />
+                  {shortPath(workspaceRoot)}
+                </button>
+              </div>
+            )}
               {activeEditorPath && (
                 <div className="flex items-center gap-1 rounded border border-(--border) bg-(--fill-1) px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]">
                   <span>

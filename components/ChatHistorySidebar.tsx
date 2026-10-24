@@ -236,7 +236,7 @@ export default function ChatHistorySidebar({
                 {menu.label}
               </button>
             ))}
-            {onOpenCommandPalette && (
+            {/* {onOpenCommandPalette && (
               <button
                 type="button"
                 onClick={onOpenCommandPalette}
@@ -245,7 +245,7 @@ export default function ChatHistorySidebar({
                 className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[var(--text-muted)] transition-colors hover:bg-(--fill-1) hover:text-[var(--text-primary)]">
                 <IoSearch size={13} />
               </button>
-            )}
+            )} */}
 
             {openMenuDef && (
               <div className="panel-in absolute left-1.5 top-full z-50 mt-1 w-60 overflow-hidden rounded-[5px] border border-(--border) bg-[var(--bg-elevated)] p-[3px]">
@@ -283,7 +283,7 @@ export default function ChatHistorySidebar({
                 placeholder={t("history.searchChats")}
                 spellCheck={false}
                 aria-label={t("history.searchChats")}
-                className="h-6 w-full rounded-md bg-(--fill-1) pl-6 pr-2 text-[11.5px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-faint)] focus:bg-(--fill-2)"
+                className="h-6 w-full rounded-md bg-(--fill-1) pl-6 pr-2 text-[11.5px] text-[var(--text-primary)] placeholder:text-[var(--text-faint)] "
               />
             </div>
             <button type="button" onClick={onNewChat} title={t("history.newChat")} aria-label={t("history.newChat")} className={ICON_BUTTON}>

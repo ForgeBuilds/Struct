@@ -1,6 +1,6 @@
 /*
  * Author: madhusudhan
- * Check the LICENSE in the GitHub repo (https://github.com/Lumorix-studios/Neo) for more information on permissions to use this code.
+ * Check the LICENSE in the GitHub repo (https://github.com/ForgeBuilds/Struct) for more information on permissions to use this code.
  */
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import { useTranslation } from "../i18n";
@@ -238,7 +238,7 @@ const SECTIONS: SectionMeta[] = [
   },
   {
     id: "ai",
-    label: "AI",
+    label: "AI Settings",
     hint: "Providers, models, keys and MCP tools",
     group: "Workspace",
     labelKey: "settings.ai",
@@ -276,16 +276,16 @@ const SECTIONS: SectionMeta[] = [
     groupKey: "settings.navGroupWorkspace",
     keywords: "tools",
   },
-  {
-    id: "shortcuts",
-    label: "Shortcuts",
-    hint: "Keyboard bindings at a glance",
-    group: "Workspace",
-    labelKey: "settings.shortcuts",
-    hintKey: "settings.hintShortcuts",
-    groupKey: "settings.navGroupWorkspace",
-    keywords: "keyboard keys hotkeys bindings commands",
-  },
+  // {
+  //   id: "shortcuts",
+  //   label: "Shortcuts",
+  //   hint: "Keyboard bindings at a glance",
+  //   group: "Workspace",
+  //   labelKey: "settings.shortcuts",
+  //   hintKey: "settings.hintShortcuts",
+  //   groupKey: "settings.navGroupWorkspace",
+  //   keywords: "keyboard keys hotkeys bindings commands",
+  // },
   {
     id: "terminal",
     label: "Terminal",
@@ -318,17 +318,17 @@ const SECTIONS: SectionMeta[] = [
   },
 ];
 
-const SHORTCUTS: Array<[string, string, string]> = [
-  ["Ctrl+Shift+P", "Command palette", "settings.scCommand"],
-  ["Ctrl+B", "Open AI settings", "settings.scAi"],
-  ["Ctrl+Shift+E", "Toggle code editor", "settings.scEditor"],
-  ["Ctrl+Shift+G", "Toggle git panel", "settings.scGit"],
-  ["Ctrl+Shift+H", "Toggle chat history", "settings.scHistory"],
-  ["Ctrl+`", "Toggle terminal dock", "settings.scTerm"],
-  ["Ctrl+S", "Save active file", "settings.scSave"],
-  ["Ctrl+/", "Toggle line comment", "settings.scComment"],
-  ["Ctrl+,", "Open settings", "settings.scSettings"],
-];
+// const SHORTCUTS: Array<[string, string, string]> = [
+//   ["Ctrl+Shift+P", "Command palette", "settings.scCommand"],
+//   ["Ctrl+B", "Open AI settings", "settings.scAi"],
+//   ["Ctrl+Shift+E", "Toggle code editor", "settings.scEditor"],
+//   ["Ctrl+Shift+G", "Toggle git panel", "settings.scGit"],
+//   ["Ctrl+Shift+H", "Toggle chat history", "settings.scHistory"],
+//   ["Ctrl+`", "Toggle terminal dock", "settings.scTerm"],
+//   ["Ctrl+S", "Save active file", "settings.scSave"],
+//   ["Ctrl+/", "Toggle line comment", "settings.scComment"],
+//   ["Ctrl+,", "Open settings", "settings.scSettings"],
+// ];
 
 
 const ACCENT_LABEL_KEYS: Record<string, string> = {
@@ -1540,7 +1540,7 @@ export default function SettingsPanel({
                 <PluginsPanel inline />
               </div>
             )}
-            {section === "shortcuts" && (
+            {/* {section === "shortcuts" && (
               <div>
                 <SectionTitle>{t("settings.kbTitle")}</SectionTitle>
                 <div className="overflow-hidden rounded-lg border border-(--border)">
@@ -1555,7 +1555,7 @@ export default function SettingsPanel({
                   ))}
                 </div>
               </div>
-            )}
+            )} */}
 
 
             {section === "terminal" && (

@@ -359,3 +359,204 @@ button,
   pointer-events: none;
   background: linear-gradient(to bottom, rgba(255, 255, 255, 0.03), transparent);
 }
+/* CodeComparison component styles */
+.code-comparison {
+  --highlight-color: #facc15;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+  background: #0d1117;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+}
+
+.code-comparison__header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.code-comparison__filename {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.code-comparison__labels {
+  display: flex;
+  gap: 1rem;
+  margin: 0 0.5rem;
+}
+
+.code-comparison__label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.code-comparison__label--before {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.15);
+}
+
+.code-comparison__label--after {
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.15);
+}
+
+.code-comparison__vsm {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.2em;
+  padding: 0.25rem 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.25rem;
+  flex-shrink: 0;
+}
+
+.code-comparison__body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  overflow: hidden;
+}
+
+.code-comparison__pane {
+  overflow: auto;
+  padding: 1rem;
+  background: #0d1117;
+  color: #e6edf3;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  tab-size: 2;
+}
+
+.code-comparison__pane--before {
+  scrollbar-color: rgba(248, 113, 113, 0.5) #0d1117;
+}
+
+.code-comparison__pane--after {
+  scrollbar-color: rgba(52, 211, 153, 0.5) #0d1117;
+}
+
+/* Shiki syntax highlighting overrides */
+.code-comparison .shiki {
+  color: #e6edf3 !important;
+}
+
+.code-comparison .shiki .line {
+  display: block;
+}
+
+.code-comparison .shiki .line.add {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34d399;
+}
+
+.code-comparison .shiki .line.remove {
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+}
+
+.code-comparison .shiki .token.comment,
+.code-comparison .shiki .token.prolog,
+.code-comparison .shiki .token.doctype,
+.code-comparison .shiki .token.cdata {
+  color: #6a9955;
+}
+
+.code-comparison .shiki .token.punctuation {
+  color: #8b949e;
+}
+
+.code-comparison .shiki .token.property,
+.code-comparison .shiki .token.keyword {
+  color: #ff7b72;
+}
+
+.code-comparison .shiki .token.selector,
+.code-comparison .shiki .token.class-name,
+.code-comparison .shiki .token.builtin {
+  color: #d2a8ff;
+}
+
+.code-comparison .shiki .token.string,
+.code-comparison .shiki .token.url {
+  color: #a5d6ff;
+}
+
+.code-comparison .shiki .token.constant,
+.code-comparison .shiki .token.symbol,
+.code-comparison .shiki .token.deleted {
+  color: #f87171;
+}
+
+.code-comparison .shiki .token.variable {
+  color: #ffa657;
+}
+
+.code-comparison .shiki .token.attribute-name,
+.code-comparison .shiki .token.builtin-name {
+  color: #7ee787;
+}
+
+.code-comparison .shiki .token.boolean {
+  color: #ff7b72;
+}
+
+.code-comparison .shiki .token.number {
+  color: #ff7b72;
+}
+
+.code-comparison .shiki .token.regex,
+.code-comparison .shiki .token.important,
+.code-comparison .shiki .token.atrule,
+.code-comparison .shiki .token.keyword {
+  color: #d2a8ff;
+}
+
+.code-comparison .shiki .token.function,
+.code-comparison .shiki .token.selector {
+  color: #d2a8ff;
+}
+
+.code-comparison .shiki .token.attr-value,
+.code-comparison .shiki .token.self-closing-tag {
+  color: #a5d6ff;
+}
+
+.code-comparison .shiki .token.markup,
+.code-comparison .shiki .token.highlighted {
+  background: rgba(250, 204, 21, 0.15);
+  color: #facc15;
+}
+
+.code-comparison .shiki .token.cdata {
+  color: #6a9955;
+}
+
+.code-comparison .shiki .token.code {
+  color: #e6edf3;
+}
+
+/* Responsive: stack panes on small screens */
+@media (max-width: 768px) {
+  .code-comparison__body {
+    grid-template-columns: 1fr;
+  }
+}
