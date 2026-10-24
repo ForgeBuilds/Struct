@@ -134,7 +134,7 @@ export default function ChatHistorySidebar({
   const pinned = new Set(pinnedPaths ?? []);
   /** Workspace entries for the Context menu — files are pinnable, folders are informational. */
   const contextItems: MenuDef["items"] = (contextEntries ?? []).slice(0, 25).map((e) => ({
-    label: `${pinned.has(e.path) ? "📌 " : ""}${e.is_dir ? "📁 " : "📄 "}${e.name}`,
+    label: `${pinned.has(e.path) ? "📌 " : ""}${e.is_dir ? "📁 " : "📄"}${e.name}`,
     action: () => onPinFile?.(e.path),
     disabled: e.is_dir || !onPinFile,
   }));
@@ -242,8 +242,7 @@ export default function ChatHistorySidebar({
                 onClick={onOpenCommandPalette}
                 title={t("history.commandHint")}
                 aria-label={t("history.commandSearch")}
-                className={`ml-auto ${ICON_BUTTON}`}
-              >
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[var(--text-muted)] transition-colors hover:bg-(--fill-1) hover:text-[var(--text-primary)]">
                 <IoSearch size={13} />
               </button>
             )}
