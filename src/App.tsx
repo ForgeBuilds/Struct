@@ -2592,21 +2592,21 @@ const handleAnimationComplete = () => {
             >
               {messages.length === 0 ? (
                 <div className="relative flex min-h-full items-center justify-center px-6">
-                  <div className="msg-in relative z-0 w-full  pb-24 text-center" data-debug="welcome-wrap">
+                  
+                  <div className="msg-in relative z-0 w-full pb-24 text-center" data-debug="welcome-wrap">
                 
                      <BlurText
-                          text="Ready to start?"
+                          text="Ready to start working?"
                           effect="blur"
                           animateBy="words"
                           direction="top"
-                          
                           trigger="view"
                           delay={200}
                           stepDuration={0.35}
                           blur={10}
                           distance={50}
                           onAnimationComplete={handleAnimationComplete}
-                          className="text-2xl mb-8 mx-auto"
+                          className="text-2xl mb-8 mx-50"
                           loop={false}
                           loopDelay={2}
                           focusOnHover={false}
@@ -2614,6 +2614,7 @@ const handleAnimationComplete = () => {
                     
 
                     <div className="mx-auto mt-1 grid w-full max-w-lg grid-cols-1 gap-1.5 text-left sm:grid-cols-2">
+                      
                       <button
                         type="button"
                         onClick={() => {
