@@ -25,7 +25,7 @@ if (process.platform === 'linux' && !process.argv.some((a) => a.startsWith('--oz
 
 const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron')
 const { spawn } = require('node:child_process')
-const { existsSync, statSync, createWriteStream } = require('node:fs')
+const { existsSync, statSync, createWriteStream, chmodSync } = require('node:fs')
 const { copyFile, mkdir, readdir, readFile, rename, rm, stat, writeFile } = require('node:fs/promises')
 const { homedir } = require('node:os')
 const { basename, dirname, join } = require('node:path')
@@ -1235,9 +1235,39 @@ function dlFile(url) {
 function launchDl(a) {
   const t = String(a.path || '')
   if (!t || !existsSync(t)) throw new Error('Downloaded file not found')
-  const child = spawn(t, [], { detached: true, stdio: 'ignore', windowsHide: true, shell: /\.(msi|bat|cmd|ps1)$/i.test(t) })
+
+  const isWindows = process.platform === 'win32'
+  const isLinux = process.platform === 'linux'
+  const isMac = process.platform === 'darwin'
+
+  // Set up spawn options based on platform
+  const spawnOptions = {
+    detached: true,
+    stdio: 'ignore',
+  }
+
+  // Windows: hide console for installer files, use shell for recognized extensions
+  if (isWindows) {
+    spawnOptions.windowsHide = true
+    spawnOptions.shell = /\.(msi|bat|cmd|ps1)$/i.test(t)
+  } else {
+    // Linux/macOS: ensure the file is executable before launching
+    try {
+      chmodSync(t, 0o755)
+    } catch (e) {
+      // chmod may fail if running as non-root in some contexts; continue anyway
+    }
+
+    // On Linux, use shell to handle the executable properly
+    // On macOS, avoid shell for DMG files; use direct spawn
+    spawnOptions.shell = isLinux
+  }
+
+  const child = spawn(t, [], spawnOptions)
   if (child.unref) child.unref()
-  setTimeout(() => app.quit(), 1500)
+  // On non-Windows, give a slightly longer timeout for process startup
+  const timeoutMs = isWindows ? 1500 : 2500
+  setTimeout(() => app.quit(), timeoutMs)
   return null
 }
 function needWin() {

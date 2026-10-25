@@ -1,10 +1,5 @@
 /*
- * Chat history sidebar — flat session list with search, date grouping and
- * inline delete. Purely presentational: session state lives in App.
- *
- * Also home to the app-level controls that used to live in the removed top
- * menu: the Context/File/View/Help dropdown menus and the command-palette
- * search button.
+ * Chat history sidebar — flat session list with search, date grouping
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChatSession } from "../src/types";

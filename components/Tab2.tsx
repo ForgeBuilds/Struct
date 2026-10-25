@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { openExternalUrl as openUrl } from "../src/lib/external";
 import { useErrorHandler } from "../src/errorContext";
-import { IoClose, IoStar, IoStarOutline } from "react-icons/io5";
+import { IoStar, IoStarOutline } from "react-icons/io5";
 
 interface Tab2Props {
   isOpen: boolean;
@@ -13,7 +13,7 @@ export default function Tab2({ isOpen, onClose }: Tab2Props) {
   const [hover, setHover] = useState(0);
   void setRating;
   const { reportError } = useErrorHandler();
-
+//laziest way to send stars ik
   const openFeedback = async () => {
     try {
       await openUrl("mailto:madhusudhant207@gmail.com");
@@ -29,20 +29,13 @@ export default function Tab2({ isOpen, onClose }: Tab2Props) {
       className="dialog-backdrop fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-6"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-md overflow-hidden rounded-lg border border-(--border-strong) bg-[var(--bg-elevated)]">
+      <div className="w-full max-w-md overflow-hidden rounded-lg bg-[var(--bg-elevated)]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-(--border) px-5 py-4">
+        <div className="flex items-center justify-between px-5 py-4">
           <div>
             <h2 className="m-0 text-[14px] font-semibold text-[var(--text-primary)]">Rate Struct</h2>
-            <p className="m-0 text-[11.5px] text-[var(--text-muted)]">Lumorix Studios</p>
+            <p className="m-0 text-[11.5px] text-[var(--text-muted)]"></p>
           </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
-          >
-            <IoClose size={12} />
-          </button>
         </div>
 
         {/* Body */}
@@ -81,8 +74,8 @@ export default function Tab2({ isOpen, onClose }: Tab2Props) {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between border-t border-(--border) px-5 py-3">
-          <span className="text-[10.5px] text-[var(--text-muted)]">© 2026 Lumorix Studios</span>
+        <div className="flex items-center justify-between  px-5 py-3">
+          <span className="text-[10.5px] text-[var(--text-muted)]">© 2026 ForgeBuilds</span>
           <button
             onClick={onClose}
             className="rounded-md bg-(--accent) px-3.5 py-1.5 text-[12px] font-semibold text-(--on-accent) transition hover:opacity-90"
