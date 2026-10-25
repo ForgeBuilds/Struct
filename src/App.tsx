@@ -2599,7 +2599,7 @@ const handleAnimationComplete = () => {
                           effect="blur"
                           animateBy="words"
                           direction="top"
-                          staggerFrom="start"
+                          
                           trigger="view"
                           delay={200}
                           stepDuration={0.35}
