@@ -468,9 +468,10 @@ export default function App() {
   // Late-bound so the Ctrl+Shift+O shortcut always calls the current closure.
   const openWorkspaceRef = useRef<() => void>(() => {});
   // Workspace root shared with the IDE window via a persisted localStorage key.
-  const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(() =>
-    localStorage.getItem(SHARED_WS_KEY)
-  );
+  const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(() => {
+    const saved = localStorage.getItem(SHARED_WS_KEY);
+    return saved || homeRoot;
+  });
   // Default working directory when no folder is open: the user's home dir.
   // Fetched once from the native layer (null in plain-browser dev mode) so
   // the agent can list/read/search and run commands anywhere the user asks,
@@ -2519,11 +2520,11 @@ MCP call rules:
                 <IoMenu size={15} />
               </button>
              
-             {workspaceRoot && (
+             {true && (
               <div className="flex items-center gap-1 rounded bg-(--fill-1) px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)] hover:bg-(--fill-2)">
                 <button
                   type="button"
-                
+                  onClick = {openWorkspaceFolder}
                   className="flex items-center gap-2"
                 >
                   <IoFolderOutline />

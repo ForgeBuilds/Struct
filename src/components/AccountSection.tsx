@@ -19,11 +19,11 @@ interface AccountSectionProps {
   onAccountRefresh: () => void;
 }
 
-function providerName(provider: string | null | undefined): string {
-  if (provider === "github") return "GitHub";
-  if (provider === "google") return "Google";
-  return "Email";
-}
+// function providerName(provider: string | null | undefined): string {
+//   if (provider === "github") return "GitHub";
+//   if (provider === "google") return "Google";
+//   return "Email";
+// }
 
 function memberSince(value: string | null | undefined): string | null {
   if (!value) return null;
@@ -128,7 +128,7 @@ const AccountSection = memo(function AccountSection({
     }
     setBusy(false);
   };
-
+//this shouldnt show on production builds as in the repo it should already have been configured 
   if (!isSupabaseConfigured) {
     return (
       <p className="text-[11.5px] leading-5 text-[var(--text-muted)]">
@@ -193,11 +193,11 @@ const AccountSection = memo(function AccountSection({
                 </button>
               )}
             </Row>
-            <Row title="Signed in with">
+            {/* <Row title="Signed in with">
               <span className="text-[11.5px] text-[var(--text-secondary)]">
                 {providerName(account.provider)}
               </span>
-            </Row>
+            </Row> */}
             {since && (
               <Row title="Member since">
                 <span className="text-[11.5px] text-[var(--text-secondary)]">{since}</span>

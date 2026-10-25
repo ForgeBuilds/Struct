@@ -57,10 +57,10 @@ import PluginsPanel from "../../components/plugins";
 
 export type SectionId =
   | "dashboard"
-  | "appearance"
+  | "Theme"
   | "ai"
   | "editor"
-  | "terminal"
+  //| "terminal"
   | "files"
   | "plugins"
   | "data"
@@ -227,8 +227,8 @@ const SECTIONS: SectionMeta[] = [
     keywords: "profile email plan sign in sign out sync avatar name",
   },
   {
-    id: "appearance",
-    label: "Appearance",
+    id: "Theme",
+    label: "Change the appearance to your liking",
     hint: "Theme, glass, accent and language",
     group: "Workspace",
     labelKey: "settings.appearance",
@@ -268,7 +268,7 @@ const SECTIONS: SectionMeta[] = [
   },
   {
     id: "plugins",
-    label: "Add new plugins",
+    label: "Plugins",
     hint: "Expand agent tools",
     group: "Workspace",
     labelKey: "settings.labelPlugins",
@@ -286,16 +286,16 @@ const SECTIONS: SectionMeta[] = [
   //   groupKey: "settings.navGroupWorkspace",
   //   keywords: "keyboard keys hotkeys bindings commands",
   // },
-  {
-    id: "terminal",
-    label: "Terminal",
-    hint: "Shell, fonts and scrollback",
-    group: "System",
-    labelKey: "settings.terminal",
-    hintKey: "settings.hintTerminal",
-    groupKey: "settings.navGroupSystem",
-    keywords: "shell command prompt font cursor scrollback",
-  },
+  // {
+  //   id: "terminal",
+  //   label: "Terminal",
+  //   hint: "Shell, fonts and scrollback",
+  //   group: "System",
+  //   labelKey: "settings.terminal",
+  //   hintKey: "settings.hintTerminal",
+  //   groupKey: "settings.navGroupSystem",
+  //   keywords: "shell command prompt font cursor scrollback",
+  // },
   {
     id: "data",
     label: "Privacy & Data",
@@ -374,7 +374,7 @@ export default function SettingsPanel({
   onAccountRefresh,
   workspaceRoot = null,
 }: SettingsPanelProps) {
-  const [section, setSection] = useState<SectionId>("appearance");
+  const [section, setSection] = useState<SectionId>("Theme");
   const { t, language: selectedValue } = useTranslation(open);
   /** Filters the navigation only — section content is untouched. */
   const [navQuery, setNavQuery] = useState("");
@@ -536,7 +536,7 @@ export default function SettingsPanel({
    *  effect event so the `[open]` dependency stays authoritative and editing a
    *  draft is never clobbered by an unrelated settings change. */
   const seedDrafts = useEffectEvent(() => {
-    setSection(initialSection ?? "appearance");
+    setSection(initialSection ?? "Theme");
     setShowLocalModels(false);
     setShowAiKey(false);
   });
@@ -877,7 +877,7 @@ export default function SettingsPanel({
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <div className="mx-auto w-full max-w-3xl px-4 py-4">
 
-            {section === "appearance" && (
+            {section === "Theme" && (
               <div>
                 <SectionTitle>{t("settings.theme")}</SectionTitle>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -1557,8 +1557,8 @@ export default function SettingsPanel({
               </div>
             )} */}
 
-
-            {section === "terminal" && (
+                
+            {/* {section === "terminal" && ( //since the removal of the ide the terminal settings section is useless 
               <div>
                 <SectionTitle>{t("settings.termTypography")}</SectionTitle>
                 <Row title={t("settings.termFontSize")} description={t("settings.termFontSizeDesc")}>
@@ -1579,7 +1579,7 @@ export default function SettingsPanel({
                   {t("settings.termNote")}
                 </p>
               </div>
-            )}
+            )} */}
 
             {section === "dashboard" && (
               <div>
@@ -1830,7 +1830,7 @@ export default function SettingsPanel({
                     <SectionTitle>Cloud data</SectionTitle>
                     <Row
                       title="Delete cloud data"
-                      description="Permanently removes your chats, synced AI settings and stored API keys from your account. Local data is kept."
+                      description="Permanently removes your chats, synced AI settings and stored API keys from your account."
                     >
                       <button
                         type="button"
@@ -1875,20 +1875,16 @@ export default function SettingsPanel({
                   </div>
                   <div>
                     <p className="text-[13px] font-medium text-[var(--text-primary)]">Struct</p>
-                    <p className="text-[11px] text-[var(--text-muted)]">Version 1.12 (Beta)</p>
+                    <p className="text-[11px] text-[var(--text-muted)]">Version 1.15 (Beta)</p>
                   </div>
                 </div>
 
-                <SectionTitle>Important information</SectionTitle>
+                {/* <SectionTitle></SectionTitle> */}
                 <p className="text-[11.5px] leading-5 text-[var(--text-secondary)]">
-                 UI settings, MCP servers, token usage and terminal state are stored
-                 locally on this device. When you sign in, your chats, AI settings, profile and
-                 BYOK API keys are stored in your Supabase account (API keys encrypted
-                 server-side). No telemetry is collected. The AI provider you choose may collect
-                 data according to their own privacy policy.
+                 
                 </p>
                 <p className = "text-[11.5px] leading-5 text-[var(--text-secondary)]">
-                  Struct is in early beta — some features may not work as expected. Please report bugs on the GitHub repository.
+                  Struct is in early beta and some features may not work as expected. Please report bugs on the GitHub repository.
                 </p>
                 <SectionTitle>Links</SectionTitle>
                 <div className="flex flex-col gap-1">
@@ -1901,7 +1897,7 @@ export default function SettingsPanel({
                       href={href}
                       target="_blank"
                       rel="noreferrer"
-                      className="flex items-center justify-between rounded-md border border-(--border) px-3 py-2 text-[12px] text-[var(--text-secondary)] transition hover:bg-(--fill-1) hover:text-[var(--text-primary)]"
+                      className="flex w-35 items-center justify-between rounded-md border border-(--border) px-3 py-2 text-[12px] text-[var(--text-secondary)] transition hover:bg-(--fill-1) hover:text-[var(--text-primary)]"
                     >
                       {label}
                       <IoOpenOutline size={10} />

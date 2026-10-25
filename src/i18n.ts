@@ -49,7 +49,7 @@ export const UI_TRANSLATIONS: Record<LocaleCode, Record<string, string>> = {
   en: {
     "app.settings": "Settings",
     "app.account": "Account",
-    "app.appearance": "Appearance",
+    "app.appearance": "Themes",
     "app.ai": "AI",
     "app.dashboard": "Dashboard",
     "app.files": "Files & Save",
@@ -317,7 +317,7 @@ export const UI_TRANSLATIONS: Record<LocaleCode, Record<string, string>> = {
     "localModels.howItWorks": "How it works",
     "localModels.howItWorksDesc": "Local models run entirely on your device using Ollama. No data leaves your computer. Start the server, pull a model, then select it to chat with it. The selected model will be used as your AI provider.",
     "settings.dashTotalTokens": "Lifetime tokens",
-    "settings.dashTotalDesc": "Total input + output tokens since tracking began.",
+    "settings.dashTotalDesc": "Total token usage",
     "history.today": "Today",
     "history.previous7Days": "Previous 7 days",
     "history.older": "Older",

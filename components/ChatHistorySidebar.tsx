@@ -90,7 +90,7 @@ export default function ChatHistorySidebar({
   onOpenSettings,
   //onOpenPlugins,
   onOpenAccount,
-  onOpenCommandPalette,
+  //onOpenCommandPalette,
   onCheckForUpdates,
   onAnalyzeProject,
   onSaveSession,
@@ -134,7 +134,7 @@ export default function ChatHistorySidebar({
   const pinned = new Set(pinnedPaths ?? []);
   /** Workspace entries for the Context menu — files are pinnable, folders are informational. */
   const contextItems: MenuDef["items"] = (contextEntries ?? []).slice(0, 25).map((e) => ({
-    label: `${pinned.has(e.path) ? "📌 " : ""}${e.is_dir ? "📁 " : "📄"}${e.name}`,
+    label: `${pinned.has(e.path) ? "📌 " : ""}${e.is_dir ? "📁" : "📄"}${e.name}`,
     action: () => onPinFile?.(e.path),
     disabled: e.is_dir || !onPinFile,
   }));
@@ -220,7 +220,9 @@ export default function ChatHistorySidebar({
       {isOpen && (
         <div className="flex h-full w-full flex-col">
           {/* Menus — relocated from the removed top bar */}
+          
           <div ref={menuRef} className="relative flex shrink-0 items-center gap-0.5 px-1.5 pt-2">
+            <img src = "../../src/assets/images/icon.jpeg" className = "h-5 w-5 flex m-1 rounded"/>
             {menus.map((menu) => (
               <button
                 key={menu.label}
