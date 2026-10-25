@@ -23,6 +23,7 @@ import "./editor.css";
 import type { AISettings, ChatSession, Message } from "./types";
 import { DEFAULT_SETTINGS } from "./types";
 import ThinkingIndicator from "../components/ThinkingIndicator";
+import BlurText from "../components/BlurText.tsx";
 import {
   loadSettings,
   saveSettings,
@@ -845,9 +846,11 @@ export default function App() {
       .resolveApiKey(settings.provider, signedIn, accountProfile?.byokEnabled ?? false)
       .then((key) => {
         if (cancelled) return;
-        setSettings((prev) => (prev.apiKey === key ? prev : { ...prev, apiKey: key }));
+        setSettings((prev) => ({ ...prev, apiKey: key }));
       })
-      .catch(() => undefined);
+      .catch((e) => {
+        console.error("Failed to resolve API key:", e);
+      });
     return () => {
       cancelled = true;
     };
@@ -2435,6 +2438,9 @@ MCP call rules:
       setError(`Failed to save session: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
+const handleAnimationComplete = () => {
+  console.log('Animation completed!');
+};
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-[var(--bg-base)] text-[var(--text-primary)] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
@@ -2586,11 +2592,26 @@ MCP call rules:
             >
               {messages.length === 0 ? (
                 <div className="relative flex min-h-full items-center justify-center px-6">
-                  <div className="msg-in relative z-0 w-full max-w-2xl pb-24 text-center" data-debug="welcome-wrap">
+                  <div className="msg-in relative z-0 w-full  pb-24 text-center" data-debug="welcome-wrap">
                 
-                    <h1 className="mb-6 text-[16px] font-medium tracking-tight text-[var(--text-primary)]" data-debug="welcome-heading">
-                      What do you want to build?
-                    </h1>
+                     <BlurText
+                          text="Ready to start?"
+                          effect="blur"
+                          animateBy="words"
+                          direction="top"
+                          staggerFrom="start"
+                          trigger="view"
+                          delay={200}
+                          stepDuration={0.35}
+                          blur={10}
+                          distance={50}
+                          onAnimationComplete={handleAnimationComplete}
+                          className="text-2xl mb-8 mx-auto"
+                          loop={false}
+                          loopDelay={2}
+                          focusOnHover={false}
+                        />
+                    
 
                     <div className="mx-auto mt-1 grid w-full max-w-lg grid-cols-1 gap-1.5 text-left sm:grid-cols-2">
                       <button
@@ -2632,7 +2653,7 @@ MCP call rules:
                       ))}
                     </div>
 
-                    {/* Keyboard shortcuts */}
+                    
                   </div>
                 </div>
               ) : (
