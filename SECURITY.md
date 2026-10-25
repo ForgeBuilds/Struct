@@ -1,13 +1,13 @@
 # Security Policy
 
-**Last Updated:** September 25, 2026
+**Last Updated:** October 25th, 2026
 
 ## Reporting a Vulnerability
 
 If you believe you have found a security vulnerability in Struct,
 please report it privately rather than opening a public issue.
 
-**Email:** security@lumorix.studio
+**Email:** madhusudhant207@gmail.com
 **GitHub:** Use GitHub's "Report a vulnerability" button on the Security tab of
 the repository.
 
@@ -28,7 +28,7 @@ In scope:
 
 * The Struct application and its source code
 * The `api-keys` Supabase Edge Function
-* The Lumorix Studios website account and authentication flows
+* The ForgeBuildsHQ website account and authentication flows
 * The Supabase database schema, RLS policies, and access control
 
 Out of scope:
@@ -47,7 +47,7 @@ AES-256-GCM. If you believe a key has been exposed:
 
 1. Revoke and rotate the key at the provider immediately.
 2. Remove the key from your account in Settings → AI.
-3. Report it to us at security@lumorix.studio so we can investigate server-side
+3. Report it to us so we can investigate server-side
    exposure.
 
 Never commit API keys to a repository, and never paste one into an issue,
