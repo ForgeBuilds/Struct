@@ -2554,7 +2554,7 @@ MCP call rules:
                   dropdown inside the top-menu provider pill) and ticks up live
                   while a reply streams. */}
               <div className="ml-auto flex shrink-0 items-center gap-2 pl-4">
-                <span className="text-[10.5px] font-medium text-[var(--text-muted)]">Tokens</span>
+                <span className="text-[10.5px] font-medium text-[var(--text-muted)]">Context</span>
                 <span
                   className="tabular-nums text-[10px] text-[var(--text-secondary)]"
                   title={
