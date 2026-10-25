@@ -16,11 +16,27 @@
 if (process.platform === 'linux' && !process.argv.some((a) => a.startsWith('--ozone-platform'))) {
   const { spawnSync } = require('node:child_process')
   const platform = process.env.NEO_OZONE_PLATFORM || 'x11'
-  const relaunch = spawnSync(process.execPath, [...process.argv.slice(1), `--ozone-platform=${platform}`], {
-    stdio: 'inherit',
-    env: process.env,
-  })
-  process.exit(relaunch.status ?? 0)
+  // Re-launch with the ozone platform flag. This must happen BEFORE any
+  // Electron main-process initialization, so we exit immediately if the
+  // relaunch succeeds (or fail if it doesn't).
+  try {
+    const relaunch = spawnSync(process.execPath, [...process.argv.slice(1), `--ozone-platform=${platform}`], {
+      stdio: 'pipe',
+      env: process.env,
+    })
+    // If the relaunch process exits with a code, forward it.
+    // If relaunch.status is 0, the child started successfully - but we
+    // still need to exit this process so the child takes over.
+    if (relaunch.status !== undefined && relaunch.status !== 0) {
+      process.exit(relaunch.status)
+    }
+    // Child exited with 0 or status is undefined - still exit to let child run
+    process.exit(0)
+  } catch (e) {
+    // If spawnSync fails (e.g., execPath issue), continue without the workaround
+    // but log the warning. The app may crash on Wayland, but at least it starts.
+    console.error('[build] Wayland workaround spawn failed:', e.message)
+  }
 }
 
 const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron')

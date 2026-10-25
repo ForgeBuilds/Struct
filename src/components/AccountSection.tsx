@@ -53,12 +53,14 @@ function AvatarPreview({
 
   if (src && !failed) {
     return (
+      
       <img
         src={src}
         alt=""
         onError={() => setFailed(true)}
-        className="mx-auto h-20 w-20 rounded-full border border-(--border) object-cover"
+        className="mx-auto h-25 w-25 rounded-full border border-(--border) object-cover"
       />
+      
     );
   }
 
@@ -207,17 +209,17 @@ const AccountSection = memo(function AccountSection({
       )}
 
       <div className="overflow-hidden rounded-2xl bg-(--fill-1)">
-        <div className="px-5 pb-5 pt-7 text-center sm:px-6">
+        <div className="px-6 pb-5 pt-8 text-center sm:px-8">
           <AvatarPreview
             key={draft.avatarUrl}
             src={draft.avatarUrl.trim()}
             fallback={initials}
           />
 
-          <h2 className="mt-3 truncate text-[15px] font-medium text-[var(--text-primary)]">
+          <h2 className="mt-3 truncate text-[20px] font-medium text-[var(--text-primary)]">
             {draft.name || "Your account"}
           </h2>
-          <p className="mt-1 truncate text-[12px] text-[var(--text-muted)]">
+          <p className="mt-1 truncate text-[13px] text-[var(--text-muted)]">
             {account.email || "No email address"}
           </p>
         </div>
