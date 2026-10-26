@@ -12,7 +12,7 @@ import {
 } from "../lib/auth";
 import { isSupabaseConfigured } from "../lib/supabase";
 import { deleteAllCloudData } from "../lib/cloudSync";
-import { IoExit, IoLink, IoNavigate, IoTrash } from "react-icons/io5";
+import { IoExit,  IoTrash } from "react-icons/io5";
 import LoginModal from "./LoginModal";
 import { openExternalUrl } from "../lib/external";
 
