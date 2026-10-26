@@ -12,8 +12,10 @@ import {
 } from "../lib/auth";
 import { isSupabaseConfigured } from "../lib/supabase";
 import { deleteAllCloudData } from "../lib/cloudSync";
-import { IoExit, IoTrash } from "react-icons/io5";
+import { IoExit, IoLink, IoNavigate, IoTrash } from "react-icons/io5";
 import LoginModal from "./LoginModal";
+import { openExternalUrl } from "../lib/external";
+
 
 interface AccountSectionProps {
   account: NeoUser | null;
@@ -24,7 +26,7 @@ interface AccountSectionProps {
 }
 
 const FIELD_CLASS =
-  "h-10 w-60 mt-2 mx-15 rounded-lg bg-(--fill-2) px-3 text-[13px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)";
+  "h-10 w-60 mt-2 mx-9.5 rounded-lg bg-(--fill-2) px-3 text-[13px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)";
 
 const TEXT_BUTTON =
   "inline-flex items-center justify-center gap-1.5 text-[12px] text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40";
@@ -196,7 +198,7 @@ const AccountSection = memo(function AccountSection({
   const since = memberSince(profile?.createdAt);
 
   return (
-    <div className="mx-auto w-100 max-w-md space-y-4">
+    <div className="mx-auto w-90 max-w-md space-y-4">
       {(error || notice) && (
         <p
           role={error ? "alert" : "status"}
@@ -216,20 +218,20 @@ const AccountSection = memo(function AccountSection({
             fallback={initials}
           />
 
-          <h2 className="mt-3 truncate text-[20px] font-medium text-[var(--text-primary)]">
+          <h2 className="mt-1 truncate text-[20px] font-medium text-[var(--text-primary)]">
             {draft.name || "Your account"}
           </h2>
-          <p className="mt-1 truncate text-[13px] text-[var(--text-muted)]">
+          <p className=" truncate text-[13px] text-[var(--text-muted)]">
             {account.email || "No email address"}
           </p>
         </div>
 
         <form
           onSubmit={(event) => void saveProfile(event)}
-          className="space-y-4 px-5 py-4 sm:px-6"
+          className="space-y-2 px-5 sm:px-6"
         >
           <label className="block">
-            <span className="mb-1.5 mx-15 block text-[11px] text-[var(--text-muted)]">
+            <span className="mb-1.5 mx-9.5 block text-[11px] text-[var(--text-muted)]">
               Display name
             </span>
             <input
@@ -250,7 +252,7 @@ const AccountSection = memo(function AccountSection({
           </label>
 
           <label className="block">
-            <span className="mb-1.5 mx-15 block text-[11px] text-[var(--text-muted)]">
+            <span className="mb-1.5 mx-9.5 block text-[11px] text-[var(--text-muted)]">
               PFP URL
             </span>
             <input
@@ -274,7 +276,7 @@ const AccountSection = memo(function AccountSection({
             <button
               type="submit"
               disabled={!dirty || saving || deleting}
-              className="h-7 w-20 mx-40 mt-4 rounded-lg bg-(--text-primary) px-4 text-[13px] font-medium text-(--bg-base) transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              className="h-7 w-20 mx-30.5 mt-4 rounded-lg bg-(--text-primary) px-4 text-[13px] font-medium text-(--bg-base) transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {saving ? "Saving…" : "Save"}
             </button>
@@ -300,10 +302,11 @@ const AccountSection = memo(function AccountSection({
           </div>
         </form>
 
-        <div className="flex flex-col items-center gap-3 px-5 py-4 sm:flex-row sm:justify-between sm:px-6">
+        <div className="flex flex-col items-center gap-3 px-5 py-4 sm:flex-row sm:justify-between sm:px-6 mt-2">
           <p className="text-[11px] text-[var(--text-muted)]">
             Member since {since ?? "—"}
           </p>
+
 
           <button
             type="button"
@@ -313,7 +316,17 @@ const AccountSection = memo(function AccountSection({
             <IoExit size={15} aria-hidden="true" />
             Sign out
           </button>
+          
         </div>
+        <p className = "text-[10px] text-[var(--text-muted)] mx-6 mb-3">
+          For settings regarding password resets visit the 
+          <button onClick ={ () => openExternalUrl("https://forgebuilds.github.io/ForgeHQ/account")} className =   "inline-flex items-center justify-center gap-1.5 text-[10px] text-[var(--text-muted)] transition-colors hover:text-blue-500 disabled:cursor-not-allowed disabled:opacity-40 mx-1">
+            {/* <IoLink size ={15} 
+            className = "rounded-full"/>
+            Visit */}
+            Website 
+            </button>
+        </p>
       </div>
 
       <div className="rounded-xl bg-(--fill-1) px-4 py-4">

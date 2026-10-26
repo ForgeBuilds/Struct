@@ -2606,7 +2606,7 @@ const handleAnimationComplete = () => {
                           blur={10}
                           distance={50}
                           onAnimationComplete={handleAnimationComplete}
-                          className="text-2xl mb-8 mx-50"
+                          className="text-2xl mb-8 mx-auto"
                           loop={false}
                           loopDelay={2}
                           focusOnHover={false}

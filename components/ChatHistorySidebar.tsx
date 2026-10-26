@@ -47,16 +47,16 @@ interface MenuDef {
 
 const DAY = 24 * 60 * 60 * 1000;
 
-type TranslateFn = (key: string, vars?: Record<string, string | number>) => string;
+// type TranslateFn = (key: string, vars?: Record<string, string | number>) => string;
 
-function formatRelative(ts: number, t: TranslateFn): string {
-  const diff = Date.now() - ts;
-  if (diff < 60_000) return t("history.justNow");
-  if (diff < 60 * 60_000) return t("history.minutesAgo", { count: Math.floor(diff / 60_000) });
-  if (diff < DAY) return t("history.hoursAgo", { count: Math.floor(diff / (60 * 60_000)) });
-  if (diff < 7 * DAY) return new Date(ts).toLocaleDateString([], { weekday: "short" });
-  return new Date(ts).toLocaleDateString([], { month: "short", day: "numeric" });
-}
+// function formatRelative(ts: number, t: TranslateFn): string {
+//   const diff = Date.now() - ts;
+//   if (diff < 60_000) return t("history.justNow");
+//   if (diff < 60 * 60_000) return t("history.minutesAgo", { count: Math.floor(diff / 60_000) });
+//   if (diff < DAY) return t("history.hoursAgo", { count: Math.floor(diff / (60 * 60_000)) });
+//   if (diff < 7 * DAY) return new Date(ts).toLocaleDateString([], { weekday: "short" });
+//   return new Date(ts).toLocaleDateString([], { month: "short", day: "numeric" });
+// }
 
 type GroupKey = "history.today" | "history.previous7Days" | "history.older";
 
@@ -323,18 +323,18 @@ export default function ChatHistorySidebar({
                       <button
                         type="button"
                         onClick={() => onSelectSession(session.id)}
-                        className="min-w-0 flex-1 px-3 py-2 text-left"
+                        className="min-w-0 flex-1 px-4 py-2 text-left"
                       >
                         <span
-                          className={`block truncate text-[12px] ${
+                          className={`block truncate text-[13px] ${
                             isActive ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"
                           }`}
                         >
                           {session.title || t("history.untitledChat")}
                         </span>
                         <span className="mt-0.5 block truncate text-[10.5px] text-[var(--text-muted)]">
-                          {formatRelative(session.updatedAt, t)}
-                          {model ? ` · ${model}` : ""}
+                          {/* {formatRelative(session.updatedAt, t)} */}
+                          {model ? `  ${model}` : ""}
                         </span>
                       </button>
                       <button

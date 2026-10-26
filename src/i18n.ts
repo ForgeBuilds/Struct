@@ -573,7 +573,7 @@ export const UI_TRANSLATIONS: Record<LocaleCode, Record<string, string>> = {
     "settings.buildsOfficial": "Struct is a free and open-source project. The official builds are published by Lumorix Studios and are signed with a verified certificate. The official GitHub repository is {link}.",
     "settings.buildsNightly": "The \"Nightly\" builds are automatically generated from the latest code in the main branch. They may contain new features and bug fixes, but they are not guaranteed to be stable.",
     "settings.buildsLink": "here",
-    "settings.versionBeta": "Struct 1.12 · Beta",
+    "settings.versionBeta": "Struct 1.15 · Beta",
     "settings.theme": "Theme",
     "settings.themeDark": "Dark",
     "settings.themeLight": "Light",
