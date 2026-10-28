@@ -98,13 +98,10 @@
       "icon": "build/icon.icns"
     },
     "win": {
-      "target": "nsis",
-      "icon": "build/icon.ico",
-      "chromiumSwitches": {
-        "disable-gpu": "",
-        "disable-software-rasterizer": "",
-        "disable-gpu-rasterization": ""
-      }
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.ico"
     },
     "linux": {
       "target": [
