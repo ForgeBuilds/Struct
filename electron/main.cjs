@@ -2,7 +2,7 @@
 /* Neo - Electron main. Pure chat shell, native OS frame. */
 
 // ── Linux GPU/Wayland SIGSEGV workaround ────────────────────────────────────
-// This app is pure DOM (no WebGL), yet on Linux desktops/VMs without a
+// This app is pure DOM (no WebGL), on Linux desktops/VMs without a
 // complete Wayland implementation, Electron 40's default Wayland Ozone backend
 // hard-crashes (SIGSEGV) inside the GPU child process on window creation
 // ("vaInitialize failed" → the whole binary goes down before "ready-to-show").
@@ -128,15 +128,16 @@ function spotifyOAuthWait(a) {
   })
 }
 
-// Software-rendering escape hatch (opt-in). The X11 re-launch above already
-// dodges the Wayland vaInitialize SIGSEGV, so hardware acceleration stays ON
-// by default — forcing SwiftShader for the whole window made every paint,
-// blur and scroll crawl on the CPU. Set NEO_SOFTWARE_RENDER=1 only if the
-// host GPU stack is genuinely broken.
-if (process.env.NEO_SOFTWARE_RENDER === '1') {
-  app.disableHardwareAcceleration()
-  app.commandLine.appendSwitch('disable-gpu')
-}
+// Hardware acceleration is disabled unconditionally. The app is pure DOM with
+// no WebGL/Canvas, so the GPU process has nothing to contribute — yet on
+// Windows hosts with a broken or driver-less GPU stack the GPU child process
+// crashes during startup ("Failed to initialize …"), taking the whole window
+// down before it ever paints. The X11 re-launch above dodges the Wayland
+// vaInitialize SIGSEGV on Linux. Disabling the GPU process entirely is safe
+// here and keeps every platform consistent.
+app.disableHardwareAcceleration()
+app.commandLine.appendSwitch('disable-gpu')
+app.commandLine.appendSwitch('disable-software-rasterizer')
 
 const APP_PROTOCOL = 'agenticcoder'
 let mainWindow

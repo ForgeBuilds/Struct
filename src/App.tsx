@@ -839,11 +839,22 @@ export default function App() {
   // The API key is never persisted with settings — it is resolved at runtime
   // from the encrypted account store. Keys belong to the account, so there is
   // no signed-out fallback and an unknown profile resolves to "no key".
+  //
+  // Imperative note: the dependency must be `accountProfile` (not
+  // `accountProfile?.byokEnabled`) because `accountProfile` starts as `null`.
+  // If we keyed off `accountProfile?.byokEnabled`, the value would be
+  // `undefined` while the profile was null and ALSO when it landed on a row
+  // where `byok_enabled` was `false` — both are falsy `undefined`-compatible
+  // values, so the effect would skip re-running and the saved API key would
+  // never be injected for that provider.
   useEffect(() => {
     if (!restored) return;
+    if (!signedIn || !accountProfile) return;
+    if (!accountProfile.byokEnabled) return;
+
     let cancelled = false;
     void byok
-      .resolveApiKey(settings.provider, signedIn, accountProfile?.byokEnabled ?? false)
+      .resolveApiKey(settings.provider, signedIn, accountProfile.byokEnabled)
       .then((key) => {
         if (cancelled) return;
         setSettings((prev) => ({ ...prev, apiKey: key }));
@@ -854,7 +865,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [settings.provider, signedIn, accountProfile?.byokEnabled, restored]);
+  }, [settings.provider, signedIn, accountProfile, restored]);
 
   useEffect(() => {
     if (!restored) return;
@@ -2598,10 +2609,10 @@ const handleAnimationComplete = () => {
                      <BlurText
                           text="Ready to start working?"
                           effect="blur"
-                          animateBy="words"
+                          animateBy="letters"
                           direction="top"
                           trigger="view"
-                          delay={200}
+                          delay={300}
                           stepDuration={0.35}
                           blur={10}
                           distance={50}
@@ -2613,7 +2624,7 @@ const handleAnimationComplete = () => {
                         />
                     
 
-                    <div className="mx-auto mt-1 grid w-full max-w-lg grid-cols-1 gap-1.5 text-left sm:grid-cols-2">
+                    <div className="mx-auto mt-1 grid w-full max-w-lg grid-cols-1 gap-1.5 text-left sm:grid-cols-2 md:grid-cols-4">
                       
                       <button
                         type="button"
@@ -2622,8 +2633,40 @@ const handleAnimationComplete = () => {
                         }}
                         className="rounded-xl border border-transparent bg-(--fill-1) px-3.5 py-2.5 text-left transition hover:border-(--border) hover:bg-(--fill-2)"
                       >
-                        <span className="block text-[12.5px] text-[var(--text-primary)]">Open a project</span>
-                        <span className="mt-0.5 block text-[11.5px] leading-4 text-[var(--text-muted)]">Browse and edit files in a real workspace</span>
+                        <span className="block text-[12.5px] text-[var(--text-primary)]">
+                          <BlurText
+                          text="Open a folder or a file"
+                          effect="blur"
+                          animateBy="letters"
+                          direction="top"
+                          trigger="view"
+                          delay={200}
+                          stepDuration={0.35}
+                          blur={10}
+                          distance={50}
+                          onAnimationComplete={handleAnimationComplete}
+                          className="w-full"
+                          loop={false}
+                          loopDelay={2}
+                          focusOnHover={false}
+                        /></span>
+                        <span className="mt-0.5 block text-[11.5px] leading-4 text-[var(--text-muted)]">
+                          <BlurText
+                          text="Work on a project"
+                          effect="blur"
+                          animateBy="words"
+                          direction="top"
+                          trigger="view"
+                          delay={100}
+                          stepDuration={0.35}
+                          blur={10}
+                          distance={50}
+                          onAnimationComplete={handleAnimationComplete}
+                          className="w-full"
+                          loop={false}
+                          loopDelay={2}
+                          focusOnHover={false}
+                        /></span>
                       </button>
                       {[
                         {
@@ -2648,8 +2691,38 @@ const handleAnimationComplete = () => {
                           onClick={() => setMessage(card.prompt)}
                           className="rounded-xl border border-transparent bg-(--fill-1) px-3.5 py-2.5 text-left transition hover:border-(--border) hover:bg-(--fill-2)"
                         >
-                          <span className="block text-[12.5px] text-[var(--text-primary)]">{card.label}</span>
-                          <span className="mt-0.5 block text-[11.5px] leading-4 text-[var(--text-muted)]">{card.desc}</span>
+                          <span className="block text-[12.5px] text-[var(--text-primary)]"><BlurText
+                          text={card.label}
+                          effect="blur"
+                          animateBy="letters"
+                          direction="top"
+                          trigger="view"
+                          delay={150}
+                          stepDuration={0.30}
+                          blur={10}
+                          distance={50}
+                          onAnimationComplete={handleAnimationComplete}
+                          className="w-full"
+                          loop={false}
+                          loopDelay={3}
+                          focusOnHover={false}
+                        /></span>
+                          <span className="mt-0.5 block text-[11.5px] leading-4 text-[var(--text-muted)]"><BlurText
+                          text={card.desc}
+                          effect="blur"
+                          animateBy="letters"
+                          direction="top"
+                          trigger="view"
+                          delay={120}
+                          stepDuration={0.35}
+                          blur={10}
+                          distance={50}
+                          onAnimationComplete={handleAnimationComplete}
+                          className="w-full"
+                          loop={false}
+                          loopDelay={2}
+                          focusOnHover={false}
+                        /></span>
                         </button>
                       ))}
                     </div>
@@ -2708,13 +2781,13 @@ const handleAnimationComplete = () => {
                   </div>
                 </div>
               )}
-              <AgenticActivity
-                items={activities}
-                pending={pendingApproval}
-                onApprove={handleApproveTool}
-                onDeny={handleDenyTool}
-              />
             </div>
+            <AgenticActivity
+              items={activities}
+              pending={pendingApproval}
+              onApprove={handleApproveTool}
+              onDeny={handleDenyTool}
+            />
             {error && (
               <div className="relative z-20 mx-auto w-full max-w-3xl px-5 pt-2">
                 <div className="rounded-lg border border-red-500/20 bg-red-500/[0.08] px-3.5 py-2 text-[12.5px] leading-5 text-[var(--danger)]">
