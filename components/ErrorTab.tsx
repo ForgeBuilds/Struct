@@ -36,9 +36,9 @@ export default function ErrorTab({ isOpen, onClose, message }: ErrorTabProps) {
         {/* Body */}
         <div className="mt-4">
           {message ? (
-            <p className="text-[12px] leading-5 text-[var(--text-secondary)] break-words">
+            <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap break-words text-[12px] leading-5 text-[var(--text-secondary)]">
               {message}
-            </p>
+            </pre>
           ) : (
             <p className="text-[12px] leading-5 text-[var(--text-secondary)]">
               {t("error.unexpectedError")}

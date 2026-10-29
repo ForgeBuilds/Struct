@@ -2,7 +2,7 @@
  * Author: madhusudhan
  * Check the LICENSE in the GitHub repo (https://github.com/Lumorix-studios/Struct) for more information on permissions to use this code.
  */
-import { Component, createContext, useContext, useState, type ReactNode } from "react";
+import { Component, createContext, useContext, useState, type ErrorInfo, type ReactNode } from "react";
 import ErrorTab from "../components/ErrorTab";
 
 interface ErrorContextValue {
@@ -78,8 +78,14 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     return { hasError: true };
   }
 
-  componentDidCatch(error: Error) {
-    this.props.reportError(error);
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    // Preserve the bundle location and React component path. Minified desktop
+    // builds otherwise reduce TDZ failures to messages like "Cannot access
+    // 'G' before initialization", which cannot identify the offending module.
+    const details = [error.stack || error.message, info.componentStack]
+      .filter(Boolean)
+      .join("\n\nComponent stack:");
+    this.props.reportError(details);
   }
 
   render() {
