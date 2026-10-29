@@ -8,7 +8,7 @@ import { IoAdd, IoClose, IoSearch, IoTrashOutline } from "react-icons/io5";
 import { openExternalUrl as openUrl } from "../src/lib/external";
 import { useErrorHandler } from "../src/errorContext";
 import { useTranslation } from "../src/i18n";
-// import appIcon from "../src/assets/images/icon.jpeg";
+import appIcon from "../src/assets/images/icon.png";
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -217,7 +217,7 @@ export default function ChatHistorySidebar({
           {/* Menus — relocated from the removed top bar */}
           
           <div ref={menuRef} className="relative flex shrink-0 items-center gap-0.5 px-1.5 pt-2">
-            <img src = "../../src/assets/images/icon.jpeg" className = "h-5 w-5 flex m-1 rounded"/>
+            <img src={appIcon} alt="Struct" className="m-1 h-5 w-5 rounded object-contain" />
             {menus.map((menu) => (
               <button
                 key={menu.label}

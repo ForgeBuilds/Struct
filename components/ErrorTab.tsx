@@ -58,7 +58,7 @@ export default function ErrorTab({ isOpen, onClose, message }: ErrorTabProps) {
           <button
             onClick={async () => {
               try {
-                await openUrl("https://github.com/Lumorix-studios/Neo/issues");
+                await openUrl("https://github.com/Lumorix-studios/Struct/issues");
               } catch (error) {
                 console.error(error);
               }

@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="src/assets/images/icon.jpeg" alt="Struct" width="96" />
+<img src="src/assets/images/icon.png" alt="Struct" width="96" />
 
 # Struct
 

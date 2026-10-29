@@ -2471,7 +2471,7 @@ MCP call rules:
     try {
       const path = await saveDialog({
         title: "Save chat session",
-        defaultPath: `neo-session-${new Date().toISOString().slice(0, 10)}.json`,
+        defaultPath: `struct-session-${new Date().toISOString().slice(0, 10)}.json`,
         filters: [{ name: "JSON", extensions: ["json"] }],
       });
       if (!path) return; // user cancelled

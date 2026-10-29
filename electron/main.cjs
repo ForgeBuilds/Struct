@@ -1,5 +1,5 @@
 
-/* Neo - Electron main. Pure chat shell, native OS frame. */
+/* Struct - Electron main. Pure chat shell, native OS frame. */
 
 // ── Linux GPU/Wayland SIGSEGV workaround ────────────────────────────────────
 // This app is pure DOM (no WebGL), on Linux desktops/VMs without a
@@ -1289,7 +1289,7 @@ function launchDl(a) {
   return null
 }
 function needWin() {
-  if (!mainWindow || mainWindow.isDestroyed()) throw new Error('Neo window is not available')
+  if (!mainWindow || mainWindow.isDestroyed()) throw new Error('Struct window is not available')
   return mainWindow
 }
 ipcMain.handle('neo:native-invoke', async (_e, cmd, a) => {
@@ -1331,7 +1331,7 @@ if (gotLock) {
     handleDeepLink(process.argv)
     createWindow()
     app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })
-  }).catch((e) => { console.error('[electron] Neo failed to start:', e); app.quit() })
+  }).catch((e) => { console.error('[electron] Struct failed to start:', e); app.quit() })
   app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit() })
   app.on('before-quit', () => {
     for (const kv of terms) { try { kv[1].kill() } catch {} }

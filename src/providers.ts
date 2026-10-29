@@ -469,7 +469,7 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     extraHeaders: {
       // OpenRouter recommends these for app analytics & ranking.
       "HTTP-Referer": "https://neochat.local",
-      "X-Title": "Neo",
+      "X-Title": "Struct",
     },
     buildUrl: (s) => `${s.baseUrl.replace(/\/+$/, "")}/chat/completions`,
     buildBody: (s, history, opts) => ({

@@ -37,7 +37,7 @@ import AccountSection from "./AccountSection";
 import type { NeoUser, Profile as AccountProfile } from "../lib/auth";
 import { byokAllowed, saveRemoteKey, removeRemoteKey } from "../lib/byok";
 import * as cloudSync from "../lib/cloudSync";
-import appIcon from "../assets/images/icon.jpeg";
+import appIcon from "../assets/images/icon.png";
 
 import {
   IoClose, IoInformationCircleOutline,
@@ -198,7 +198,7 @@ function exportSettingsSnapshot(ui: UiSettings, ai: AISettings): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `neo-settings-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `struct-settings-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -837,7 +837,7 @@ export default function SettingsPanel({
                   <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">
                     {t("settings.buildsOfficial").split("{link}")[0]}
                     <a
-                      href="https://github.com/Lumorix-studios/Neo"
+                      href="https://github.com/Lumorix-studios/Struct"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[var(--text-primary)] hover:underline"
@@ -1889,8 +1889,8 @@ export default function SettingsPanel({
                 <SectionTitle>Links</SectionTitle>
                 <div className="flex flex-col gap-1">
                   {[
-                    ["GitHub repository", "https://github.com/Lumorix-Studios/Neo"],
-                    ["Report an issue", "https://github.com/Lumorix-Studios/Neo/issues"],
+                    ["GitHub repository", "https://github.com/Lumorix-studios/Struct"],
+                    ["Report an issue", "https://github.com/Lumorix-studios/Struct/issues"],
                   ].map(([label, href]) => (
                     <a
                       key={href}

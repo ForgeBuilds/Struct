@@ -645,7 +645,7 @@ async function browserFallback(name: string, args: Record<string, unknown>): Pro
   switch (name) {
     case "list_dir": {
       // Can't list a real directory in the browser; return a helpful message.
-      return { ok: true, output: "Directory listing is only available in the desktop app (the Neo desktop app)." };
+      return { ok: true, output: "Directory listing is only available in the Struct desktop app." };
     }
     case "read_file": {
       const path = String(args.path ?? "");
@@ -660,7 +660,7 @@ async function browserFallback(name: string, args: Record<string, unknown>): Pro
     default:
       return {
         ok: false,
-        output: `Tool "${name}" is only available in the desktop app (the Neo desktop app).`,
+        output: `Tool "${name}" is only available in the Struct desktop app.`,
       };
   }
 }

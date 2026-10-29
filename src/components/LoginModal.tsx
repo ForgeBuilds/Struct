@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import { signInWithOAuth, signInWithEmail, signUpWithEmail, resetPassword, refreshEnabledProviders, checkSupabaseHealth, onAuthError, getLastAuthError, clearLastAuthError, AUTH_ERROR_EVENT } from "../lib/auth";
 import { listen } from "../native";
 import { IoClose, IoLogoGithub, IoLogoGoogle, IoEye, IoEyeOff } from "react-icons/io5";
-import appIcon from "../assets/images/icon.jpeg";
+import appIcon from "../assets/images/icon.png";
 
 interface LoginModalProps {
   open: boolean;

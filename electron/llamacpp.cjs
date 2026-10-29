@@ -35,7 +35,7 @@ const gunzip = promisify(zlib.gunzip)
 const inflateRaw = promisify(zlib.inflateRaw)
 
 const LLAMA_CPP_REPO = 'ggml-org/llama.cpp'
-const USER_AGENT = 'Neo/1.0 (+https://github.com/ForgeBuilds/Struct)'
+const USER_AGENT = 'Struct/1.0 (+https://github.com/Lumorix-studios/Struct)'
 
 /* ── paths ─────────────────────────────────────────────────────────────── */
 

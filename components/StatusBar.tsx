@@ -47,7 +47,7 @@ export default function StatusBar({
       <div className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden">
         {/* <span className="flex shrink-0 items-center gap-1 font-medium text-[var(--text-muted)]">
           <span className="h-1.5 w-1.5 rounded-full bg-(--accent)" />
-          Neo
+          Struct
         </span> */}
         {workspaceName && (
           <span className="flex min-w-0 shrink-0 items-center gap-1 text-[var(--text-muted)]" title={workspaceName}>
