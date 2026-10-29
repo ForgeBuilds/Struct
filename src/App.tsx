@@ -468,16 +468,18 @@ export default function App() {
   const autoScrollRef = useRef(true);
   // Late-bound so the Ctrl+Shift+O shortcut always calls the current closure.
   const openWorkspaceRef = useRef<() => void>(() => {});
-  // Workspace root shared with the IDE window via a persisted localStorage key.
-  const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(() => {
-    const saved = localStorage.getItem(SHARED_WS_KEY);
-    return saved || homeRoot;
-  });
   // Default working directory when no folder is open: the user's home dir.
   // Fetched once from the native layer (null in plain-browser dev mode) so
   // the agent can list/read/search and run commands anywhere the user asks,
   // without first opening a folder inside the app.
   const [homeRoot, setHomeRoot] = useState<string | null>(null);
+  // Workspace root shared with the IDE window via a persisted localStorage key.
+  // Do not read `homeRoot` in this initializer: it is populated asynchronously
+  // below, and referencing its state binding before its declaration throws a
+  // production-only TDZ error during the first App render.
+  const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(() =>
+    localStorage.getItem(SHARED_WS_KEY) || null
+  );
   useEffect(() => {
     let cancelled = false;
     void invoke<string>("home_dir")
@@ -489,6 +491,12 @@ export default function App() {
       cancelled = true;
     };
   }, []);
+  // A saved workspace takes precedence. If there isn't one, use the native
+  // home directory once it arrives instead of trying to read it during render.
+  useEffect(() => {
+    if (!homeRoot) return;
+    setWorkspaceRoot((current) => current ?? homeRoot);
+  }, [homeRoot]);
   // --- Context menu (top-left): workspace folder list + pinned files ---
   const [contextEntries, setContextEntries] = useState<FsEntry[]>([]);
   const [pinnedPaths, setPinnedPaths] = useState<string[]>([]);
