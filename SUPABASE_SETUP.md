@@ -20,10 +20,13 @@ method fails at once** (email + GitHub + Google), which is the usual cause of
    ```
 
 > **Rebuild after editing `.env`.** Vite bakes `VITE_*` vars into the bundle
-> at build time (`npm run build` / `npm run tauri dev`). Changing `.env`
-> without rebuilding leaves the running app on the old values — the classic
-> "I fixed .env but login still fails". If in doubt, stop vite, rebuild, and
-> confirm `dist/assets/*.js` contains your `<ref>.supabase.co`.
+> at build time. Restarting an already packaged app or adding `.env` beside
+> its executable cannot change those values. For a local package, run the
+> desktop build command after setting `.env`. For GitHub Actions releases,
+> add repository secrets named `VITE_SUPABASE_URL` and
+> `VITE_SUPABASE_ANON_KEY`; the platform workflow injects them while building
+> the renderer. If in doubt, confirm `dist/assets/*.js` contains your
+> `<ref>.supabase.co` before packaging.
 
 ## 2. Apply the database schema
 

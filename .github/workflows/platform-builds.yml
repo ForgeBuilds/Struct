@@ -33,6 +33,9 @@ jobs:
 
       - name: Build renderer
         run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Build Linux installers
         run: npm run build:desktop:unsigned -- --linux AppImage deb
@@ -68,6 +71,9 @@ jobs:
 
       - name: Build renderer
         run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       # Signed builds run the same target with CSC_* secrets present; the
       # unsigned path exercises identical packaging minus codesign/notarize.
@@ -105,6 +111,9 @@ jobs:
 
       - name: Build renderer
         run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Install NSIS
         run: choco install nsis

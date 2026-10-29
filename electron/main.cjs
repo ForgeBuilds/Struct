@@ -131,13 +131,14 @@ function spotifyOAuthWait(a) {
   })
 }
 
-// Hardware acceleration is disabled unconditionally. The app is pure DOM with
-// no WebGL/Canvas, and on hosts with a broken or driver-less GPU stack the GPU
-// child process can fail during startup ("Failed to initialize …"). Keep
-// Chromium's software rasterizer available: disabling it alongside the GPU
-// leaves Chromium without a rendering backend and can itself prevent startup.
-// The X11 re-launch above also avoids the Wayland vaInitialize SIGSEGV on Linux.
-app.disableHardwareAcceleration()
+// Keep normal GPU acceleration enabled for smooth rendering. Use software
+// rendering only as a troubleshooting fallback on machines with a broken GPU
+// driver: launch with NEO_DISABLE_HARDWARE_ACCELERATION=1. This must be set
+// before Electron is ready. The Linux X11 relaunch above handles the separate
+// Wayland vaInitialize crash without slowing every platform down.
+if (process.env.NEO_DISABLE_HARDWARE_ACCELERATION === '1') {
+  app.disableHardwareAcceleration()
+}
 
 const APP_PROTOCOL = 'agenticcoder'
 let mainWindow

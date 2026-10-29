@@ -152,13 +152,15 @@ const AccountSection = memo(function AccountSection({
       setDeleting(false);
     }
   };
-//shouldnt appear in production builds as this should already have been configured but it is a good fallback if it isnt config
+  // Packaged apps receive these Vite values at build time; a runtime .env file
+  // beside the installer cannot change the already-built renderer bundle.
   if (!isSupabaseConfigured) {
     return (
       <p className="text-[12px] leading-5 text-[var(--text-muted)]">
-        Cloud sync is not configured. Add <code>VITE_SUPABASE_URL</code> and{" "}
-        <code>VITE_SUPABASE_ANON_KEY</code> to your <code>.env</code>, then
-        restart the app. See <code>SUPABASE_SETUP.md</code>.
+        This build does not include Supabase configuration. Add{" "}
+        <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> to
+        the build environment, then rebuild the app. See{" "}
+        <code>SUPABASE_SETUP.md</code>.
       </p>
     );
   }
