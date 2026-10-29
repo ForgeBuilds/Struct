@@ -20,7 +20,10 @@ if (process.platform === 'linux' && !process.argv.some((a) => a.startsWith('--oz
   // Electron main-process initialization, so we exit immediately if the
   // relaunch succeeds (or fail if it doesn't).
   try {
-    const relaunch = spawnSync(process.execPath, [...process.argv.slice(1), `--ozone-platform=${platform}`], {
+    // Electron parses runtime switches only before the app path. Putting this
+    // after process.argv[1] makes it an app argument, so Linux can still start
+    // with the crashing default Wayland backend.
+    const relaunch = spawnSync(process.execPath, [`--ozone-platform=${platform}`, ...process.argv.slice(1)], {
       stdio: 'pipe',
       env: process.env,
     })
@@ -129,15 +132,12 @@ function spotifyOAuthWait(a) {
 }
 
 // Hardware acceleration is disabled unconditionally. The app is pure DOM with
-// no WebGL/Canvas, so the GPU process has nothing to contribute — yet on
-// Windows hosts with a broken or driver-less GPU stack the GPU child process
-// crashes during startup ("Failed to initialize …"), taking the whole window
-// down before it ever paints. The X11 re-launch above dodges the Wayland
-// vaInitialize SIGSEGV on Linux. Disabling the GPU process entirely is safe
-// here and keeps every platform consistent.
+// no WebGL/Canvas, and on hosts with a broken or driver-less GPU stack the GPU
+// child process can fail during startup ("Failed to initialize …"). Keep
+// Chromium's software rasterizer available: disabling it alongside the GPU
+// leaves Chromium without a rendering backend and can itself prevent startup.
+// The X11 re-launch above also avoids the Wayland vaInitialize SIGSEGV on Linux.
 app.disableHardwareAcceleration()
-app.commandLine.appendSwitch('disable-gpu')
-app.commandLine.appendSwitch('disable-software-rasterizer')
 
 const APP_PROTOCOL = 'agenticcoder'
 let mainWindow

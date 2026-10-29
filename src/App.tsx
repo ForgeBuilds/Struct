@@ -1329,9 +1329,11 @@ export default function App() {
         mcpTools?: Map<string, McpToolEntry>,
     modelOverride?: { provider: ProviderId; model: string },
     runId?: number,
+    apiKeyOverride?: string,
   ): Promise<StreamRoundResult> => {
     const effectiveSettings: AISettings = {
       ...settings,
+      ...(apiKeyOverride !== undefined ? { apiKey: apiKeyOverride } : {}),
       ...(modelOverride
         ? { provider: modelOverride.provider, model: modelOverride.model }
         : {}),
@@ -1677,8 +1679,36 @@ Tool allowance: No Tools Allowed. Do not attempt to use tools or claim to have u
 
     // --- Fail-fast validation BEFORE touching the in-flight stream. ---
     const s = getProviderSpec(settings);
+    let apiKeyForRun = settings.apiKey;
     if (s.needsAuth) {
-      const trimmedKey = settings.apiKey.trim();
+      // On cold launch, account bootstrap and the BYOK-fetch effect can still
+      // be in flight when the user sends their first message. Resolve the key
+      // here as well so the first request uses it immediately.
+      if (!apiKeyForRun.trim() && isSupabaseConfigured) {
+        try {
+          let user = account;
+          let profile = accountProfile;
+          if (!user && accountLoading) {
+            user = await getCurrentUser();
+            if (user) profile = await getProfile();
+          }
+          if (user) {
+            apiKeyForRun = await byok.resolveApiKey(
+              settings.provider,
+              true,
+              profile?.byokEnabled ?? true
+            );
+            if (apiKeyForRun) {
+              setAccount(user);
+              if (profile) setAccountProfile(profile);
+              setSettings((prev) => ({ ...prev, apiKey: apiKeyForRun }));
+            }
+          }
+        } catch (e) {
+          console.warn("[auth] Could not resolve provider key before send:", e);
+        }
+      }
+      const trimmedKey = apiKeyForRun.trim();
       if (!trimmedKey) {
         setError(
           signedIn
@@ -1930,7 +1960,8 @@ MCP call rules:
           promptSuffix,
           mcpTools,
           undefined,
-          runId
+          runId,
+          apiKeyForRun
         );
         // Keep the raw text of every round so the next round can append to it
         // (the visible text is derived from this, never the other way round).
