@@ -4,13 +4,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChatSession } from "../src/types";
 import { providerById } from "../src/providers";
-import { IoAdd, IoClose, IoSearch, IoTrashOutline } from "react-icons/io5";
+import { IoAdd, IoAppsOutline, IoChatbubbleOutline, IoClose, IoFolder, IoFolderOpenOutline, IoFolderOutline, IoPersonCircleOutline, IoSearch, IoSettingsOutline, IoTrashOutline } from "react-icons/io5";
 import { openExternalUrl as openUrl } from "../src/lib/external";
 import { useErrorHandler } from "../src/errorContext";
 import { useTranslation } from "../src/i18n";
 import appIcon from "../src/assets/images/icon.png";
 interface Props {
   isOpen: boolean;
+  onToggleHistory?: () => void;
   onClose: () => void;
   sessions: ChatSession[];
   activeSessionId: string | null;
@@ -27,6 +28,10 @@ interface Props {
   onOpenSettings?: () => void;
   /** Opens Settings directly on the Plugins section. */
   onOpenPlugins?: () => void;
+  workspaceRoot?: string | null;
+  recentProjects?: string[];
+  onOpenWorkspace?: () => void;
+  onSelectProject?: (path: string) => void;
   onOpenAccount?: () => void;
   /** Opens the command palette (was the top bar's Search pill). */
   onOpenCommandPalette?: () => void;
@@ -68,10 +73,11 @@ function groupFor(ts: number): GroupKey {
 }
 
 const ICON_BUTTON =
-  "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[var(--text-muted)] transition-colors hover:bg-(--fill-1) hover:text-[var(--text-primary)]";
+  "flex h-6 w-6 shrink-0 mx-2 items-center justify-center rounded-md bg-(--fill-1) transition-colors hover:bg-(--fill-2) hover:text-[var(--text-primary)]";
 
 export default function ChatHistorySidebar({
   isOpen,
+  onToggleHistory,
   onClose,
   sessions,
   activeSessionId,
@@ -83,7 +89,11 @@ export default function ChatHistorySidebar({
   onOpenTab2,
   onOpenAiSettings,
   onOpenSettings,
-  //onOpenPlugins,
+  onOpenPlugins,
+  workspaceRoot,
+  recentProjects = [],
+  onOpenWorkspace,
+  onSelectProject,
   onOpenAccount,
   //onOpenCommandPalette,
   onCheckForUpdates,
@@ -206,10 +216,23 @@ export default function ChatHistorySidebar({
       .filter((g) => g.items.length > 0);
   }, [sessions, query, t]);
 
+  const railButton = "flex h-9 w-9 items-center justify-center rounded-md text-[var(--text-muted)] hover:bg-(--fill-2) hover:text-[var(--text-primary)]";
   return (
+    <>
+    <nav aria-label="Main navigation" className="z-30 flex w-14 shrink-0 flex-col items-center gap-2 border-r border-(--border) bg-[var(--bg-chrome)] py-3">
+      <button type="button" onClick={onNewChat} className={railButton} title={t("history.newChat")} aria-label={t("history.newChat")}><IoAdd size={21}/></button>
+      <button type="button" onClick={onToggleHistory ?? onClose} className={`${railButton} ${isOpen ? "bg-(--fill-1) text-[var(--text-primary)]" : ""}`} title={t("history.chatHistory")} aria-label={t("history.chatHistory")} aria-expanded={isOpen}><IoChatbubbleOutline size={21}/></button>
+      <button type="button" onClick={onOpenWorkspace} className={railButton} title="Open folder" aria-label="Open folder"><IoFolderOpenOutline size={21}/></button>
+      <button type="button" onClick={onOpenPlugins} className={railButton} title="Plugins" aria-label="Plugins"><IoAppsOutline size={21}/></button>
+      <div className="mt-auto flex flex-col gap-2">
+        <button type="button" onClick={onOpenSettings} className={railButton} title="Settings" aria-label="Settings"><IoSettingsOutline size={25}/></button>
+        <button type="button" onClick={onOpenAccount} className={railButton} title="Account" aria-label="Account"><IoPersonCircleOutline size={25}/></button>
+      </div>
+    </nav>
+    {isOpen && <button aria-label={t("history.closeHistory")} onClick={onClose} className="absolute inset-y-0 left-14 z-30 bg-black/30 xl:hidden" style={{ right: 0 }} />}
     <aside
       className={`glass-panel shrink-0 overflow-hidden border-r border-(--border) bg-[var(--bg-panel)] transition-[width] duration-150 ease-out ${
-        isOpen ? "w-[360px] max-sm:w-full" : "w-0"
+        isOpen ? "w-[320px] max-xl:absolute max-xl:inset-y-0 max-xl:left-14 max-xl:z-40 max-xl:max-w-[calc(100vw-7rem)]" : "w-0"
       }`}
     >
       {isOpen && (
@@ -269,8 +292,8 @@ export default function ChatHistorySidebar({
             )}
           </div>
 
-          {/* Search + actions */}
-          <div className="flex shrink-0 items-center gap-1.5 px-2 py-2">
+          <div className="shrink-0 px-3 py-4">
+              <div className="flex shrink-0 items-center gap-1.5 px-2 py-2">
             <div className="relative min-w-0 flex-1">
               <IoSearch className="pointer-events-none absolute left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 text-[var(--text-faint)]" />
               <input
@@ -283,10 +306,10 @@ export default function ChatHistorySidebar({
                 className="h-6 w-full rounded-md bg-(--fill-1) pl-6 pr-2 text-[11.5px] text-[var(--text-primary)] placeholder:text-[var(--text-faint)] "
               />
             </div>
-            <button type="button" onClick={onNewChat} title={t("history.newChat")} aria-label={t("history.newChat")} className={ICON_BUTTON}>
+            <button type="button" onClick={onNewChat} title={t("history.newChat")} aria-label={t("history.newChat")} className=  "flex h-6 w-6 shrink-0  items-center justify-center rounded-md text-[var(--text-muted)] transition-colors hover:bg-(--fill-2) bg-(--fill-1) hover:text-[var(--text-primary)]">
               <IoAdd size={13} />
             </button>
-            <button
+            {/* <button
               type="button"
               onClick={onClose}
               title={t("history.closeHistory")}
@@ -294,8 +317,28 @@ export default function ChatHistorySidebar({
               className={ICON_BUTTON}
             >
               <IoClose size={13} />
-            </button>
+            </button> */}
           </div>
+            <div className="mb-1 flex items-center justify-between text-[11px] text-[var(--text-muted)]">
+              <span>Projects</span>
+              <button type="button" onClick={onOpenWorkspace} title="Open project" aria-label="Open project" className={ICON_BUTTON}>
+                <IoFolderOutline size={14} />
+              </button>
+            </div>
+            {workspaceRoot && (
+              <button type="button" onClick={() => onSelectProject?.(workspaceRoot)} className="block w-full truncate rounded px-2 py-1 text-left text-[12px] text-[var(--text-secondary)] hover:bg-(--fill-1)">
+                {workspaceRoot.split(/[\\/]/).filter(Boolean).at(-1)}
+              </button>
+            )}
+            {recentProjects.filter((path) => path !== workspaceRoot).slice(0, 5).map((path) => (
+              <button key={path} type="button" onClick={() => onSelectProject?.(path)} className="block w-full truncate rounded px-2 py-1 text-left text-[12px] text-[var(--text-secondary)] hover:bg-(--fill-1)">
+                {path.split(/[\\/]/).filter(Boolean).at(-1)}
+              </button>
+            ))}
+          </div>
+
+          {/* Search + actions */}
+        
 
           {/* Sessions */}
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-2">
@@ -382,5 +425,6 @@ export default function ChatHistorySidebar({
         </div>
       )}
     </aside>
+    </>
   );
 }

@@ -109,6 +109,7 @@ import {
   getRecentFolders,
   loadUiSettings,
   pushRecentFile,
+  pushRecentFolder,
   saveUiSettings,
   type UiSettings,
 } from "./uiSettings";
@@ -349,7 +350,9 @@ export default function App() {
   // const [onOpenTerminal, setOpenTerminal] = useState(false);
   // Which tab of the bottom dock is visible (terminal/problems/debug/…).
   // const [panelTab, setPanelTab] = useState<PanelTab>("terminal");
-  const [historySidebarOpen, setHistorySidebarOpen] = useState(false);
+  const [historySidebarOpen, setHistorySidebarOpen] = useState(
+    () => typeof window !== "undefined" && window.innerWidth >= 1280,
+  );
   const [infoPanelOpen, setInfoPanelOpen] = useState(false);
   const [privacyPolicyOpen, setPrivacyPolicyOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -539,7 +542,7 @@ export default function App() {
   /** Which section of the settings panel was requested (null = default). */
   const [settingsSection, setSettingsSection] = useState<SectionId | null>(null);
   const [, setRecentFiles] = useState<string[]>([]);
-  const [, setRecentFolders] = useState<string[]>([]);
+  const [recentFolders, setRecentFolders] = useState<string[]>([]);
 
   const spec: ProviderSpec = getProviderSpec(settings);
 
@@ -954,6 +957,18 @@ export default function App() {
   }, [editorTabs, uiSettings.autoSave, uiSettings.autoSaveDelayMs]);
 
   // Keep the active session's messages in sync with the sessions list.
+  // Commit tool activity immediately so switching chats cannot lose its feed.
+  useLayoutEffect(() => {
+    if (!restored || !activeSessionId) return;
+    setSessions((prev) => {
+      const existing = prev.find((s) => s.id === activeSessionId);
+      if (!existing) return prev;
+      return prev.map((s) => s.id === activeSessionId
+        ? { ...s, activities, updatedAt: Date.now() }
+        : s);
+    });
+  }, [activities, activeSessionId, restored]);
+
   useEffect(() => {
     if (!restored || !activeSessionId) return;
     const t = setTimeout(() => {
@@ -963,6 +978,7 @@ export default function App() {
         const updated: ChatSession = {
           ...existing,
           messages,
+          activities,
           updatedAt: Date.now(),
           title: existing.title !== "Untitled chat" ? existing.title : deriveTitle(messages),
           settings: existing.settings ?? settings,
@@ -971,7 +987,7 @@ export default function App() {
       });
     }, 250);
     return () => clearTimeout(t);
-  }, [messages, activeSessionId, restored, settings]);
+  }, [messages, activities, activeSessionId, restored, settings]);
 
 
 
@@ -1079,7 +1095,7 @@ export default function App() {
       const shown = stabilizeStreamingMarkdown(stripToolCalls(pending));
       streamedContentRef.current = shown;
       setLastAssistantContent(shown);
-    }, 50);
+    }, 30);
   };
 
   // Flush any pending render immediately. `runId` identifies the streaming run
@@ -1164,9 +1180,7 @@ export default function App() {
     const session = sessions.find((s) => s.id === id);
     if (!session) return;
     setActiveSessionId(id);
-    // Activity rows are not persisted per session, so they must be dropped
-    // on switch too — otherwise the previous chat's tool feed shows up here.
-    setActivities([]);
+    setActivities(session.activities ?? []);
     setMessages(sanitizeHistory(session.messages));
     setCtxReported(0);
     // Restore the AI provider/model this tab was using (fall back to global).
@@ -1238,6 +1252,13 @@ export default function App() {
     const root = picked[0];
     localStorage.setItem(SHARED_WS_KEY, root);
     setWorkspaceRoot(root);
+    setRecentFolders(pushRecentFolder(root));
+  };
+
+  const selectWorkspaceFolder = (root: string) => {
+    localStorage.setItem(SHARED_WS_KEY, root);
+    setWorkspaceRoot(root);
+    setRecentFolders(pushRecentFolder(root));
   };
 
   // Late-bound so the Ctrl+Shift+E shortcut registered above always calls the
@@ -1755,6 +1776,7 @@ Tool allowance: No Tools Allowed. Do not attempt to use tools or claim to have u
         id: newId,
         title: t("app.untitledChat"),
         messages: [],
+        activities: [],
         createdAt: now,
         updatedAt: now,
         settings,
@@ -2067,10 +2089,11 @@ MCP call rules:
         totalRounds++;
 
         const activityIds = new Map<string, string>();
+        const responseMessageIndex = messages.length + 1;
         const planned: AgenticActivityType[] = calls.map(({ call }) => {
           const id = activityId();
           activityIds.set(`${call.name}:${JSON.stringify(call.arguments)}`, id);
-          return { id, tool: call.name, args: call.arguments, status: "pending" };
+          return { id, tool: call.name, args: call.arguments, status: "pending", messageIndex: responseMessageIndex };
         });
         setActivities((prev) => [...prev, ...planned]);
 
@@ -2246,7 +2269,7 @@ MCP call rules:
 
           let approved = settings.autoApproveTools === true;
           if (!approved) {
-            setPendingApproval({ id, tool: call.name, args: call.arguments, status: "pending" });
+            setPendingApproval({ id, tool: call.name, args: call.arguments, status: "pending", messageIndex: responseMessageIndex });
             approved = await requestApproval(id);
             setPendingApproval(null);
           }
@@ -2520,9 +2543,10 @@ const handleAnimationComplete = () => {
           onAccountRefresh={() => void refreshAccount()}
           workspaceRoot={workspaceRoot}
         />
-        <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div className="relative flex min-h-0 flex-1 overflow-hidden">
           <ChatHistorySidebar
             isOpen={historySidebarOpen}
+            onToggleHistory={() => setHistorySidebarOpen((open) => !open)}
             onClose={() => setHistorySidebarOpen(false)}
             sessions={sessions}
             activeSessionId={activeSessionId}
@@ -2530,6 +2554,10 @@ const handleAnimationComplete = () => {
             onNewChat={newChat}
             onDeleteSession={deleteSession}
             signedIn={signedIn}
+            workspaceRoot={workspaceRoot}
+            recentProjects={recentFolders}
+            onOpenWorkspace={() => void openWorkspaceFolder()}
+            onSelectProject={selectWorkspaceFolder}
             contextEntries={contextEntries}
             pinnedPaths={pinnedPaths}
             onPinFile={togglePinFile}
@@ -2561,7 +2589,7 @@ const handleAnimationComplete = () => {
               data-debug="context-strip"
             >
               {/* Chat panel toggle — reopens/closes history now that the railbar is gone. */}
-              <button
+              {/* <button
                 type="button"
                 onClick={() => setHistorySidebarOpen((v) => !v)}
                 title={historySidebarOpen ? "Close chat history" : "Open chat history (Ctrl+Shift+H)"}
@@ -2574,7 +2602,7 @@ const handleAnimationComplete = () => {
                 }`}
               >
                 <IoMenu size={15} />
-              </button>
+              </button> */}
              
              {true && (
               <div className="flex items-center gap-1 rounded bg-(--fill-1) px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)] hover:bg-(--fill-2)">
@@ -2785,6 +2813,12 @@ const handleAnimationComplete = () => {
                           msg.content.trim().length === 0 ? (
                           <div className="py-1.5 text-[var(--text-muted)]">
                             <ThinkingIndicator label={t("app.thinking")} />
+                            <AgenticActivity
+                              items={activities.filter((item) => item.messageIndex === index)}
+                              pending={pendingApproval?.messageIndex === index ? pendingApproval : null}
+                              onApprove={handleApproveTool}
+                              onDeny={handleDenyTool}
+                            />
                           </div>
                         ) : (
                           <div className="group/msg min-w-0">
@@ -2794,6 +2828,12 @@ const handleAnimationComplete = () => {
                                 <span className="stream-caret" aria-hidden />
                               )}
                             </div>
+                            <AgenticActivity
+                              items={activities.filter((item) => item.messageIndex === index)}
+                              pending={pendingApproval?.messageIndex === index ? pendingApproval : null}
+                              onApprove={handleApproveTool}
+                              onDeny={handleDenyTool}
+                            />
                             <div className="mt-1.5 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/msg:opacity-100">
                               <MessageAction
                                 label={t("app.copy")}
@@ -2821,12 +2861,6 @@ const handleAnimationComplete = () => {
                 </div>
               )}
             </div>
-            <AgenticActivity
-              items={activities}
-              pending={pendingApproval}
-              onApprove={handleApproveTool}
-              onDeny={handleDenyTool}
-            />
             {error && (
               <div className="relative z-20 mx-auto w-full max-w-3xl px-5 pt-2">
                 <div className="rounded-lg border border-red-500/20 bg-red-500/[0.08] px-3.5 py-2 text-[12.5px] leading-5 text-[var(--danger)]">

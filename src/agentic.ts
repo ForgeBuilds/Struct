@@ -64,6 +64,8 @@ export interface ToolResult {
 
 export interface AgenticActivity {
   id: string;
+  /** Index of the assistant message this tool activity belongs to. */
+  messageIndex?: number;
   /** Known tool name or a dynamic `mcp_<server>_<tool>` name. */
   tool: string;
   args: Record<string, unknown>;
