@@ -41,6 +41,8 @@ export interface ChatSession {
   id: string;
   title: string;
   messages: Message[];
+  /** Tool activity grouped by assistant response so it survives chat switches. */
+  activities?: import("./agentic").AgenticActivity[];
   createdAt: number;
   updatedAt: number;
   /** Per-session AI settings (model/provider) so each chat tab can use a different AI. */

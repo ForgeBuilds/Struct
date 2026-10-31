@@ -5,18 +5,20 @@
 import { useEffect, useState } from "react";
 import type { AgenticActivity as AgenticActivityType, FsEntry, WebSearchResult } from "../agentic";
 import { TOOL_LABELS } from "../agentic";
-import { diffStats } from "../../src/diff";
-import { IoChevronForward } from "react-icons/io5";
+import { IoAlertCircleOutline, IoCheckmarkOutline, IoChevronForward } from "react-icons/io5";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { IconSvgElement } from "@hugeicons/react";
 import {
   CommandLineIcon,
+  BrowserIcon,
+  CodeIcon,
+  Delete02Icon,
+  Edit02Icon,
+  File01Icon,
+  Folder01Icon,
+  GlobeIcon,
   Search01Icon,
 } from "@hugeicons/core-free-icons";
-import { MdEditNote } from "react-icons/md";
-import { FaFile, FaIcons } from "react-icons/fa6";
-import type { IconType } from "react-icons";
-import ThinkingIndicator from "../../components/ThinkingIndicator";
 import { useTranslation } from "../i18n";
 
 interface AgenticActivityProps {
@@ -35,36 +37,21 @@ function duration(ms: number | undefined): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
-/** Icons come from two different libraries, so we keep track of which kind each
- *  one is and render it with the matching component. */
-type ToolIconSpec =
-  | { kind: "huge"; icon: IconSvgElement }
-  | { kind: "react"; Icon: IconType };
-
-function toolIcon(tool: string): ToolIconSpec {
-  if (/search|list_dir|find|grep|glob|status|diff/i.test(tool)) {
-    return { kind: "huge", icon: Search01Icon };
-  }
-  if (/write|append|replace|edit|delete|move|rename|copy|create/i.test(tool)) {
-    return { kind: "react", Icon: MdEditNote };
-  }
-  if (/read|file|dir|open|info/i.test(tool)) {
-    return { kind: "react", Icon: FaFile };
-  }
-  if (/run|exec|command|shell|terminal|process/i.test(tool)) {
-    return { kind: "huge", icon: CommandLineIcon };
-  }
-  return { kind: "react", Icon: FaIcons };
+function toolIcon(tool: string): IconSvgElement {
+  if (/web_search|web_fetch|http_request|gmail|spotify/i.test(tool)) return GlobeIcon;
+  if (/run_command|terminal|shell|process/i.test(tool)) return CommandLineIcon;
+  if (/git_commit|git_status|git_diff/i.test(tool)) return CodeIcon;
+  if (/search_files|list_dir|analyze_project_structure|get_open_files/i.test(tool)) return Folder01Icon;
+  if (/delete/i.test(tool)) return Delete02Icon;
+  if (/write|append|replace|edit|rename|copy|create/i.test(tool)) return Edit02Icon;
+  if (/read_file|file_info|read_active_file/i.test(tool)) return File01Icon;
+  if (/browser|url|web/i.test(tool)) return BrowserIcon;
+  return Search01Icon;
 }
 
 /** Renders the icon for a tool, picking the right component for the icon set. */
 function ToolIcon({ tool }: { tool: string }) {
-  const spec = toolIcon(tool);
-  if (spec.kind === "huge") {
-    return <HugeiconsIcon icon={spec.icon} size={13} strokeWidth={1.8} className="shrink-0" />;
-  }
-  const { Icon } = spec;
-  return <Icon size={13} className="shrink-0" />;
+  return <HugeiconsIcon icon={toolIcon(tool)} size={14} strokeWidth={1.7} className="shrink-0" />;
 }
 
 function toolArgument(item: AgenticActivityType): string {
@@ -201,8 +188,8 @@ export default function AgenticActivity({
   onDeny,
 }: AgenticActivityProps) {
   const { t } = useTranslation();
-  const [closed, setClosed] = useState<string[]>([]);
   const [expandedRows, setExpandedRows] = useState<string[]>([]);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     if (!pending) return;
@@ -215,116 +202,100 @@ export default function AgenticActivity({
     return () => window.removeEventListener("keydown", handler);
   }, [pending, onApprove, onDeny]);
 
-  const remove = (id: string) => setClosed((prev) => [...prev, id]);
-  const isClosed = (id: string) => closed.includes(id);
   const toggleRow = (id: string) =>
     setExpandedRows((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
 
-  const visible = items.filter((item) => !isClosed(item.id));
+  const visible = items;
 
   const total = visible.length;
   const activeCount = visible.filter((i) => i.status === "running" || i.status === "pending").length;
   const failedCount = visible.filter((i) => i.status === "error" || i.status === "denied").length;
-  const totals = visible.reduce((acc, item) => {
-      if (item.diff) {
-        const s = diffStats(item.diff);
-        acc.adds += s.adds; acc.dels += s.dels;
-      }
-      return acc;
-    }, { adds: 0, dels: 0 });
-
+  const isWorking = activeCount > 0 || !!pending;
+  useEffect(() => {
+    if (isWorking) setExpanded(true);
+  }, [isWorking]);
   if (total === 0 && !pending) return null;
 
-  return (
-    <div className="mx-auto w-full max-w-3xl px-5 py-2">
-      <div className="space-y-1">
-        {pending && (
-          <div className="flex items-center gap-2 text-[11px] text-[var(--text-muted)]">
-            <ToolIcon tool={pending.tool} />
-            <ThinkingIndicator label={t("activity.waitingToUse", { tool: toolName(pending.tool) })} />
-            <div className="ml-auto flex shrink-0 items-center gap-1">
-                <button
-                  onClick={() => onDeny(pending.id)}
-                  className="rounded px-2 py-1 text-[11px] text-[var(--text-muted)] transition hover:bg-(--fill-3) hover:text-[var(--text-primary)]"
-                >
-                  {t("activity.deny")}
-                </button>
-                <button
-                  onClick={() => onApprove(pending.id)}
-                  className="rounded bg-(--accent) px-2 py-1 text-[11px] font-medium text-(--on-accent) transition hover:opacity-90"
-                >
-                  {t("activity.approve")}
-                </button>
-            </div>
-          </div>
-        )}
+  const summary = isWorking
+    ? t("activity.working")
+    : failedCount > 0
+      ? t("activity.agentActivity")
+      : t("activity.toolsUsed", { count: total, plural: total === 1 ? "" : "s" });
 
-        {total > 0 && (
-          <div className="space-y-1">
-            <div className="px-1 text-[10px] text-[var(--text-faint)]">
-              {activeCount > 0 ? t("activity.working") : failedCount > 0 ? t("activity.agentActivity") : t("activity.toolsUsed", { count: total, plural: total === 1 ? "" : "s" })}
-              {totals.adds + totals.dels > 0 && (
-                <span className="ml-2 font-mono text-[10px]">
-                  <span className="text-[var(--success)]">+{totals.adds}</span> <span className="text-[var(--danger)]">−{totals.dels}</span>
-                </span>
-              )}
-            </div>
-            <div className="space-y-0.5">
-              {visible.map((item) => {
-          const open = expandedRows.includes(item.id);
-          const hasDetail = !!(item.output || item.error || item.data);
-          return (
-            <div key={item.id} className="group">
-                <div
-                  role={hasDetail ? "button" : undefined}
-                  tabIndex={hasDetail ? 0 : undefined}
-                  onClick={() => hasDetail && toggleRow(item.id)}
-                  onKeyDown={(event) => {
-                    if (hasDetail && (event.key === "Enter" || event.key === " ")) {
-                      event.preventDefault();
-                      toggleRow(item.id);
-                    }
-                  }}
-                  className={`flex w-full items-center gap-2 px-1 py-1 text-left text-[11px] text-[var(--text-muted)] ${hasDetail ? "cursor-pointer hover:text-[var(--text-secondary)]" : ""}`}
-                >
-                  <ToolIcon tool={item.tool} />
-                  <span className="font-medium">{item.status === "done" ? t("activity.used") : item.status === "error" ? t("activity.failed") : item.status === "denied" ? t("activity.denied") : t("activity.using")} {toolName(item.tool)}</span>
-                  <span className="min-w-0 truncate font-mono text-[10px] text-[var(--text-faint)]">
-                    {toolArgument(item)}
-                  </span>
-                  {item.status === "running" && <ThinkingIndicator label="" />}
-                  {item.durationMs != null && <span className="ml-auto shrink-0 text-[10px] text-[var(--text-faint)]">{duration(item.durationMs)}</span>}
-                  {hasDetail && <Chevron open={open} />}
-                  <span
-                    onClick={(e) => { e.stopPropagation(); remove(item.id); }}
-                  className="ml-1 text-[11px] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-[var(--text-secondary)]"
-                >
-                  ✕
-                </span>
-              </div>
-              {open && (
-                <div className="px-1 pb-2">
-                  <ToolDetails item={item} />
-                  {item.diff && item.diff.length > 0 && (
-                    <div className="mb-2 overflow-hidden rounded border border-(--border) bg-(--fill-1) font-mono text-[11px]">
-                      {item.diff.map((l, i) => (
-                        <div key={i} className={l.type === "add" ? "bg-emerald-500/10 text-[var(--success)]" : l.type === "del" ? "bg-red-500/10 text-[var(--danger)]" : "text-[var(--text-faint)]"}>
-                          <span className="px-2 opacity-50">{l.type === "add" ? "+" : l.type === "del" ? "−" : " "}</span>
-                          <span className="whitespace-pre-wrap break-all">{l.text}</span>
+  return (
+    <div className="mt-2 max-w-full">
+      <button
+        type="button"
+        onClick={() => setExpanded((value) => !value)}
+        aria-expanded={expanded}
+        className="inline-flex items-center gap-1.5 rounded px-1 py-1 text-[11px] text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
+      >
+        {isWorking ? (
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-(--accent)" />
+        ) : failedCount ? (
+          <IoAlertCircleOutline aria-hidden className="h-3.5 w-3.5 text-[var(--danger)]" />
+        ) : (
+          <IoCheckmarkOutline aria-hidden className="h-3.5 w-3.5 text-[var(--text-faint)]" />
+        )}
+        <span className={failedCount ? "text-[var(--danger)]" : ""}>{summary}</span>
+        <Chevron open={expanded} />
+      </button>
+
+      {expanded && (
+        <div className="ml-1 mt-1 border-l border-(--border) pl-3">
+          <div className="space-y-0.5">
+            {visible.map((item) => {
+              const open = expandedRows.includes(item.id);
+              const hasDetail = !!(item.output || item.error || item.data || item.diff?.length);
+              const active = item.status === "running" || item.status === "pending" || item.status === "approved";
+              const failed = item.status === "error" || item.status === "denied";
+              return (
+                <div key={item.id}>
+                  <div className="flex min-w-0 items-center gap-2 py-1 text-[11px] text-[var(--text-muted)]">
+                    <span className={failed ? "text-[var(--danger)]" : active ? "text-[var(--text-secondary)]" : ""} title={toolName(item.tool)}>
+                      <ToolIcon tool={item.tool} />
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => hasDetail && toggleRow(item.id)}
+                      aria-expanded={hasDetail ? open : undefined}
+                      className={`flex min-w-0 flex-1 items-center gap-2 text-left ${hasDetail ? "hover:text-[var(--text-primary)]" : "cursor-default"}`}
+                    >
+                      <span className={`shrink-0 ${failed ? "text-[var(--danger)]" : active ? "text-[var(--text-primary)]" : ""}`}>{toolName(item.tool)}</span>
+                      {toolArgument(item) && <span title={toolArgument(item)} className="min-w-0 truncate font-mono text-[10px] text-[var(--text-faint)]">{toolArgument(item)}</span>}
+                      {active && <span className="ml-auto shrink-0 text-[10px] text-[var(--text-faint)]">{t("activity.working")}</span>}
+                      {!active && item.durationMs != null && <span className="ml-auto shrink-0 text-[10px] tabular-nums text-[var(--text-faint)]">{duration(item.durationMs)}</span>}
+                      {hasDetail && <Chevron open={open} />}
+                    </button>
+                  </div>
+                  {open && (
+                    <div className="pb-2 pl-5">
+                      <ToolDetails item={item} />
+                      {item.diff && item.diff.length > 0 && (
+                        <div className="mb-2 overflow-auto font-mono text-[10px]">
+                          {item.diff.map((line, i) => (
+                            <div key={i} className={line.type === "add" ? "text-[var(--success)]" : line.type === "del" ? "text-[var(--danger)]" : "text-[var(--text-faint)]"}>
+                              <span className="mr-2 opacity-50">{line.type === "add" ? "+" : line.type === "del" ? "−" : " "}</span>
+                              <span className="whitespace-pre-wrap break-all">{line.text}</span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
                     </div>
                   )}
-                  <StructuredOutput item={item} />
                 </div>
-              )}
-            </div>
-          );
-              })}
-            </div>
+              );
+            })}
           </div>
-        )}
-      </div>
+          {pending && (
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+              <span className="mr-auto text-[var(--text-secondary)]">{t("activity.waitingToUse", { tool: toolName(pending.tool) })}</span>
+              <button onClick={() => onDeny(pending.id)} className="px-2 py-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]">{t("activity.deny")}</button>
+              <button onClick={() => onApprove(pending.id)} className="rounded bg-(--fill-3) px-2.5 py-1 text-[var(--text-primary)] hover:bg-(--fill-2)">{t("activity.approve")}</button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
