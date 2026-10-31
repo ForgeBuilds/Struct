@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChatSession } from "../src/types";
 import { providerById } from "../src/providers";
-import { IoAdd, IoAppsOutline, IoChatbubbleOutline, IoClose, IoFolder, IoFolderOpenOutline, IoFolderOutline, IoPersonCircleOutline, IoSearch, IoSettingsOutline, IoTrashOutline } from "react-icons/io5";
+import { IoAdd, IoAppsOutline, IoChatbubbleOutline, IoFolderOpenOutline, IoFolderOutline, IoPersonCircleOutline, IoSearch, IoSettingsOutline, IoTrashOutline } from "react-icons/io5";
 import { openExternalUrl as openUrl } from "../src/lib/external";
 import { useErrorHandler } from "../src/errorContext";
 import { useTranslation } from "../src/i18n";

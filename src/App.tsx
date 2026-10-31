@@ -114,7 +114,7 @@ import {
   type UiSettings,
 } from "./uiSettings";
 import { getActiveLanguage, setActiveLanguage } from "./i18n";
-import { IoMenu, IoAlertSharp, /*IoBarChartOutline, IoBugOutline*/ IoCheckmark, IoCopyOutline, IoFolderOutline, /*IoSparkles*/ /*IoTerminal,*/ IoThumbsDownSharp, IoThumbsUpSharp, /*IoInformation*/ } from "react-icons/io5";
+import { IoAlertSharp, /*IoBarChartOutline, IoBugOutline*/ IoCheckmark, IoCopyOutline, IoFolderOutline, /*IoSparkles*/ /*IoTerminal,*/ IoThumbsDownSharp, IoThumbsUpSharp, /*IoInformation*/ } from "react-icons/io5";
 import { shortPath } from "./utils";
 
 const SettingsPanel = lazy(() => import("./components/SettingsPanel"));
@@ -230,6 +230,23 @@ ${m.content}`.trim();
     }
   }
   return out;
+}
+
+function restoreSessionActivities(
+  activities: AgenticActivityType[] | undefined,
+  messages: Message[],
+): AgenticActivityType[] {
+  if (!activities?.length) return [];
+  const history = sanitizeHistory(messages);
+  let lastAssistantIndex = history.findLastIndex((message) => message.role === "assistant");
+  if (lastAssistantIndex < 0) lastAssistantIndex = Math.max(0, history.length - 1);
+  return activities.map((activity) => {
+    const index = activity.messageIndex;
+    if (index == null || history[index]?.role !== "assistant") {
+      return { ...activity, messageIndex: lastAssistantIndex };
+    }
+    return activity;
+  });
 }
 
 function generateSessionId(): string {
@@ -686,6 +703,7 @@ export default function App() {
         if (session) {
           setActiveSessionId(session.id);
           setMessages(sanitizeHistory(session.messages));
+          setActivities(restoreSessionActivities(session.activities, session.messages));
         }
       }
 
@@ -784,7 +802,12 @@ export default function App() {
           const map = new Map(prev.map((s) => [s.id, s]));
           for (const c of snapshot.chats) {
             const local = map.get(c.id);
-            if (!local || c.updatedAt > local.updatedAt) map.set(c.id, c);
+            if (!local || c.updatedAt > local.updatedAt) {
+              // Activity feeds are device-local (the cloud chat schema only
+              // stores messages/settings), so a newer cloud row must not
+              // erase the feed already attached to this local session.
+              map.set(c.id, { ...c, activities: local?.activities ?? [] });
+            }
             // Remember cloud timestamps so the save-effect doesn't re-upload them.
             cloudPushedAtRef.current.set(c.id, Math.max(c.updatedAt, local?.updatedAt ?? 0));
           }
@@ -1180,8 +1203,8 @@ export default function App() {
     const session = sessions.find((s) => s.id === id);
     if (!session) return;
     setActiveSessionId(id);
-    setActivities(session.activities ?? []);
     setMessages(sanitizeHistory(session.messages));
+    setActivities(restoreSessionActivities(session.activities, session.messages));
     setCtxReported(0);
     // Restore the AI provider/model this tab was using (fall back to global).
     if (session.settings) {
@@ -2686,12 +2709,12 @@ const handleAnimationComplete = () => {
                           onAnimationComplete={handleAnimationComplete}
                           className="text-2xl mb-8 mx-auto"
                           loop={false}
-                          loopDelay={2}
+                          loopDelay={1}
                           focusOnHover={false}
                         />
                     
 
-                    <div className="mx-auto mt-1 grid w-full max-w-lg grid-cols-1 gap-1.5 text-left sm:grid-cols-2 md:grid-cols-4">
+                    <div className="mx-auto mt-2 w-full max-w-lg grid grid-cols-2 gap-3 text-left">
                       
                       <button
                         type="button"
@@ -2701,39 +2724,9 @@ const handleAnimationComplete = () => {
                         className="rounded-xl border border-transparent bg-(--fill-1) px-3.5 py-2.5 text-left transition hover:border-(--border) hover:bg-(--fill-2)"
                       >
                         <span className="block text-[12.5px] text-[var(--text-primary)]">
-                          <BlurText
-                          text="Open a folder or a file"
-                          effect="blur"
-                          animateBy="letters"
-                          direction="top"
-                          trigger="view"
-                          delay={200}
-                          stepDuration={0.35}
-                          blur={10}
-                          distance={50}
-                          onAnimationComplete={handleAnimationComplete}
-                          className="w-full"
-                          loop={false}
-                          loopDelay={2}
-                          focusOnHover={false}
-                        /></span>
+                          Open a folder</span>
                         <span className="mt-0.5 block text-[11.5px] leading-4 text-[var(--text-muted)]">
-                          <BlurText
-                          text="Work on a project"
-                          effect="blur"
-                          animateBy="words"
-                          direction="top"
-                          trigger="view"
-                          delay={100}
-                          stepDuration={0.35}
-                          blur={10}
-                          distance={50}
-                          onAnimationComplete={handleAnimationComplete}
-                          className="w-full"
-                          loop={false}
-                          loopDelay={2}
-                          focusOnHover={false}
-                        /></span>
+                          Start work on a project</span>
                       </button>
                       {[
                         {
@@ -2756,9 +2749,11 @@ const handleAnimationComplete = () => {
                           key={card.label}
                           type="button"
                           onClick={() => setMessage(card.prompt)}
-                          className="rounded-xl border border-transparent bg-(--fill-1) px-3.5 py-2.5 text-left transition hover:border-(--border) hover:bg-(--fill-2)"
+                          className="rounded-xl bg-(--fill-1) px-3.5 py-2.5 text-left transition hover:border-(--border) hover:bg-(--fill-2)"
                         >
-                          <span className="block text-[12.5px] text-[var(--text-primary)]"><BlurText
+                           <span className="block text-[12.5px] text-[var(--text-primary)]">
+                            {card.label}
+                            {/*<BlurText
                           text={card.label}
                           effect="blur"
                           animateBy="letters"
@@ -2773,8 +2768,9 @@ const handleAnimationComplete = () => {
                           loop={false}
                           loopDelay={3}
                           focusOnHover={false}
-                        /></span>
-                          <span className="mt-0.5 block text-[11.5px] leading-4 text-[var(--text-muted)]"><BlurText
+                        />*/}</span>
+                          <span className="mt-0.5 block text-[11.5px] leading-4 text-[var(--text-muted)]">
+                             {card.desc}{/*<BlurText
                           text={card.desc}
                           effect="blur"
                           animateBy="letters"
@@ -2789,7 +2785,7 @@ const handleAnimationComplete = () => {
                           loop={false}
                           loopDelay={2}
                           focusOnHover={false}
-                        /></span>
+                        />*/}</span>
                         </button>
                       ))}
                     </div>
