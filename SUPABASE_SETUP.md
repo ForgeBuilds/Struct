@@ -25,9 +25,10 @@ method fails at once** (email + GitHub + Google), which is the usual cause of
 > desktop build command after setting `.env`. For GitHub Actions releases,
 > add repository secrets named `VITE_SUPABASE_URL` and
 > `VITE_SUPABASE_ANON_KEY`; the platform workflow injects and validates them
-> before building the renderer, and fails if either is missing. Pull requests
-> from forks do not receive repository secrets, so their platform builds will
-> fail this check until run in a trusted context. If in doubt, confirm `dist/assets/*.js` contains your
+> before building the renderer. The check is non-fatal: if the secrets are
+> absent the build still succeeds in local-only mode (no auth/cloud sync).
+> Pull requests from forks do not receive repository secrets, so their
+> platform builds run local-only until run in a trusted context. If in doubt, confirm `dist/assets/*.js` contains your
 > `<ref>.supabase.co` before packaging.
 
 ## 2. Apply the database schema

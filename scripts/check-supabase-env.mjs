@@ -1,3 +1,12 @@
+#!/usr/bin/env node
+// Validates Supabase build configuration when it is provided.
+//
+// Supabase is OPTIONAL for Struct: the app runs fully local when these vars are
+// empty (see src/lib/supabase.ts). Builds must therefore never fail just
+// because the secrets are absent (forks, PRs, local dev). When the values ARE
+// present we still validate their shape so a typo does not silently ship a
+// broken auth configuration.
+
 const url = process.env.VITE_SUPABASE_URL?.trim();
 const anonKey = process.env.VITE_SUPABASE_ANON_KEY?.trim();
 
@@ -6,11 +15,12 @@ if (!url) missing.push("VITE_SUPABASE_URL");
 if (!anonKey) missing.push("VITE_SUPABASE_ANON_KEY");
 
 if (missing.length > 0) {
-  console.error(
+  console.warn(
     `Supabase build configuration is missing: ${missing.join(", ")}. ` +
-      "Set both values in the build environment (GitHub repository or environment secrets for Actions) and rebuild. See SUPABASE_SETUP.md.",
+      "The build will continue in local-only mode (no auth/cloud sync). " +
+      "Set both values in the build environment to enable Supabase. See SUPABASE_SETUP.md.",
   );
-  process.exit(1);
+  process.exit(0);
 }
 
 let parsedUrl;
