@@ -21,6 +21,7 @@
     "icons": "node scripts/generate-icons.mjs",
     "electron": "electron .",
     "release:notes": "node scripts/generate-release-notes.mjs",
+    "translations:generate": "node scripts/generate-translations.mjs",
     "version": "node scripts/generate-release-notes.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
