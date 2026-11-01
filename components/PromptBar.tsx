@@ -24,7 +24,7 @@ import {
   // ChartLineData01Icon,
   File02Icon,
   Globe02Icon,
-  HelpCircleIcon,
+  //HelpCircleIcon,
   Mic01Icon,
   PlusSignIcon,
   SparklesIcon,
