@@ -656,7 +656,7 @@ const PromptBar: React.FC<PromptBarProps> = ({
                   className="ml-auto inline-flex [color:color-mix(in_srgb,var(--pb-ink)_55%,transparent)]"
                   title={t('promptBar.effortTooltip')}
                 >
-                  <HugeiconsIcon icon={HelpCircleIcon} size={14} strokeWidth={1.8} />
+                  {/* <HugeiconsIcon icon={HelpCircleIcon} size={14} strokeWidth={1.8} /> */}
                 </span>
               </div>
               <div className="mt-3 flex justify-between text-[12px] leading-4 [color:color-mix(in_srgb,var(--pb-ink)_55%,transparent)]">

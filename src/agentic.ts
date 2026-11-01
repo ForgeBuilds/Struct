@@ -5,6 +5,7 @@
 
 import { invoke } from "./native";
 import { gmailRead, gmailSearch, gmailSend } from "./gmail";
+import { githubCreateIssue, githubIssues, githubRepos } from "./github";
 import {
   spotifyNowPlaying,
   spotifyPlayback,
@@ -45,7 +46,10 @@ export type ToolName =
   | "spotify_search"
   | "spotify_now_playing"
   | "spotify_playback"
-  | "spotify_queue";
+  | "spotify_queue"
+  | "github_repos"
+  | "github_issues"
+  | "github_create_issue";
 
 export interface ToolCall {
   id?: string;
@@ -105,6 +109,7 @@ const DESTRUCTIVE: ToolName[] = [
   "gmail_send",
   "spotify_playback",
   "spotify_queue",
+  "github_create_issue",
 ];
 
 export function isDestructive(name: string): boolean {
@@ -144,6 +149,9 @@ const TOOL_NAME_SET = new Set<string>([
   "spotify_now_playing",
   "spotify_playback",
   "spotify_queue",
+  "github_repos",
+  "github_issues",
+  "github_create_issue",
 ]);
 
 export function isToolName(name: string): name is ToolName {
@@ -473,6 +481,18 @@ export const TOOL_JSON_SCHEMAS: Record<ToolName, { description: string; paramete
       },
       required: ["uri"],
     },
+  },
+  github_repos: {
+    description: "List repositories available to the connected GitHub account. Requires GitHub connected in Plugins.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  github_issues: {
+    description: "List issues for a GitHub repository. Provide owner and repo (for example, microsoft/react).",
+    parameters: { type: "object", properties: { owner: { type: "string", description: "Repository owner." }, repo: { type: "string", description: "Repository name." }, state: { type: "string", description: "open, closed, or all (default open)." } }, required: ["owner", "repo"] },
+  },
+  github_create_issue: {
+    description: "Create a GitHub issue in a repository. Requires GitHub connected with issues write permission. Asks for approval.",
+    parameters: { type: "object", properties: { owner: { type: "string", description: "Repository owner." }, repo: { type: "string", description: "Repository name." }, title: { type: "string", description: "Issue title." }, body: { type: "string", description: "Issue description." } }, required: ["owner", "repo", "title"] },
   },
 };
 
@@ -1518,6 +1538,26 @@ async function executeToolUncached(
           return { ok: false, output: `Spotify queue failed: ${e instanceof Error ? e.message : String(e)}` };
         }
       }
+      case "github_repos": {
+        try {
+          const repos = await githubRepos();
+          return { ok: true, output: repos.length ? repos.map(r => `${r.full_name}${r.private ? " (private)" : ""}${r.description ? ` — ${r.description}` : ""}\n   ${r.html_url}`).join("\n") : "No repositories found." };
+        } catch (e) { return { ok: false, output: `GitHub repositories failed: ${e instanceof Error ? e.message : String(e)}` }; }
+      }
+      case "github_issues": {
+        try {
+          const owner = String(args.owner ?? "").trim(), repo = String(args.repo ?? "").trim();
+          if (!owner || !repo) return { ok: false, output: "github_issues needs owner and repo." };
+          const issues = await githubIssues(owner, repo, String(args.state ?? "open"));
+          return { ok: true, output: issues.length ? issues.map(i => `#${i.number} ${i.title} — ${i.state}, @${i.user.login}\n   ${i.html_url}`).join("\n") : "No matching issues." };
+        } catch (e) { return { ok: false, output: `GitHub issues failed: ${e instanceof Error ? e.message : String(e)}` }; }
+      }
+      case "github_create_issue": {
+        try {
+          const issue = await githubCreateIssue(String(args.owner ?? ""), String(args.repo ?? ""), String(args.title ?? ""), String(args.body ?? ""));
+          return { ok: true, output: `Created GitHub issue #${issue.number}: ${issue.html_url}` };
+        } catch (e) { return { ok: false, output: `GitHub issue creation failed: ${e instanceof Error ? e.message : String(e)}` }; }
+      }
       default:
         return {
           ok: false,
@@ -2013,6 +2053,9 @@ export const TOOL_LABELS: Record<ToolName, string> = {
   spotify_now_playing: "Spotify now playing",
   spotify_playback: "Control Spotify playback",
   spotify_queue: "Queue Spotify track",
+  github_repos: "List GitHub repositories",
+  github_issues: "List GitHub issues",
+  github_create_issue: "Create GitHub issue",
 };
 
 /** Short description of each tool for the model's system prompt. */
@@ -2049,6 +2092,9 @@ export const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
   spotify_now_playing: 'spotify_now_playing() — the current Spotify track, device and progress.',
   spotify_playback: 'spotify_playback(action, uris?, volume_percent?) — play/pause/next/previous/volume.',
   spotify_queue: 'spotify_queue(uri) — add one track to the Spotify play queue.',
+  github_repos: 'github_repos() — list repositories accessible to the connected GitHub account.',
+  github_issues: 'github_issues(owner, repo, state?) — list repository issues.',
+  github_create_issue: 'github_create_issue(owner, repo, title, body?) — create a GitHub issue (asks approval).',
 };
 
 /** The protocol instructions injected into the system prompt. Kept short and
@@ -2075,6 +2121,10 @@ Spotify (requires Spotify connected in the PlugIns panel; playback needs Premium
 - \`spotify_now_playing()\` — the current track, device and progress.
 - \`spotify_playback(action, uris?, volume_percent?)\` — play/pause/next/previous/volume (asks approval). To play specific songs, spotify_search first, then action=play with uris.
 - \`spotify_queue(uri)\` — queue one track by URI (asks approval).
+GitHub (requires GitHub connected in Plugins):
+- \`github_repos()\` — list repositories available to the connected account.
+- \`github_issues(owner, repo, state?)\` — list issues for a repository.
+- \`github_create_issue(owner, repo, title, body?)\` — create an issue (asks approval).
 Git (workspace):
 - \`git_status()\`, \`git_diff(staged?)\`, \`git_commit(message)\`
 System:
