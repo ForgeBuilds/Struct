@@ -20,9 +20,12 @@ import {
   spotifyProduct,
   spotifyRememberedClientId,
 } from "../src/spotify";
+import { connectCalendar, disconnectCalendar, calendarConnectedUser } from "../src/googleCalendar";
+import { connectGitHub, disconnectGitHub, githubConnected } from "../src/github";
 import gmailIcon from "../src/assets/images/gmail.webp";
 import robloxIcon from "../src/assets/images/roblox.webp";
 import spotifyIcon from "../src/assets/images/spotify.webp";
+import googleIcon from "../src/assets/images/googlecalander.jpeg";
 
 interface Props {
   isOpen?: boolean;
@@ -32,7 +35,7 @@ interface Props {
   onOpenAiSettings?: () => void;
 }
 
-type View = "picker" | "gmail" | "spotify";
+type View = "picker" | "gmail" | "spotify" | "calendar" | "github";
 
 
 export default function PluginsPanel({ isOpen = false, onClose = () => {}, inline = false }: Props) {
@@ -53,6 +56,15 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
   const [spotifyError, setSpotifyError] = useState("");
   const [spotifyBusy, setSpotifyBusy] = useState(false);
 
+  const [calendarClientId, setCalendarClientId] = useState("");
+  const [calendarUser, setCalendarUser] = useState<string | null>(null);
+  const [calendarError, setCalendarError] = useState("");
+  const [calendarBusy, setCalendarBusy] = useState(false);
+  const [githubToken, setGithubToken] = useState("");
+  const [githubUser, setGithubUser] = useState<string | null>(null);
+  const [githubError, setGithubError] = useState("");
+  const [githubBusy, setGithubBusy] = useState(false);
+
 
   // Reset the view and Gmail state whenever the panel opens (modal) or is
   // forced to render inline (e.g. inside the Settings panel).
@@ -63,6 +75,10 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
       setGmailEmail(gmailConnectedEmail());
       setSpotifyError("");
       setSpotifyBusy(false);
+      setCalendarError("");
+      setCalendarBusy(false);
+      setCalendarUser(calendarConnectedUser());
+      setGithubUser(githubConnected() ? "Connected" : null);
       setSpotifyUser(spotifyConnectedUser());
       setSpotifyPlan(spotifyProduct());
       setSpotifyClientId(spotifyRememberedClientId());
@@ -141,6 +157,30 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
     setSpotifyError("");
   };
 
+  const dropCalendar = () => {
+    disconnectCalendar();
+    setCalendarUser(null);
+    setCalendarError("");
+  };
+
+  const submitCalendar = async () => {
+    setCalendarError("");
+    const id = calendarClientId.trim();
+    if (!id) { setCalendarError(t("plugins.clientIdRequired")); return; }
+    setCalendarBusy(true);
+    try { setCalendarUser(await connectCalendar({ clientId: id })); }
+    catch (e) { setCalendarError(e instanceof Error ? e.message : String(e)); reportError(e); }
+    finally { setCalendarBusy(false); }
+  };
+
+  const submitGitHub = async () => {
+    setGithubError(""); setGithubBusy(true);
+    try { setGithubUser(await connectGitHub(githubToken)); setGithubToken(""); }
+    catch (e) { setGithubError(e instanceof Error ? e.message : String(e)); reportError(e); }
+    finally { setGithubBusy(false); }
+  };
+  const dropGitHub = () => { disconnectGitHub(); setGithubUser(null); setGithubError(""); };
+
   const content = view === "picker" ? (
     <div className="flex flex-col gap-2 m-4">
       <p className="m-0 mb-1 text-[11px] leading-4 text-[var(--text-muted)]">
@@ -185,6 +225,22 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
         )}
       </button>
       <button
+        onClick={() => setView("github")}
+        className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-1) px-3 py-2.5 text-left transition hover:bg-(--fill-2) w-50"
+      >
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-(--fill-2) text-lg">⌘</span>
+        <span className="min-w-0 flex-1"><span className="block truncate text-[12.5px] font-medium text-[var(--text-primary)]">GitHub</span><span className="block truncate text-[10.5px] text-[var(--text-muted)]">Repos and issues</span></span>
+        {githubUser && <span className="text-[9px] text-[var(--success)]">Connected</span>}
+      </button>
+      <button
+        onClick={() => setView("calendar")}
+        className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-1) px-3 py-2.5 text-left transition hover:bg-(--fill-2) w-50"
+      >
+        <img src={googleIcon} alt="" className="h-8 w-8 shrink-0 rounded-lg" />
+        <span className="min-w-0 flex-1"><span className="block truncate text-[12.5px] font-medium text-[var(--text-primary)]">Google Calendar</span><span className="block truncate text-[10.5px] text-[var(--text-muted)]">{t("plugins.calendarHelp")}</span></span>
+        {calendarUser && <span className="text-[9px] text-[var(--success)]">Connected</span>}
+      </button>
+      <button
         title={t("plugins.comingSoon")}
         onClick ={()=>alert("Visit the mcp section inside the AI settings section")}
         className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-2) px-3 py-2.5 text-left opacity-60 hover:bg-(--fill-3) w-50"
@@ -200,6 +256,10 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
         </span>
       </button>
     </div>
+  ) : view === "github" ? (
+    <GitHubSetup token={githubToken} setToken={setGithubToken} user={githubUser} error={githubError} busy={githubBusy} onConnect={() => void submitGitHub()} onDisconnect={dropGitHub} />
+  ) : view === "calendar" ? (
+    <CalendarSetup clientId={calendarClientId} setClientId={setCalendarClientId} user={calendarUser} error={calendarError} busy={calendarBusy} onConnect={() => void submitCalendar()} onDisconnect={dropCalendar} />
   ) : view === "gmail" ? (
     <GmailSetup
       gmail={gmail}
@@ -228,7 +288,7 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
   if (inline) {
     return (
       <div className="flex flex-col gap-3">
-        {(view === "gmail" || view === "spotify") && (
+        {(view === "gmail" || view === "spotify" || view === "calendar" || view === "github") && (
           <button
             onClick={() => setView("picker")}
             className="flex w-fit items-center gap-1.5 rounded-md px-2 py-1 -ml-2 text-[11.5px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
@@ -247,7 +307,7 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
       {/* Header */}
       <div className="flex items-center justify-between border-b border-(--border) px-5 py-4">
         <div className="flex items-center gap-2">
-          {(view === "gmail" || view === "spotify") ? (
+          {(view === "gmail" || view === "spotify" || view === "calendar" || view === "github") ? (
             <button
               onClick={() => setView("picker")}
               aria-label={t("plugins.backToPlugins")}
@@ -260,14 +320,18 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
           )}
           <div>
             <h2 className="m-0 text-[14px] font-semibold text-[var(--text-primary)]">
-              {view === "gmail" ? "Gmail" : view === "spotify" ? "Spotify" : t("plugins.title")}
+              {view === "gmail" ? "Gmail" : view === "spotify" ? "Spotify" : view === "calendar" ? "Google Calendar" : view === "github" ? "GitHub" : t("plugins.title")}
             </h2>
             <p className="m-0 text-[11.5px] text-[var(--text-muted)]">
               {view === "gmail"
                 ? gmailEmail
                   ? t("plugins.connectedAs", { name: gmailEmail })
                   : t("plugins.connectGmail")
-                : view === "spotify"
+                : view === "github"
+                  ? githubUser ? t("plugins.connectedAs", { name: githubUser }) : "Connect the agent to GitHub"
+                : view === "calendar"
+                  ? calendarUser ? t("plugins.connectedAs", { name: calendarUser }) : t("plugins.connectCalendar")
+                  : view === "spotify"
                   ? spotifyUser
                     ? t("plugins.connectedAs", { name: spotifyUser })
                     : t("plugins.connectSpotify")
@@ -290,6 +354,8 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
         <span className="text-[10.5px] text-[var(--text-muted)]">
           {view === "gmail"
             ? t("plugins.gmailFooter")
+            : view === "github" ? "GitHub API · repositories + issues"
+            : view === "calendar" ? t("plugins.calendarHelp")
             : view === "spotify"
               ? t("plugins.spotifyFooter")
               : t("plugins.moreSoon")}
@@ -328,6 +394,27 @@ interface GmailSetupProps {
 
 const GMAIL_INPUT =
   "w-full rounded-md border border-(--border) bg-(--fill-1) px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] placeholder:text-[var(--text-faint)] focus:outline-none";
+
+interface GitHubSetupProps { token: string; setToken: (v: string) => void; user: string | null; error: string; busy: boolean; onConnect: () => void; onDisconnect: () => void; }
+
+function GitHubSetup(p: GitHubSetupProps) {
+  return <div className="flex flex-col gap-3">
+    <p className="m-0 text-[11px] leading-4 text-[var(--text-muted)]">Create a fine-grained token in GitHub Settings → Developer settings. Grant read access to repository metadata and issues; grant write access to issues only if you want the agent to create issues.</p>
+    {p.user ? <div className="flex items-center gap-2 rounded-md border border-(--border) bg-(--fill-1) px-3 py-2.5"><span className="flex-1 text-[12px]">Connected as {p.user}</span><button onClick={p.onDisconnect}>{"Disconnect"}</button></div> : <><label className="flex flex-col gap-1"><span className="text-[11px]">Personal access token</span><input type="password" value={p.token} onChange={e => p.setToken(e.target.value)} className={GMAIL_INPUT} placeholder="github_pat_…" autoComplete="off" /></label><button onClick={p.onConnect} disabled={p.busy} className="rounded-md bg-(--fill-2) px-3 py-1.5 disabled:opacity-50">{p.busy ? "Connecting…" : "Connect GitHub"}</button></>}
+    {p.error && <div className="text-[11px] text-[var(--danger)]">{p.error}</div>}
+  </div>;
+}
+
+interface CalendarSetupProps { clientId: string; setClientId: (v: string) => void; user: string | null; error: string; busy: boolean; onConnect: () => void; onDisconnect: () => void; }
+
+function CalendarSetup(p: CalendarSetupProps) {
+  const { t } = useTranslation();
+  return <div className="flex flex-col gap-3">
+    <p className="m-0 text-[11px] leading-4 text-[var(--text-muted)]">{t("plugins.calendarHelp")}</p>
+    {p.user ? <div className="flex items-center gap-2 rounded-md border border-(--border) bg-(--fill-1) px-3 py-2.5"><img src={googleIcon} alt="" className="h-7 w-7"/><span className="flex-1 text-[12px]">{p.user}</span><button onClick={p.onDisconnect}>{t("plugins.disconnect")}</button></div> : <><label className="flex flex-col gap-1"><span className="text-[11px]">{t("plugins.clientId")}</span><input value={p.clientId} onChange={e => p.setClientId(e.target.value)} className={GMAIL_INPUT} placeholder="Google OAuth Client ID" /></label><button onClick={p.onConnect} disabled={p.busy} className="rounded-md bg-(--fill-2) px-3 py-1.5 disabled:opacity-50">{p.busy ? t("plugins.connecting") : t("plugins.connect")}</button></>}
+    {p.error && <div className="text-[11px] text-[var(--danger)]">{p.error}</div>}
+  </div>;
+}
 
 /** Gmail setup: App Password sign-in → connected readout. */
 function GmailSetup(p: GmailSetupProps) {
