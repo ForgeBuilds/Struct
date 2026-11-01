@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "vite",
     "dev:electron": "node scripts/electron-dev.mjs",
+    "check:supabase-env": "node scripts/check-supabase-env.mjs",
     "build": "tsc -b && vite build",
     "build:electron:renderer": "npm run build",
     "build:desktop": "node scripts/desktop-build.mjs",

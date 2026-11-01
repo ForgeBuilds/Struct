@@ -24,8 +24,10 @@ method fails at once** (email + GitHub + Google), which is the usual cause of
 > its executable cannot change those values. For a local package, run the
 > desktop build command after setting `.env`. For GitHub Actions releases,
 > add repository secrets named `VITE_SUPABASE_URL` and
-> `VITE_SUPABASE_ANON_KEY`; the platform workflow injects them while building
-> the renderer. If in doubt, confirm `dist/assets/*.js` contains your
+> `VITE_SUPABASE_ANON_KEY`; the platform workflow injects and validates them
+> before building the renderer, and fails if either is missing. Pull requests
+> from forks do not receive repository secrets, so their platform builds will
+> fail this check until run in a trusted context. If in doubt, confirm `dist/assets/*.js` contains your
 > `<ref>.supabase.co` before packaging.
 
 ## 2. Apply the database schema

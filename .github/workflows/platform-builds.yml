@@ -31,6 +31,12 @@ jobs:
       - name: Generate icons
         run: npm run icons
 
+      - name: Validate Supabase build configuration
+        run: npm run check:supabase-env
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
       - name: Build renderer
         run: npm run build
         env:
@@ -68,6 +74,12 @@ jobs:
 
       - name: Generate icons
         run: npm run icons
+
+      - name: Validate Supabase build configuration
+        run: npm run check:supabase-env
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Build renderer
         run: npm run build
@@ -108,6 +120,12 @@ jobs:
 
       - name: Generate icons
         run: npm run icons
+
+      - name: Validate Supabase build configuration
+        run: npm run check:supabase-env
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Build renderer
         run: npm run build
