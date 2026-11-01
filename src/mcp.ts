@@ -15,6 +15,7 @@
  *              by the Rust backend (mcp_stdio_* commands).
  */
 import { invoke } from "./native";
+import { savePluginDataIfSignedIn } from "./lib/pluginCloud";
 
 export interface McpServerConfig {
   id: string;
@@ -98,6 +99,13 @@ export function loadMcpServers(): McpServerConfig[] {
 
 export function saveMcpServers(servers: McpServerConfig[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(servers));
+  void savePluginDataIfSignedIn("mcp", servers).catch((e) => console.warn("Could not sync MCP servers:", e));
+}
+
+/** Apply account-synced MCP configs locally without echoing them back to cloud. */
+export function restoreMcpServers(servers: McpServerConfig[]): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(servers.map(normalizeServer)));
+  window.dispatchEvent(new Event("struct:mcp-servers-restored"));
 }
 
 export function makeServerId(): string {

@@ -385,6 +385,11 @@ export default function SettingsPanel({
   const [showLocalModels, setShowLocalModels] = useState(false);
   const [aiTab, setAiTab] = useState<"general" | "mcp">("general");
   const [mcpServers, setMcpServers] = useState<McpServerConfig[]>(() => loadMcpServers());
+  useEffect(() => {
+    const refreshMcp = () => setMcpServers(loadMcpServers());
+    window.addEventListener("struct:mcp-servers-restored", refreshMcp);
+    return () => window.removeEventListener("struct:mcp-servers-restored", refreshMcp);
+  }, []);
   const [mcpName, setMcpName] = useState("");
   const [mcpTransport, setMcpTransport] = useState<"http" | "stdio">("http");
   const [mcpUrl, setMcpUrl] = useState("");

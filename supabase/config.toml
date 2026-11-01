@@ -21,3 +21,6 @@ project_id = "struct"
 # data. Authentication alone is the gate; there is no paywall check since
 # migration 0006 removed the plan gating.
 verify_jwt = true
+
+[functions.plugin-data]
+verify_jwt = true

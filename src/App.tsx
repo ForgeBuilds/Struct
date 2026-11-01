@@ -43,6 +43,7 @@ import {
   type Profile as AccountProfile,
 } from "./lib/auth";
 import * as cloudSync from "./lib/cloudSync";
+import { bootstrapAccountPlugins } from "./lib/pluginBootstrap";
 import {
   checkForUpdate,
   dismissedUntil,
@@ -766,6 +767,13 @@ export default function App() {
         ReturnType<typeof getProfile>
       >;
       setAccountProfile(profile);
+      try {
+        await withTimeout(bootstrapAccountPlugins(user.id), 25000, "Plugin sync");
+      } catch (pluginError) {
+        // A missing/new plugin-data deployment must not prevent core account
+        // sync (chats, profile, settings) from loading.
+        console.warn("[auth] Plugin sync failed:", pluginError instanceof Error ? pluginError.message : pluginError);
+      }
       const snapshot = (await withTimeout(cloudSync.loadAll(), 25000, "Cloud sync")) as Awaited<
         ReturnType<typeof cloudSync.loadAll>
       >;

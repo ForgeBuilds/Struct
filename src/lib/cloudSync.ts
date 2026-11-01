@@ -14,6 +14,7 @@
 
 import { supabase, isSupabaseConfigured } from "./supabase";
 import { BYOK_PROVIDERS } from "./byok";
+import { deletePluginData } from "./pluginCloud";
 import type { AISettings, ChatSession } from "../types";
 import { DEFAULT_SETTINGS } from "../types";
 
@@ -190,7 +191,7 @@ export async function loadAll(): Promise<CloudSnapshot> {
 
 /**
  * Delete every cloud row for the signed-in user: chats, AI settings and the
- * encrypted BYOK keys. Local data is untouched (see the local caches above).
+ * encrypted BYOK keys and encrypted plugin connections. Local data is untouched.
  * Throws if the chats/settings deletes fail so the UI can report it.
  */
 export async function deleteAllCloudData(): Promise<void> {
@@ -215,4 +216,5 @@ export async function deleteAllCloudData(): Promise<void> {
         .catch(() => undefined)
     )
   );
+  await deletePluginData();
 }

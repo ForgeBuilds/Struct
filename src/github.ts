@@ -1,3 +1,5 @@
+import { savePluginDataIfSignedIn, deletePluginData } from "./lib/pluginCloud";
+
 const STORE_KEY = "struct.github.token.v1";
 
 function token(): string {
@@ -12,6 +14,19 @@ export function githubConnected(): boolean {
   try { return Boolean(localStorage.getItem(STORE_KEY)?.trim()); } catch { return false; }
 }
 
+export function githubAccountData(): { token: string } | null {
+  try { const value = localStorage.getItem(STORE_KEY)?.trim(); return value ? { token: value } : null; }
+  catch { return null; }
+}
+
+export function restoreGitHub(value: unknown): void {
+  const tokenValue = (value as { token?: unknown } | null)?.token;
+  try {
+    if (typeof tokenValue === "string" && tokenValue.trim()) localStorage.setItem(STORE_KEY, tokenValue.trim());
+    else localStorage.removeItem(STORE_KEY);
+  } catch { /* storage unavailable */ }
+}
+
 export async function connectGitHub(value: string): Promise<string> {
   const t = value.trim();
   if (!t) throw new Error("Enter a GitHub personal access token.");
@@ -20,11 +35,13 @@ export async function connectGitHub(value: string): Promise<string> {
   const user = await response.json() as { login?: string };
   if (!user.login) throw new Error("GitHub did not return an account name.");
   localStorage.setItem(STORE_KEY, t);
+  await savePluginDataIfSignedIn("github", { token: t, login: user.login });
   return user.login;
 }
 
 export function disconnectGitHub(): void {
   try { localStorage.removeItem(STORE_KEY); } catch { /* ignore */ }
+  void deletePluginData("github").catch((e) => console.warn("Could not remove GitHub from account:", e));
 }
 
 function headers(accessToken = token()): HeadersInit {

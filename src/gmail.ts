@@ -11,6 +11,7 @@
  */
 
 import { invoke } from "./native";
+import { savePluginDataIfSignedIn, deletePluginData } from "./lib/pluginCloud";
 
 /** What the user pastes in the PlugIns panel. Memory + localStorage (see below). */
 export interface GmailClientConfig {
@@ -38,6 +39,8 @@ export function setGmailClientConfig(cfg: GmailClientConfig | null): void {
 export function hasGmailClientConfig(): boolean {
   return memCreds !== null;
 }
+
+export function gmailAccountData(): GmailStore | null { return memCreds ?? loadStore(); }
 
 function loadStore(): GmailStore | null {
   try {
@@ -82,6 +85,24 @@ export function disconnectGmail(): void {
     /* storage unavailable — treat as disconnected */
   }
   memCreds = null;
+  void deletePluginData("gmail").catch((e) => console.warn("Could not remove Gmail from account:", e));
+}
+
+/** Restore a previously synced connection after account sign-in. */
+export function restoreGmail(value: unknown): void {
+  const parsed = value as Partial<GmailStore> | null;
+  if (parsed && typeof parsed.email === "string" && typeof parsed.appPassword === "string") {
+    const email = parsed.email.trim();
+    const appPassword = parsed.appPassword.replace(/\s+/g, "");
+    if (email && appPassword) {
+      const stored = { email, appPassword };
+      memCreds = stored;
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(stored)); } catch { /* memory only */ }
+      return;
+    }
+  }
+  memCreds = null;
+  try { localStorage.removeItem(STORE_KEY); } catch { /* ignore */ }
 }
 
 /**
@@ -99,6 +120,7 @@ export async function connectGmail(cfg: GmailClientConfig): Promise<string> {
   const connected = res && typeof res.email === "string" && res.email.trim() ? res.email.trim() : email;
   const store: GmailStore = { email: connected, appPassword };
   saveStore(store);
+  await savePluginDataIfSignedIn("gmail", store);
   memCreds = store;
   return connected;
 }

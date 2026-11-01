@@ -39,6 +39,7 @@ supabase/migrations/0001_init.sql
 supabase/migrations/0002_harden_profiles.sql
 supabase/migrations/0003_restore_table_grants.sql
 supabase/migrations/0006_remove_paywalls.sql
+supabase/migrations/0007_user_plugin_connections.sql
 ```
 
 (`0004_payments.sql` + `0005_byok_paywall.sql` are superseded by `0006` — do
@@ -77,10 +78,17 @@ dead browser page.
 ```sh
 supabase secrets set BYOK_ENCRYPTION_KEY=$(openssl rand -hex 32)
 supabase functions deploy api-keys
+supabase functions deploy plugin-data
 ```
 
-`verify_jwt` stays ON (`supabase/config.toml`). The app calls it with the
-user's JWT; without the deploy, key save/load fails but login still works.
+`verify_jwt` stays ON (`supabase/config.toml`). The app calls these with the
+user's JWT. The `plugin-data` function stores Gmail, Spotify, Calendar, GitHub,
+and MCP connection data encrypted in `user_plugin_connections` using the same
+server-side key as BYOK. Deploy the migration and function before expecting
+plugin connections to sync between signed-in devices. Local MCP commands and
+working directories are device-specific and may need edits on another device.
+Without the function deployment, plugin connections continue working locally
+but cannot sync to the account.
 
 ## 6. When every login method fails
 

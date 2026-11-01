@@ -13,6 +13,7 @@
 
 import { invoke } from "./native";
 import { openExternalUrl } from "./lib/external";
+import { savePluginDataIfSignedIn, deletePluginData } from "./lib/pluginCloud";
 
 /** Must match SPOTIFY_OAUTH_PORT in electron/main.cjs and the URI registered
  * in the user's Spotify app dashboard (Settings → Redirect URIs). */
@@ -82,6 +83,25 @@ function saveStore(s: SpotifyStore): void {
   } catch {
     /* storage unavailable — memory only */
   }
+  void savePluginDataIfSignedIn("spotify", s).catch((e) => console.warn("Could not sync Spotify connection:", e));
+}
+
+/** Restore a previously synced connection after account sign-in. */
+export function restoreSpotify(value: unknown): void {
+  const p = value as Partial<SpotifyStore> | null;
+  if (p && typeof p.clientId === "string" && typeof p.accessToken === "string" && typeof p.refreshToken === "string") {
+    const restored: SpotifyStore = {
+      clientId: p.clientId, accessToken: p.accessToken, refreshToken: p.refreshToken,
+      expiresAt: typeof p.expiresAt === "number" ? p.expiresAt : 0,
+      displayName: typeof p.displayName === "string" ? p.displayName : "",
+      product: typeof p.product === "string" ? p.product : "",
+    };
+    memStore = restored;
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(restored)); } catch { /* memory only */ }
+  } else {
+    memStore = null;
+    try { localStorage.removeItem(STORE_KEY); } catch { /* ignore */ }
+  }
 }
 
 /** Display name of the connected account, or null. */
@@ -89,6 +109,8 @@ export function spotifyConnectedUser(): string | null {
   const s = loadStore();
   return s && s.displayName ? s.displayName : null;
 }
+
+export function spotifyAccountData(): SpotifyStore | null { return loadStore(); }
 
 /** "premium" | "free" | "" — used to warn before playback-control calls. */
 export function spotifyProduct(): string {
@@ -127,6 +149,7 @@ export function disconnectSpotify(): void {
     /* treat as disconnected */
   }
   memStore = null;
+  void deletePluginData("spotify").catch((e) => console.warn("Could not remove Spotify from account:", e));
   void invoke("spotify_oauth_cancel").catch(() => undefined);
 }
 
@@ -281,6 +304,7 @@ export async function connectSpotify(clientId: string): Promise<string> {
 
   const store: SpotifyStore = { clientId: id, ...tokens, displayName, product };
   saveStore(store);
+  await savePluginDataIfSignedIn("spotify", store);
   return store.displayName;
 }
 

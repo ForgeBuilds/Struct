@@ -7,6 +7,7 @@
  */
 
 import { openExternalUrl } from "./lib/external";
+import { savePluginDataIfSignedIn, deletePluginData } from "./lib/pluginCloud";
 
 /** OAuth redirect URI for Google Calendar consent flow. */
 export const GOOGLE_CALENDAR_REDIRECT_URI = "http://127.0.0.1:43822/callback";
@@ -71,6 +72,8 @@ export function calendarConnectedUser(): string | null {
   return s && s.displayName ? s.displayName : null;
 }
 
+export function calendarAccountData(): CalendarStore | null { return loadStore(); }
+
 /** "primary" | other calendar ID — used to determine which calendar to use. */
 export function calendarProduct(): string {
   return loadStore()?.calendarId ?? "primary";
@@ -78,6 +81,25 @@ export function calendarProduct(): string {
 
 export function hasCalendarClientConfig(): boolean {
   return loadStore() !== null;
+}
+
+export function restoreCalendar(value: unknown): void {
+  const p = value as Partial<CalendarStore> | null;
+  if (p && typeof p.clientId === "string" && p.clientId) {
+    const restored: CalendarStore = {
+      clientId: p.clientId,
+      accessToken: typeof p.accessToken === "string" ? p.accessToken : "",
+      refreshToken: typeof p.refreshToken === "string" ? p.refreshToken : "",
+      expiresAt: typeof p.expiresAt === "number" ? p.expiresAt : 0,
+      calendarId: typeof p.calendarId === "string" ? p.calendarId : "primary",
+      displayName: typeof p.displayName === "string" ? p.displayName : p.clientId,
+    };
+    memStore = restored;
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(restored)); } catch { /* memory only */ }
+  } else {
+    memStore = null;
+    try { localStorage.removeItem(STORE_KEY); } catch { /* ignore */ }
+  }
 }
 
 /** Must match GOOGLE_CALENDAR_OAUTH_PORT in electron/main.cjs and the URI
@@ -95,7 +117,10 @@ export function connectCalendar(cfg: CalendarClientConfig): Promise<string> {
   authUrl.searchParams.set("access_type", "offline");
   authUrl.searchParams.set("prompt", "consent");
   openExternalUrl(authUrl.toString());
-  return Promise.resolve(clientId);
+  const store: CalendarStore = { clientId, accessToken: "", refreshToken: "", expiresAt: 0, calendarId: "primary", displayName: clientId };
+  memStore = store;
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch { /* memory only */ }
+  return savePluginDataIfSignedIn("calendar", store).then(() => clientId);
 }
 
 export function disconnectCalendar(): void {
@@ -105,4 +130,5 @@ export function disconnectCalendar(): void {
     /* storage unavailable — treat as disconnected */
   }
   memStore = null;
+  void deletePluginData("calendar").catch((e) => console.warn("Could not remove Calendar from account:", e));
 }
