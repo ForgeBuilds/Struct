@@ -26,7 +26,7 @@ import gmailIcon from "../src/assets/images/gmail.webp";
 import robloxIcon from "../src/assets/images/roblox.webp";
 import spotifyIcon from "../src/assets/images/spotify.webp";
 import googleIcon from "../src/assets/images/googlecalander.jpeg";
-
+import githubIcon from "../src/assets/images/github.png";
 interface Props {
   isOpen?: boolean;
   onClose?: () => void;
@@ -209,7 +209,7 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
         onClick={() => setView("spotify")}
         className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-1) px-3 py-2.5 text-left transition hover:bg-(--fill-2) w-50"
       >
-        <img src={spotifyIcon} alt="" className="h-8 w-8 shrink-0" />
+        <img src={spotifyIcon} alt="" className="h-8 w-8 shrink-0 rounded-2xl "/>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[12.5px] font-medium text-[var(--text-primary)]">
             Spotify
@@ -228,7 +228,7 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
         onClick={() => setView("github")}
         className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-1) px-3 py-2.5 text-left transition hover:bg-(--fill-2) w-50"
       >
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-(--fill-2) text-lg">⌘</span>
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-(--fill-2) text-lg"><img src = {githubIcon} className = "h-7 w-7 shrink-0 rounded-2xl"></img></span>
         <span className="min-w-0 flex-1"><span className="block truncate text-[12.5px] font-medium text-[var(--text-primary)]">GitHub</span><span className="block truncate text-[10.5px] text-[var(--text-muted)]">Repos and issues</span></span>
         {githubUser && <span className="text-[9px] text-[var(--success)]">Connected</span>}
       </button>
