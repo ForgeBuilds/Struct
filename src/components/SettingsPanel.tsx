@@ -346,19 +346,6 @@ const ACCENT_LABEL_KEYS: Record<string, string> = {
   Mint: "settings.accentMint",
 };
 
-const LANGUAGE_LABELS: Record<string, { changeLanguage: string; select: string; selected: string }> = {
-  English: { changeLanguage: "Change language", select: "Select...", selected: "Selected" },
-  "हिंदी": { changeLanguage: "भाषा बदलें", select: "चुनें...", selected: "चयनित" },
-  中文: { changeLanguage: "更改语言", select: "请选择...", selected: "已选择" },
-  Español: { changeLanguage: "Cambiar idioma", select: "Seleccionar...", selected: "Seleccionado" },
-  Français: { changeLanguage: "Changer la langue", select: "Sélectionner...", selected: "Sélectionné" },
-  Deutsch: { changeLanguage: "Sprache ändern", select: "Auswählen...", selected: "Ausgewählt" },
-  "日本語": { changeLanguage: "言語を変更", select: "選択...", selected: "選択中" },
-  "한국어": { changeLanguage: "언어 변경", select: "선택...", selected: "선택됨" },
-  Português: { changeLanguage: "Alterar idioma", select: "Selecionar...", selected: "Selecionado" },
-  Русский: { changeLanguage: "Изменить язык", select: "Выберите...", selected: "Выбрано" },
-};
-
 export default function SettingsPanel({
   open,
   settings,
@@ -381,9 +368,9 @@ export default function SettingsPanel({
   const navQueryNormalized = navQuery.trim().toLowerCase();
   const translatedSections = SECTIONS.map((item) => ({
     ...item,
-    label: t(item.labelKey) || item.label,
-    hint: t(item.hintKey) || item.hint,
-    group: t(item.groupKey) || item.group,
+    label: t(item.labelKey) === item.labelKey ? item.label : t(item.labelKey),
+    hint: t(item.hintKey) === item.hintKey ? item.hint : t(item.hintKey),
+    group: t(item.groupKey) === item.groupKey ? item.group : t(item.groupKey),
   }));
   const visibleSections = navQueryNormalized
     ? translatedSections.filter((s) =>
@@ -422,8 +409,6 @@ export default function SettingsPanel({
   // --- Cloud data management state ---
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudMsg, setCloudMsg] = useState<string | null>(null);
-  const languageLabels = LANGUAGE_LABELS[selectedValue] ?? LANGUAGE_LABELS.English;
-
   const handleLanguageChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const nextLanguage = event.target.value;
     if (nextLanguage && nextLanguage !== selectedValue) {
@@ -944,13 +929,13 @@ export default function SettingsPanel({
                     className="h-6 w-9 cursor-pointer rounded border border-(--border) bg-transparent p-0.5"
                   />
                 </div>
-                <Row title={languageLabels.changeLanguage}>
+                <Row title={t("settings.changeLanguage")}>
                   <select
                     value={selectedValue}
                     onChange={handleLanguageChange}
                     className="w-48 appearance-none rounded-md border border-(--border) bg-black py-1.5 pl-2.5 pr-8 text-[12px] text-white outline-none transition focus:border-(--border-strong)"
                   >
-                    <option value="" disabled>{languageLabels.select}</option>
+                    <option value="" disabled>{t("settings.selectLanguage")}</option>
                     {LANGUAGE_OPTIONS.map((language) => (
                       <option key={language} value={language}>
                         {language}
@@ -1097,7 +1082,7 @@ export default function SettingsPanel({
                     className="w-56 shrink-0 rounded-md bg-(--fill-1) px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                   />
                 </Row>
-                <Row title="API key" description={
+                <Row title={t("settings.apiKeyRow")} description={
                   !aiNeedsKey
                     ? "Not required for this provider."
                     : accountLoading
@@ -1121,7 +1106,7 @@ export default function SettingsPanel({
                     </div>
                   )}
                   {aiNeedsKey && byokLocked && (
-                    <span className="shrink-0 text-[10.5px] text-[var(--text-muted)]">locked</span>
+                    <span className="shrink-0 text-[10.5px] text-[var(--text-muted)]">{t("settings.lockedWord")}</span>
                   )}
                 </Row>
                 {aiNeedsKey && accountLoading && (
@@ -1778,23 +1763,23 @@ export default function SettingsPanel({
 
             {section === "data" && (
               <div>
-                <SectionTitle>Backup</SectionTitle>
-                <Row title="Export settings" description="Download all UI and AI settings as a JSON file.">
+                <SectionTitle>{t("settings.dataBackup")}</SectionTitle>
+                <Row title={t("settings.dataExport")} description={t("settings.dataExportDesc")}>
                   <button
                     type="button"
                     onClick={() => {
                       exportSettingsSnapshot(settings, aiSettings);
-                      alert("Settings exported successfully in your downloads folder.");
+                      alert(t("settings.exportedOk"));
                     }}
                     className="shrink-0 rounded-md border border-(--border-strong) px-2.5 py-1 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
                   >
-                    Export JSON
+                    {t("settings.exportBtn")}
                     <></>
                   </button>
                 </Row>
 
-                <SectionTitle>Local caches</SectionTitle>
-                <Row title="Clear MCP servers" description="Removes all configured MCP server endpoints.">
+                <SectionTitle>{t("settings.dataCaches")}</SectionTitle>
+                <Row title={t("settings.dataClearMcp")} description={t("settings.dataClearMcpDesc")}>
                   <button
                     type="button"
                     onClick={() => {
@@ -1803,10 +1788,10 @@ export default function SettingsPanel({
                     }}
                     className="shrink-0 rounded-md border border-(--border-strong) px-2.5 py-1 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
                   >
-                    Clear
+                    {t("settings.clearBtn")}
                   </button>
                 </Row>
-                <Row title="Clear recents" description="Removes the recent files and folders lists.">
+                <Row title={t("settings.dataClearRecents")} description={t("settings.dataClearRecentsDesc")}>
                   <button
                     type="button"
                     onClick={() => {
@@ -1815,22 +1800,22 @@ export default function SettingsPanel({
                     }}
                     className="shrink-0 rounded-md border border-(--border-strong) px-2.5 py-1 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
                   >
-                    Clear
+                    {t("settings.clearBtn")}
                   </button>
                 </Row>
 
                 <p className="pt-2 text-[10.5px] text-[var(--text-faint)]">
                   {signedIn
-                    ? "Chats, AI settings and your profile sync to your account. Everything else lives on this device."
-                    : "Signed out: everything lives on this device — no cloud sync, no telemetry."}
+                    ? t("settings.dataSignedIn")
+                    : t("settings.dataSignedOut")}
                 </p>
 
                 {signedIn && (
                   <>
-                    <SectionTitle>Cloud data</SectionTitle>
+                    <SectionTitle>{t("settings.dataCloud")}</SectionTitle>
                     <Row
-                      title="Delete cloud data"
-                      description="Permanently removes your chats, synced AI settings and stored API keys from your account."
+                      title={t("settings.dataDelete")}
+                      description={t("settings.dataDeleteDesc")}
                     >
                       <button
                         type="button"
@@ -1838,7 +1823,7 @@ export default function SettingsPanel({
                         onClick={async () => {
                           if (
                             !window.confirm(
-                              "Delete all chats, synced settings and stored API keys from your account? This cannot be undone."
+                              t("settings.cloudConfirm")
                             )
                           ) {
                             return;
@@ -1847,7 +1832,7 @@ export default function SettingsPanel({
                           setCloudMsg(null);
                           try {
                             await cloudSync.deleteAllCloudData();
-                            setCloudMsg("Cloud data deleted.");
+                            setCloudMsg(t("settings.cloudDataDeleted"));
                           } catch (e) {
                             setCloudMsg(e instanceof Error ? e.message : String(e));
                           } finally {
@@ -1856,10 +1841,10 @@ export default function SettingsPanel({
                         }}
                         className="shrink-0 rounded-md border border-red-400/40 px-2.5 py-1 text-[11px] text-[var(--danger)] transition hover:bg-red-400/10 disabled:opacity-40"
                       >
-                        {cloudBusy ? "Deleting…" : "Delete"}
+                        {cloudBusy ? t("settings.deleting") : t("settings.deleteBtn")}
                       </button>
                     </Row>
-                    {cloudMsg && (
+                  {cloudMsg && (
                       <p className="pt-1 text-[10.5px] leading-4 text-[var(--text-muted)]">{cloudMsg}</p>
                     )}
                   </>
@@ -1875,7 +1860,7 @@ export default function SettingsPanel({
                   </div>
                   <div>
                     <p className="text-[13px] font-medium text-[var(--text-primary)]">Struct</p>
-                    <p className="text-[11px] text-[var(--text-muted)]">Version 1.15 (Beta)</p>
+                    <p className="text-[11px] text-[var(--text-muted)]">{t("settings.versionBeta")}</p>
                   </div>
                 </div>
 
@@ -1884,13 +1869,13 @@ export default function SettingsPanel({
                  
                 </p>
                 <p className = "text-[11.5px] leading-5 text-[var(--text-secondary)]">
-                  Struct is in early beta and some features may not work as expected. Please report bugs on the GitHub repository.
+                  {t("settings.aboutBetaNotice")}
                 </p>
-                <SectionTitle>Links</SectionTitle>
+                <SectionTitle>{t("settings.aboutLinks")}</SectionTitle>
                 <div className="flex flex-col gap-1">
                   {[
-                    ["GitHub repository", "https://github.com/Lumorix-studios/Struct"],
-                    ["Report an issue", "https://github.com/Lumorix-studios/Struct/issues"],
+                    [t("settings.linkRepo"), "https://github.com/Lumorix-studios/Struct"],
+                    [t("settings.linkIssue"), "https://github.com/Lumorix-studios/Struct/issues"],
                   ].map(([label, href]) => (
                     <a
                       key={href}
