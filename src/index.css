@@ -252,6 +252,17 @@ select:focus-visible {
   }
 }
 
+@keyframes thinking-wave {
+  0%, 100% {
+    opacity: 0.35;
+    transform: translateY(0) scale(0.7);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-8px) scale(1);
+  }
+}
+
 .thinking-dot {
   display: inline-block;
   width: 5px;
@@ -259,6 +270,10 @@ select:focus-visible {
   border-radius: 999px;
   background: #8a8a8a;
   animation: thinking-pulse 1.1s ease-in-out infinite;
+}
+
+.animate-thinking-wave {
+  animation: thinking-wave 1.2s ease-in-out infinite;
 }
 
 .msg-in {

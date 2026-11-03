@@ -1597,8 +1597,8 @@ export default function SettingsPanel({
 
                 <div className="mt-3 flex items-baseline justify-between rounded-lg bg-(--fill-1) px-3 py-2.5">
                   <div>
-                    <p className="text-[9px] uppercase tracking-wide text-[var(--text-faint)]">
-                      {t("settings.dashTotalTokens")}
+                    <p className="text-[15px] uppercase tracking-wide text-[var(--text-faint)]"> 
+                      {t("settings.dashTotalTokens")} ~
                     </p>
                     <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">
                       {t("settings.dashTotalDesc")}

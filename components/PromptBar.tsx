@@ -18,7 +18,7 @@ import { animate, useMotionValue, useMotionValueEvent, useReducedMotion } from '
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
 import { useTranslation } from "../src/i18n";
 import {
-  ArrowDown01Icon,
+  //ArrowDown01Icon,
   Attachment01Icon,
   Cancel01Icon,
   // ChartLineData01Icon,
@@ -242,11 +242,11 @@ const PromptBar: React.FC<PromptBarProps> = ({
   onStop,
   onAttach,
   onDictate,
-  background = '#27272a',
-  color = '#f5f5f5',
+  background = '#090909fb',
+  color = '#f9f4f4',
   menuBackground = '#323236',
-  sparkColor = '#b39dff',
-  sparkBoost = 1,
+  sparkColor = '#49d7ce',
+  sparkBoost = 3,
   width,
   radius = 16,
   maxRows = 5,
@@ -856,13 +856,13 @@ const PromptBar: React.FC<PromptBarProps> = ({
                 setPlusOpen(false);
                 setEffortOpen(false);
                 setActive(Math.max(0, models.indexOf(model)));
-                setModelOpen(v => !v);
+                //setModelOpen(v => !v);
                 focusInput();
               }}
             >
               <span className="min-w-0 truncate">{model.name}</span>
               <span className="inline-flex flex-none">
-                <HugeiconsIcon icon={ArrowDown01Icon} size={12} strokeWidth={2.4} />
+                {/* <HugeiconsIcon icon={ArrowDown01Icon} size={12} strokeWidth={2.4} /> */}
               </span>
             </button>
           ) : null}

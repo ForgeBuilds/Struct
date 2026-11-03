@@ -3,9 +3,10 @@
 // to i18n.ts to change it as i did this to maintain the multiple language compatibility and i apologize if its obscure 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { IoArrowBack, IoClose, IoExtensionPuzzle } from "react-icons/io5";
+import { IoArrowBack, IoClose, IoExtensionPuzzle} from "react-icons/io5";
 import { useErrorHandler } from "../src/errorContext";
 import { useTranslation } from "../src/i18n";
+import {TbWorldWww} from "react-icons/tb";
 import {
   connectGmail,
   disconnectGmail,
@@ -182,13 +183,13 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
   const dropGitHub = () => { disconnectGitHub(); setGithubUser(null); setGithubError(""); };
 
   const content = view === "picker" ? (
-    <div className="flex flex-col gap-2 m-4">
-      <p className="m-0 mb-1 text-[11px] leading-4 text-[var(--text-muted)]">
-        {t("plugins.eachUnlocks")}
-      </p>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 w-full items-start">
+      {/* <p className="m-0 mb-1 text-[11px] leading-4 text-[var(--text-muted)]">
+        //{t("plugins.eachUnlocks")}
+      </p> */}
       <button
         onClick={() => setView("gmail")}
-        className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-1) px-3 py-2.5 text-left transition hover:bg-(--fill-2) w-50"
+        className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-0) px-3 py-2.5 text-left transition hover:bg-(--fill-2) w-50"
       >
         <img src={gmailIcon} alt="" className="h-6 w-8 shrink-0" />
         <span className="min-w-0 flex-1">
@@ -207,7 +208,7 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
       </button>
       <button
         onClick={() => setView("spotify")}
-        className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-1) px-3 py-2.5 text-left transition hover:bg-(--fill-2) w-50"
+        className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-0) px-3 py-2.5 text-left transition hover:bg-(--fill-2) w-50"
       >
         <img src={spotifyIcon} alt="" className="h-8 w-8 shrink-0 rounded-2xl "/>
         <span className="min-w-0 flex-1">
@@ -226,24 +227,31 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
       </button>
       <button
         onClick={() => setView("github")}
-        className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-1) px-3 py-2.5 text-left transition hover:bg-(--fill-2) w-50"
+        className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-0) px-3 py-2.5 text-left transition hover:bg-(--fill-2) w-50"
       >
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-(--fill-2) text-lg"><img src = {githubIcon} className = "h-7 w-7 shrink-0 rounded-2xl"></img></span>
         <span className="min-w-0 flex-1"><span className="block truncate text-[12.5px] font-medium text-[var(--text-primary)]">GitHub</span><span className="block truncate text-[10.5px] text-[var(--text-muted)]">Repos and issues</span></span>
         {githubUser && <span className="text-[9px] text-[var(--success)]">Connected</span>}
       </button>
+       <button
+        onClick={() => alert("Coming soon!")}
+        className=" muted flex items-center gap-3 rounded-md border-(--border) bg-(--fill-0) px-3 py-2.5 text-left transition hover:bg-(--fill-2) w-50"
+      >
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-(--fill-2) text-lg"><TbWorldWww size = {26}/></span>
+        <span className="min-w-0 flex-1"><span className="block truncate text-[12.5px] font-medium text-[var(--text-primary)]">Browser</span><span className="block truncate text-[10.5px] text-[var(--text-muted)]">A browser inside struct</span></span>
+      </button>
       <button
         onClick={() => setView("calendar")}
-        className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-1) px-3 py-2.5 text-left transition hover:bg-(--fill-2) w-50"
+        className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-0) px-3 py-2.5 text-left transition hover:bg-(--fill-2) w-50"
       >
         <img src={googleIcon} alt="" className="h-8 w-8 shrink-0 rounded-lg" />
-        <span className="min-w-0 flex-1"><span className="block truncate text-[12.5px] font-medium text-[var(--text-primary)]">Google Calendar</span><span className="block truncate text-[10.5px] text-[var(--text-muted)]">{t("plugins.calendarHelp")}</span></span>
+        <span className="min-w-0 flex-1"><span className="block truncate text-[12.5px] font-medium text-[var(--text-primary)]">Google Calendar</span><span className="block truncate text-[10.5px] text-[var(--text-muted)]">Manage your schedule</span></span>
         {calendarUser && <span className="text-[9px] text-[var(--success)]">Connected</span>}
       </button>
       <button
         title={t("plugins.comingSoon")}
         onClick ={()=>alert("Visit the mcp section inside the AI settings section")}
-        className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-2) px-3 py-2.5 text-left opacity-60 hover:bg-(--fill-3) w-50"
+        className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-0) px-3 py-2.5 text-left opacity-60 hover:bg-(--fill-3) w-50"
       >
         <img src={robloxIcon} alt="" className="h-8 w-8 shrink-0" />
         <span className="min-w-0 flex-1">
