@@ -113,7 +113,7 @@ function httpRequest(url, options = {}) {
       {
         method: options.method || 'GET',
         headers: { 'User-Agent': USER_AGENT, ...(options.headers || {}) },
-        timeout: options.timeout || 600000,
+        timeout: options.timeout === 0 ? 0 : options.timeout ?? 600000,
       },
       (res) => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
