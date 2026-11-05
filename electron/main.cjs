@@ -558,6 +558,7 @@ async function mcpStop(o) {
 
 /** Response size cap for web tools (8 MB). */
 const HTTP_FETCH_MAX = 8 * 1024 * 1024
+const HTTP_FETCH_CONTROLLERS = new Map()
 
 /**
  * Generic http(s) fetch executed in the Electron main process. The renderer's
@@ -588,6 +589,8 @@ async function httpFetch(a) {
   const hasBody = typeof a.body === 'string' && a.body.length > 0 && method !== 'GET' && method !== 'HEAD'
 
   const ctrl = new AbortController()
+  const requestId = typeof a.requestId === 'string' ? a.requestId : ''
+  if (requestId) HTTP_FETCH_CONTROLLERS.set(requestId, ctrl)
   const timer = setTimeout(() => ctrl.abort(), 60000)
   try {
     const res = await fetch(url.toString(), {
@@ -622,7 +625,18 @@ async function httpFetch(a) {
     throw new Error('HTTP request failed: ' + (e && e.message ? e.message : String(e)))
   } finally {
     clearTimeout(timer)
+    if (requestId && HTTP_FETCH_CONTROLLERS.get(requestId) === ctrl) {
+      HTTP_FETCH_CONTROLLERS.delete(requestId)
+    }
   }
+}
+
+function cancelHttpFetch(a) {
+  const requestId = typeof a.requestId === 'string' ? a.requestId : ''
+  const ctrl = requestId ? HTTP_FETCH_CONTROLLERS.get(requestId) : null
+  if (!ctrl) return false
+  ctrl.abort()
+  return true
 }
 
 
@@ -1013,6 +1027,7 @@ async function invoke(cmd, a) {
   if (cmd === 'get_app_version') return app.getVersion()
   if (cmd === 'home_dir') return homedir()
   if (cmd === 'http_fetch') return httpFetch(a)
+  if (cmd === 'http_fetch_cancel') return cancelHttpFetch(a)
   if (cmd === 'mail_smtp_send') return mailSmtpSend(a)
   if (cmd === 'mail_imap_search') return mailImapSearch(a)
   if (cmd === 'mail_imap_read') return mailImapRead(a)
@@ -1342,4 +1357,3 @@ if (gotLock) {
     try { llamacpp.stopServer() } catch {}
   })
 }
-

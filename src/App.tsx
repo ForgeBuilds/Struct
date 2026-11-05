@@ -117,6 +117,7 @@ import {
 import { getActiveLanguage, setActiveLanguage } from "./i18n";
 import { IoAlertSharp, /*IoBarChartOutline, IoBugOutline*/ IoCheckmark, IoCopyOutline, IoFolderOutline, /*IoSparkles*/ /*IoTerminal,*/ IoThumbsDownSharp, IoThumbsUpSharp, /*IoInformation*/ } from "react-icons/io5";
 import { shortPath } from "./utils";
+import { providerFetch as platformFetch } from "./providerConnection";
 
 const SettingsPanel = lazy(() => import("./components/SettingsPanel"));
 import { invoke, listen, isNativeRuntime, saveDialog, openDialog } from "./native";
@@ -162,48 +163,6 @@ function truncateToolOutput(output: string): string {
 const MAX_TOOL_OUTPUT = 24000;
 
 
-async function platformFetch(url: string, init: RequestInit): Promise<Response> {
-  // Inside Electron, loopback traffic to the local model servers goes through
-  // the main process so a locked-down OLLAMA_ORIGINS never 403s the packaged
-  // origin, and so the llama-server CORS rules never reject the renderer.
-  if (window.neoDesktop) {
-    try {
-      const parsed = new URL(url);
-      const loopback =
-        parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost";
-      if (loopback && parsed.port === "11434") {
-        const native = await invoke<{ status: number; body: string }>("ollama_request", {
-          url,
-          method: init.method ?? "GET",
-          body: typeof init.body === "string" ? init.body : null,
-        });
-        return new Response(native.body, {
-          status: native.status,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-      // The managed llama-server runs on 18080 by default; the native side
-      // validates the port against the set of servers we started.
-      if (loopback && parsed.port === "18080") {
-        const native = await invoke<{ status: number; body: string }>("llamacpp_request", {
-          url,
-          method: init.method ?? "GET",
-          body: typeof init.body === "string" ? init.body : null,
-        });
-        return new Response(native.body, {
-          status: native.status,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-    } catch (e) {
-      throw new Error(
-        `Electron native request failed: ${e instanceof Error ? e.message : String(e)}`,
-        { cause: e }
-      );
-    }
-  }
-  return fetch(url, init);
-}
 const sendFeedback = (feedback: "good" | "bad" | "report") => {
   const subject = encodeURIComponent("Struct Feedback");
   const body = encodeURIComponent(`Feedback: ${feedback}`);

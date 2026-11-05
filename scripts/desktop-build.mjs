@@ -20,6 +20,7 @@
  */
 
 import { spawnSync } from 'node:child_process'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import process from 'node:process'
 
@@ -33,7 +34,7 @@ const BUILDER = join(root, 'node_modules', 'electron-builder', 'cli.js')
 
 const flags = { bundleOnly: false, help: false }
 const forwarded = []
-for (const arg of process.argv.slice(2)) {
+for ( const arg of process.argv.slice(2)) {
   if (arg === '--bundle-only') flags.bundleOnly = true
   else if (arg === '--help' || arg === '-h') flags.help = true
   else forwarded.push(arg)
@@ -50,6 +51,37 @@ if (flags.help) {
     ].join('\n'),
   )
   process.exit(0)
+}
+
+// Pre-build check: when running locally (not in CI), warn if .env is missing
+// so the user knows Supabase sign/login won't work in the packaged build.
+// Vite bakes import.meta.env.VITE_* into the renderer at build time — a
+// runtime .env file beside the installer cannot change an already-built bundle.
+if (!flags.bundleOnly && process.env.CI !== 'true') {
+  const envPath = join(root, '.env')
+  if (!existsSync(envPath)) {
+    console.warn(
+      '[build] .env not found — Supabase sign/login will NOT work in this build.\n' +
+        '  1. Copy .env.example to .env\n' +
+        '  2. Fill in VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY from\n' +
+        '     Supabase Dashboard → Project Settings → API\n' +
+        '  3. Re-run this build\n' +
+        '  See SUPABASE_SETUP.md for details.\n',
+    )
+  } else {
+    // Sanity-check that .env actually has values (not just the empty template).
+    const envContent = readFileSync(envPath, 'utf8')
+    const hasUrl = /^VITE_SUPABASE_URL\s*=\s*\S/m.test(envContent)
+    const hasKey = /^VITE_SUPABASE_ANON_KEY\s*=\s*\S/m.test(envContent)
+    if (!hasUrl || !hasKey) {
+      console.warn(
+        '[build] .env exists but VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY ' +
+          'appear empty — Supabase sign/login will NOT work.\n' +
+        '  Fill in both values from Supabase Dashboard → Project Settings → API,\n' +
+        '  then rebuild. See SUPABASE_SETUP.md.\n',
+      )
+    }
+  }
 }
 
 if (!flags.bundleOnly) {

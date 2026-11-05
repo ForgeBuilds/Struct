@@ -1,24 +1,64 @@
 #!/usr/bin/env node
-// Validates Supabase build configuration when it is provided.
+import { readFileSync } from 'node:fs';
+// Validates Supabase build configuration.
 //
 // Supabase is OPTIONAL for Struct: the app runs fully local when these vars are
-// empty (see src/lib/supabase.ts). Builds must therefore never fail just
-// because the secrets are absent (forks, PRs, local dev). When the values ARE
-// present we still validate their shape so a typo does not silently ship a
-// broken auth configuration.
+// empty (see src/lib/supabase.ts). Local builds without .env continue to work.
+// However, when running in CI (CI=true) we FAIL the build if the secrets are
+// absent, so a broken auth configuration never gets shipped silently.
+//
+// When the values ARE present we still validate their shape so a typo does not
+// silently ship a broken auth configuration.
 
-const url = process.env.VITE_SUPABASE_URL?.trim();
-const anonKey = process.env.VITE_SUPABASE_ANON_KEY?.trim();
+function loadEnvFile() {
+  try {
+    const content = readFileSync('.env', 'utf8');
+    const env = {};
+    for (const line of content.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eq = trimmed.indexOf('=');
+      if (eq === -1) continue;
+      const key = trimmed.slice(0, eq).trim();
+      let value = trimmed.slice(eq + 1).trim();
+      // Strip surrounding quotes.
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      env[key] = value;
+    }
+    return env;
+  } catch {
+    return {};
+  }
+}
+
+const envFile = loadEnvFile();
+
+const url = process.env.VITE_SUPABASE_URL?.trim() || envFile.VITE_SUPABASE_URL;
+const anonKey = process.env.VITE_SUPABASE_ANON_KEY?.trim() || envFile.VITE_SUPABASE_ANON_KEY;
+
+const isCi = process.env.CI === "true";
 
 const missing = [];
 if (!url) missing.push("VITE_SUPABASE_URL");
 if (!anonKey) missing.push("VITE_SUPABASE_ANON_KEY");
 
 if (missing.length > 0) {
+  if (isCi) {
+    console.error(
+      `Supabase build configuration is missing in CI: ${missing.join(", ")}. ` +
+        "Set both secrets in GitHub Settings → Secrets and variables → Actions, " +
+        "then re-run the workflow. See SUPABASE_SETUP.md.",
+    );
+    process.exit(1);
+  }
   console.warn(
-    `Supabase build configuration is missing: ${missing.join(", ")}. ` +
-      "The build will continue in local-only mode (no auth/cloud sync). " +
-      "Set both values in the build environment to enable Supabase. See SUPABASE_SETUP.md.",
+    `Supabase build configuration is missing locally: ${missing.join(", ")}. ` +
+      "The app will run in local-only mode (no sign-in / cloud sync). " +
+      "To enable Supabase: copy .env.example to .env, fill in your project " +
+      "values from Dashboard → Project Settings → API, then rebuild. " +
+      "See SUPABASE_SETUP.md.",
   );
   process.exit(0);
 }

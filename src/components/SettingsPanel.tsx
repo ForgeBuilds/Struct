@@ -16,6 +16,7 @@ import {
 } from "../uiSettings";
 import type { AISettings, ProviderId } from "../types";
 import { PROVIDER_OPTIONS, providerById } from "../providers";
+import { checkProviderConnection } from "../providerConnection";
 import { 
   loadMcpServers, 
   saveMcpServers, 
@@ -383,6 +384,11 @@ export default function SettingsPanel({
   // --- AI settings state (mirrors the previous chat settings sidebar) ---
   const [showAiKey, setShowAiKey] = useState(false);
   const [showLocalModels, setShowLocalModels] = useState(false);
+  const [providerCheckBusy, setProviderCheckBusy] = useState(false);
+  const [providerCheckResult, setProviderCheckResult] = useState<{
+    message: string;
+    ok: boolean;
+  } | null>(null);
   const [aiTab, setAiTab] = useState<"general" | "mcp">("general");
   const [mcpServers, setMcpServers] = useState<McpServerConfig[]>(() => loadMcpServers());
   useEffect(() => {
@@ -541,10 +547,12 @@ export default function SettingsPanel({
   }, [open, initialSection]);
 
   const updateAi = <K extends keyof AISettings>(key: K, value: AISettings[K]) => {
+    setProviderCheckResult(null);
     onAiChange({ ...aiSettings, [key]: value });
   };
 
   const handleAiProviderChange = (nextId: ProviderId) => {
+    setProviderCheckResult(null);
     const spec = providerById(nextId);
     const prevSpec = aiSettings.provider ? providerById(aiSettings.provider) : undefined;
     const knownProviderUrl = Object.values(PROVIDER_OPTIONS)
@@ -566,6 +574,28 @@ export default function SettingsPanel({
 
   const aiSpec = providerById(aiSettings.provider);
   const aiNeedsKey = aiSpec.needsAuth;
+
+  const testProvider = async () => {
+    setProviderCheckBusy(true);
+    setProviderCheckResult(null);
+    try {
+      const settingsToCheck = {
+        ...aiSettings,
+        apiKey: byokDraft.trim() || aiSettings.apiKey,
+      };
+      setProviderCheckResult({
+        message: await checkProviderConnection(settingsToCheck),
+        ok: true,
+      });
+    } catch (error) {
+      setProviderCheckResult({
+        message: error instanceof Error ? error.message : String(error),
+        ok: false,
+      });
+    } finally {
+      setProviderCheckBusy(false);
+    }
+  };
 
   /** Parse a JSON object field (headers / env); null + inline error on failure. */
   const parseJsonObject = (raw: string, label: string): Record<string, string> | null => {
@@ -1078,15 +1108,35 @@ export default function SettingsPanel({
                 )}
                 <SectionTitle>{t("settings.secConnection")}</SectionTitle>
                 <Row title={t("settings.apiEndpoint")} description={t("settings.apiEndpointDesc")}>
-                  <input
-                    type="text"
-                    value={aiSettings.baseUrl}
-                    onChange={(e) => updateAi("baseUrl", e.target.value)}
-                    placeholder="https://api.openai.com/v1"
-                    spellCheck={false}
-                    className="w-56 shrink-0 rounded-md bg-(--fill-1) px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
-                  />
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={aiSettings.baseUrl}
+                      onChange={(e) => updateAi("baseUrl", e.target.value)}
+                      placeholder="https://api.openai.com/v1"
+                      spellCheck={false}
+                      className="w-56 shrink-0 rounded-md bg-(--fill-1) px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void testProvider()}
+                      disabled={providerCheckBusy}
+                      className="shrink-0 rounded-md bg-(--fill-1) px-2.5 py-1.5 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)] disabled:opacity-50"
+                    >
+                      {providerCheckBusy ? "Testing…" : "Test connection"}
+                    </button>
+                  </div>
                 </Row>
+                {providerCheckResult && (
+                  <p
+                    role="status"
+                    className={`-mt-2 pb-3 text-[11px] leading-4 ${
+                      providerCheckResult.ok ? "text-[var(--success)]" : "text-[var(--danger)]"
+                    }`}
+                  >
+                    {providerCheckResult.message}
+                  </p>
+                )}
                 <Row title={t("settings.apiKeyRow")} description={
                   !aiNeedsKey
                     ? "Not required for this provider."
@@ -1129,7 +1179,10 @@ export default function SettingsPanel({
                         <input
                           type={showAiKey ? "text" : "password"}
                           value={byokDraft}
-                          onChange={(e) => setByokDraft(e.target.value)}
+                          onChange={(e) => {
+                            setByokDraft(e.target.value);
+                            setProviderCheckResult(null);
+                          }}
                           placeholder={
                             keyConfigured ? t("settings.apiKeyReplace") : t("settings.enterApiKey")
                           }

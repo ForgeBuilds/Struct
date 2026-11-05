@@ -156,12 +156,29 @@ const AccountSection = memo(function AccountSection({
   // beside the installer cannot change the already-built renderer bundle.
   if (!isSupabaseConfigured) {
     return (
-      <p className="text-[12px] leading-5 text-[var(--text-muted)]">
-        This build does not include Supabase configuration. Add{" "}
-        <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> to
-        the build environment, then rebuild the app. See{" "}
-        <code>SUPABASE_SETUP.md</code>.
-      </p>
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--fill-1)] p-4 text-[12px] leading-6 text-[var(--text-muted)]">
+        <p className="font-medium text-[var(--text-primary)] mb-1">
+          Supabase not configured — sign-in is disabled
+        </p>
+        <p className="mb-2">
+          This build was packaged without{" "}
+          <code>VITE_SUPABASE_URL</code> and{" "}
+          <code>VITE_SUPABASE_ANON_KEY</code>, so cloud sign-in / sync cannot work.
+        </p>
+        <p className="mb-2">
+          <strong>Local build:</strong> copy <code>.env.example</code> to{" "}
+          <code>.env</code>, fill in both values from Supabase Dashboard → Project
+          Settings → API, then run <code>npm run build:desktop</code> again.
+        </p>
+        <p className="mb-2">
+          <strong>CI build:</strong> add both values as GitHub repository secrets
+          (<code>VITE_SUPABASE_URL</code>, <code>VITE_SUPABASE_ANON_KEY</code>)
+          and re-run the workflow.
+        </p>
+        <p>
+          Details: <code>SUPABASE_SETUP.md</code>
+        </p>
+      </div>
     );
   }
 

@@ -360,11 +360,32 @@ function bearer(key: string): string {
   return `Bearer ${key}`;
 }
 
-function nvidiaChatCompletionsUrl(baseUrl: string): string {
-  const base = baseUrl.trim().replace(/\/+$/, "");
-  if (/\/chat\/completions$/i.test(base)) return base;
-  if (/\/v1$/i.test(base)) return `${base}/chat/completions`;
-  return `${base}/v1/chat/completions`;
+function versionedChatCompletionsUrl(baseUrl: string): string {
+  const url = new URL(baseUrl.trim());
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("The API endpoint must use HTTP or HTTPS.");
+  }
+  const path = url.pathname.replace(/\/+$/, "");
+  if (!/\/chat\/completions$/i.test(path)) {
+    url.pathname = /\/v1$/i.test(path)
+      ? `${path}/chat/completions`
+      : `${path}/v1/chat/completions`;
+  } else {
+    url.pathname = path;
+  }
+  return url.toString();
+}
+
+function openAiCompatibleUrl(baseUrl: string): string {
+  const url = new URL(baseUrl.trim());
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("The API endpoint must use HTTP or HTTPS.");
+  }
+  const path = url.pathname.replace(/\/+$/, "");
+  url.pathname = /\/chat\/completions$/i.test(path)
+    ? path
+    : `${path}/chat/completions`;
+  return url.toString();
 }
 
 function openAiDeltaText(j: unknown): string | null {
@@ -430,7 +451,7 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     authScheme: "bearer",
     authQueryParam: null,
     extraHeaders: {},
-    buildUrl: (s) => `${s.baseUrl.replace(/\/+$/, "")}/chat/completions`,
+    buildUrl: (s) => openAiCompatibleUrl(s.baseUrl),
     buildBody: (s, history, opts) => ({
       model: s.model,
       messages: [{ role: "system", content: s.systemPrompt }, ...toOpenAiMessages(history)],
@@ -471,7 +492,7 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
       "HTTP-Referer": "https://neochat.local",
       "X-Title": "Struct",
     },
-    buildUrl: (s) => `${s.baseUrl.replace(/\/+$/, "")}/chat/completions`,
+    buildUrl: (s) => openAiCompatibleUrl(s.baseUrl),
     buildBody: (s, history, opts) => ({
       model: s.model,
       messages: [{ role: "system", content: s.systemPrompt }, ...toOpenAiMessages(history)],
@@ -506,7 +527,7 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     authScheme: "bearer",
     authQueryParam: null,
     extraHeaders: {},
-    buildUrl: (s) => `${s.baseUrl.replace(/\/+$/, "")}/chat/completions`,
+    buildUrl: (s) => openAiCompatibleUrl(s.baseUrl),
     buildBody: (s, history, opts) => ({
       model: s.model,
       messages: [{ role: "system", content: s.systemPrompt }, ...toOpenAiMessages(history)],
@@ -541,7 +562,7 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     authScheme: "bearer",
     authQueryParam: null,
     extraHeaders: {},
-    buildUrl: (s) => nvidiaChatCompletionsUrl(s.baseUrl),
+    buildUrl: (s) => versionedChatCompletionsUrl(s.baseUrl),
     buildBody: (s, history, opts) => ({
       model: s.model,
       messages: [{ role: "system", content: s.systemPrompt }, ...toOpenAiMessages(history)],
@@ -575,7 +596,15 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     authScheme: "apikey", // raw value, NOT "Bearer ..."
     authQueryParam: null,
     extraHeaders: { "anthropic-version": "2023-06-01" },
-    buildUrl: (s) => `${s.baseUrl.replace(/\/+$/, "")}/v1/messages`,
+    buildUrl: (s) => {
+      const url = new URL(s.baseUrl.trim());
+      if (url.protocol !== "http:" && url.protocol !== "https:") {
+        throw new Error("The API endpoint must use HTTP or HTTPS.");
+      }
+      const path = url.pathname.replace(/\/+$/, "");
+      url.pathname = /\/v1\/messages$/i.test(path) ? path : `${path}/v1/messages`;
+      return url.toString();
+    },
     buildBody: (s, history, opts) => ({
       model: s.model,
       system: s.systemPrompt,
@@ -656,7 +685,15 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     authScheme: "bearer",
     authQueryParam: null,
     extraHeaders: {},
-    buildUrl: (s) => `${s.baseUrl.replace(/\/+$/, "")}/api/chat`,
+    buildUrl: (s) => {
+      const url = new URL(s.baseUrl.trim());
+      if (url.protocol !== "http:" && url.protocol !== "https:") {
+        throw new Error("The API endpoint must use HTTP or HTTPS.");
+      }
+      const path = url.pathname.replace(/\/+$/, "");
+      url.pathname = /\/api\/chat$/i.test(path) ? path : `${path}/api/chat`;
+      return url.toString();
+    },
     buildBody: (s, history, opts) => ({
       model: s.model,
       messages: [{ role: "system", content: s.systemPrompt }, ...toOllamaMessages(history)],
@@ -692,7 +729,7 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     extraHeaders: {},
     // llama-server exposes the OpenAI-compatible API, so the request shape is
     // identical to the "custom" provider.
-    buildUrl: (s) => `${s.baseUrl.replace(/\/+$/, "")}/v1/chat/completions`,
+    buildUrl: (s) => versionedChatCompletionsUrl(s.baseUrl),
     buildBody: (s, history, opts) => ({
       model: s.model,
       messages: [{ role: "system", content: s.systemPrompt }, ...toOpenAiMessages(history)],
@@ -725,7 +762,7 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     authScheme: "bearer",
     authQueryParam: null,
     extraHeaders: {},
-    buildUrl: (s) => `${s.baseUrl.replace(/\/+$/, "")}/chat/completions`,
+    buildUrl: (s) => openAiCompatibleUrl(s.baseUrl),
     buildBody: (s, history, opts) => ({
       model: s.model,
       messages: [{ role: "system", content: s.systemPrompt }, ...toOpenAiMessages(history)],
