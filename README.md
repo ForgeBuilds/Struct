@@ -37,6 +37,8 @@ never shipped with the app; local models (Ollama) never leave your device at all
 - **Any provider** — OpenAI, Anthropic, Google, Groq, Mistral, xAI, OpenRouter, DeepSeek,
   Ollama (local), and any OpenAI-compatible endpoint. Switch models right from the composer.
 - **Local models** — run Ollama on `127.0.0.1` for fully offline, private inference.
+- **In-app browser preview** — open websites and local development servers in browser
+  tabs inside Struct, either from the Browser view or by asking the agent to preview a URL.
 - **MCP support** — connect Model Context Protocol servers over `http` or `stdio` and
   their tools become available to the agent alongside the built-ins.
 - **Workspace context** — open a folder and Struct builds a project map and injects relevant

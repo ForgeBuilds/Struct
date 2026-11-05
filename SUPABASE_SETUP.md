@@ -22,14 +22,14 @@ method fails at once** (email + GitHub + Google), which is the usual cause of
 > **Rebuild after editing `.env`.** Vite bakes `VITE_*` vars into the bundle
 > at build time. Restarting an already packaged app or adding `.env` beside
 > its executable cannot change those values. For a local package, run the
-> desktop build command after setting `.env`. For GitHub Actions releases,
-> add repository secrets named `VITE_SUPABASE_URL` and
-> `VITE_SUPABASE_ANON_KEY`; the platform workflow injects and validates them
-> before building the renderer. The check is non-fatal: if the secrets are
-> absent the build still succeeds in local-only mode (no auth/cloud sync).
-> Pull requests from forks do not receive repository secrets, so their
-> platform builds run local-only until run in a trusted context. If in doubt, confirm `dist/assets/*.js` contains your
-> `<ref>.supabase.co` before packaging.
+> desktop build command after setting `.env`. For GitHub Actions, configure
+> `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as repository or environment
+> secrets, or as Actions variables. The platform workflow accepts either,
+> validates the values, and verifies both were baked into the renderer before
+> packaging. Trusted builds fail if the configuration is missing; fork pull
+> requests (which do not receive secrets) build in local-only mode instead.
+> If in doubt, confirm `dist/assets/*.js` contains your `<ref>.supabase.co`
+> before packaging.
 
 ## 2. Apply the database schema
 

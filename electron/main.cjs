@@ -42,7 +42,7 @@ if (process.platform === 'linux' && !process.argv.some((a) => a.startsWith('--oz
   }
 }
 
-const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron')
+const { app, BrowserWindow, WebContentsView, dialog, ipcMain, shell } = require('electron')
 const { spawn } = require('node:child_process')
 const { existsSync, statSync, createWriteStream, chmodSync } = require('node:fs')
 const { copyFile, mkdir, readdir, readFile, rename, rm, stat, writeFile } = require('node:fs/promises')
@@ -142,6 +142,7 @@ if (process.env.NEO_DISABLE_HARDWARE_ACCELERATION === '1') {
 
 const APP_PROTOCOL = 'agenticcoder'
 let mainWindow
+const browserPreviewViews = new Map()
 let deepLinkReady = false
 const pendingDeepLinks = []
 const APP_DATA_ID = 'com.lumorixstudios.agenticcoder'
@@ -175,14 +176,50 @@ function createWindow() {
     frame: true, autoHideMenuBar: true, backgroundColor: '#1f1f1f', title: 'Struct',
     webPreferences: { preload: join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   })
+  const devUrl = process.env.NEO_DEV_SERVER_URL
+  let devLoadPending = Boolean(devUrl)
+  let devFallbackStarted = false
   mainWindow.once('ready-to-show', () => { if (mainWindow) mainWindow.show() })
   mainWindow.webContents.on('did-start-loading', () => { deepLinkReady = false })
-  mainWindow.on('closed', () => { mainWindow = undefined })
+  mainWindow.webContents.on('did-finish-load', () => { devLoadPending = false })
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, description, failedUrl, isMainFrame) => {
+    if (!isMainFrame || !devLoadPending || !devUrl || devFallbackStarted) return
+    devFallbackStarted = true
+    console.error(`[electron] Dev server load failed (${errorCode}): ${description} — ${failedUrl}`)
+    if (mainWindow.isDestroyed()) return
+
+    const builtApp = join(__dirname, '..', 'dist', 'index.html')
+    if (existsSync(builtApp)) {
+      console.warn('[electron] Falling back to the last built renderer in dist/.')
+      mainWindow.loadFile(builtApp).catch((error) => {
+        console.error('[electron] Could not load the built renderer:', error)
+      })
+      return
+    }
+
+    const message = 'Struct could not connect to its Vite development server at ' +
+      devUrl + '. Restart the dev server with npm run dev:electron.'
+    const html = '<!doctype html><meta charset="utf-8"><title>Struct could not start</title>' +
+      '<body style="font:14px system-ui;background:#1f1f1f;color:#eee;padding:40px">' +
+      '<h2>Struct could not connect to the development server</h2><p>' +
+      message.replace(/[&<>"]/g, (char) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;',
+      })[char]) +
+      '</p><p>Restart it with <code>npm run dev:electron</code>.</p></body>'
+    mainWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+      .catch((error) => console.error('[electron] Could not show startup error:', error))
+  })
+  mainWindow.on('closed', () => {
+    mainWindow = undefined
+    for (const [id, view] of browserPreviewViews) {
+      try { view.webContents.close() } catch {}
+      browserPreviewViews.delete(id)
+    }
+  })
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     openExternal(url).catch((e) => console.error('[electron] openExternal:', e))
     return { action: 'deny' }
   })
-  const devUrl = process.env.NEO_DEV_SERVER_URL
   if (devUrl) mainWindow.loadURL(devUrl).catch((e) => console.error('[electron] load:', e))
   else mainWindow.loadFile(join(__dirname, '..', 'dist', 'index.html')).catch((e) => console.error('[electron] load file:', e))
 }
@@ -631,6 +668,194 @@ async function httpFetch(a) {
   }
 }
 
+async function httpFetchStream(a) {
+  let url
+  try {
+    url = new URL(String(a.url || ''))
+  } catch {
+    throw new Error('http_fetch_stream requires a valid absolute URL')
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error('Unsupported URL scheme: ' + url.protocol)
+  }
+  const requestId = typeof a.requestId === 'string' ? a.requestId : ''
+  if (!requestId || requestId.length > 100) throw new Error('A valid provider request ID is required')
+  if (HTTP_FETCH_CONTROLLERS.has(requestId)) throw new Error('Duplicate provider request ID')
+
+  const method = String(a.method || 'GET').toUpperCase()
+  const headers = {}
+  const rawHeaders = a.headers && typeof a.headers === 'object' && !Array.isArray(a.headers) ? a.headers : {}
+  for (const k of Object.keys(rawHeaders)) headers[k] = String(rawHeaders[k])
+  const hasBody = typeof a.body === 'string' && a.body.length > 0 && method !== 'GET' && method !== 'HEAD'
+  const ctrl = new AbortController()
+  HTTP_FETCH_CONTROLLERS.set(requestId, ctrl)
+  let timer
+  let timedOut = false
+  const touchTimeout = () => {
+    clearTimeout(timer)
+    timedOut = false
+    timer = setTimeout(() => {
+      timedOut = true
+      ctrl.abort()
+    }, 120000)
+  }
+  touchTimeout()
+
+  const publish = (type, extra = {}) => emitToRenderer('provider:http-stream', { requestId, type, ...extra })
+  try {
+    const res = await fetch(url.toString(), {
+      method,
+      headers,
+      ...(hasBody ? { body: a.body } : {}),
+      redirect: 'follow',
+      signal: ctrl.signal,
+    })
+    const declaredLen = Number(res.headers.get('content-length') || 0)
+    if (declaredLen && declaredLen > HTTP_FETCH_MAX) {
+      throw new Error('Response too large (' + declaredLen + ' bytes; limit 8 MB)')
+    }
+    const outHeaders = {}
+    res.headers.forEach((v, k) => {
+      const lk = k.toLowerCase()
+      if (lk !== 'content-encoding' && lk !== 'content-length') outHeaders[k] = v
+    })
+
+    void (async () => {
+      let total = 0
+      try {
+        const reader = res.body && res.body.getReader()
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+            total += value.byteLength
+            if (total > HTTP_FETCH_MAX) throw new Error('Response too large (limit 8 MB)')
+            touchTimeout()
+            publish('chunk', { chunk: value })
+          }
+        }
+        publish('end')
+      } catch (e) {
+        if (!ctrl.signal.aborted || timedOut) {
+          publish('error', { message: e && e.message ? e.message : String(e) })
+        }
+      } finally {
+        clearTimeout(timer)
+        if (HTTP_FETCH_CONTROLLERS.get(requestId) === ctrl) HTTP_FETCH_CONTROLLERS.delete(requestId)
+      }
+    })()
+
+    return {
+      status: res.status,
+      statusText: res.statusText,
+      headers: outHeaders,
+    }
+  } catch (e) {
+    clearTimeout(timer)
+    if (HTTP_FETCH_CONTROLLERS.get(requestId) === ctrl) HTTP_FETCH_CONTROLLERS.delete(requestId)
+    if (e && e.name === 'AbortError') throw new Error('Provider request timed out or was cancelled')
+    throw new Error('HTTP request failed: ' + (e && e.message ? e.message : String(e)))
+  }
+}
+
+function browserPreviewUrl(value) {
+  let url
+  try { url = new URL(String(value || '')) }
+  catch { throw new Error('Browser preview requires a valid absolute URL') }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error('Browser preview supports only HTTP and HTTPS URLs')
+  }
+  if (url.username || url.password) throw new Error('Browser preview URLs cannot contain credentials')
+  return url.href
+}
+
+function browserPreviewView(id) {
+  if (typeof id !== 'string' || !browserPreviewViews.has(id)) {
+    throw new Error('Browser preview tab is no longer available')
+  }
+  return browserPreviewViews.get(id)
+}
+
+async function createBrowserPreview(a) {
+  const id = typeof a.id === 'string' ? a.id : ''
+  if (!id || id.length > 80 || !/^[\w-]+$/.test(id)) throw new Error('Invalid browser preview tab ID')
+  if (browserPreviewViews.has(id)) return true
+  const view = new WebContentsView({
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      partition: 'browser-preview',
+    },
+  })
+  const targetUrl = browserPreviewUrl(a.url)
+  const win = needWin()
+  browserPreviewViews.set(id, view)
+  win.contentView.addChildView(view)
+  view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+  view.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      const target = browserPreviewUrl(url)
+      void view.webContents.loadURL(target).catch((error) => {
+        console.warn('[browser-preview] Could not open linked page:', error)
+      })
+    } catch (error) {
+      console.warn('[browser-preview] Blocked unsupported link:', error)
+    }
+    return { action: 'deny' }
+  })
+  view.webContents.on('will-navigate', (event, url) => {
+    try { browserPreviewUrl(url) } catch { event.preventDefault() }
+  })
+  view.webContents.on('will-redirect', (event, url) => {
+    try { browserPreviewUrl(url) } catch { event.preventDefault() }
+  })
+  const sendNavigation = (_event, url) => {
+    try { browserPreviewUrl(url) } catch { return }
+    if (!win.isDestroyed()) win.webContents.send('neo:event', {
+      event: 'browser:navigation',
+      payload: { id, url },
+    })
+  }
+  view.webContents.on('did-navigate', sendNavigation)
+  view.webContents.on('did-navigate-in-page', sendNavigation)
+  view.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => {
+    callback(false)
+  })
+  try {
+    await view.webContents.loadURL(targetUrl)
+    return { loaded: true }
+  } catch (error) {
+    return {
+      loaded: false,
+      error: 'Could not load ' + targetUrl + ': ' +
+        (error && error.message ? error.message : String(error)),
+    }
+  }
+}
+
+function setBrowserPreviewBounds(a) {
+  const view = browserPreviewView(a.id)
+  const number = (value) => Number.isFinite(Number(value)) ? Number(value) : 0
+  const bounds = {
+    x: Math.max(0, number(a.x)),
+    y: Math.max(0, number(a.y)),
+    width: Math.max(0, number(a.width)),
+    height: Math.max(0, number(a.height)),
+  }
+  view.setBounds(bounds)
+  return true
+}
+
+function closeBrowserPreview(a) {
+  const view = browserPreviewViews.get(a.id)
+  if (!view) return false
+  browserPreviewViews.delete(a.id)
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.contentView.removeChildView(view)
+  view.webContents.close()
+  return true
+}
+
 function cancelHttpFetch(a) {
   const requestId = typeof a.requestId === 'string' ? a.requestId : ''
   const ctrl = requestId ? HTTP_FETCH_CONTROLLERS.get(requestId) : null
@@ -1024,9 +1249,26 @@ async function mailImapCheck(a) {
 
 async function invoke(cmd, a) {
   a = a || {}
+  if (cmd === 'browser_view_create') return createBrowserPreview(a)
+  if (cmd === 'browser_view_bounds') return setBrowserPreviewBounds(a)
+  if (cmd === 'browser_view_navigate') return browserPreviewView(a.id).webContents.loadURL(browserPreviewUrl(a.url))
+  if (cmd === 'browser_view_reload') return browserPreviewView(a.id).webContents.reload()
+  if (cmd === 'browser_view_back') {
+    const contents = browserPreviewView(a.id).webContents
+    if (contents.navigationHistory.canGoBack()) contents.navigationHistory.goBack()
+    return true
+  }
+  if (cmd === 'browser_view_forward') {
+    const contents = browserPreviewView(a.id).webContents
+    if (contents.navigationHistory.canGoForward()) contents.navigationHistory.goForward()
+    return true
+  }
+  if (cmd === 'browser_view_external') return openExternal(browserPreviewView(a.id).webContents.getURL())
+  if (cmd === 'browser_view_close') return closeBrowserPreview(a)
   if (cmd === 'get_app_version') return app.getVersion()
   if (cmd === 'home_dir') return homedir()
   if (cmd === 'http_fetch') return httpFetch(a)
+  if (cmd === 'http_fetch_stream') return httpFetchStream(a)
   if (cmd === 'http_fetch_cancel') return cancelHttpFetch(a)
   if (cmd === 'mail_smtp_send') return mailSmtpSend(a)
   if (cmd === 'mail_imap_search') return mailImapSearch(a)

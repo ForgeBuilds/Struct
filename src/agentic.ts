@@ -35,6 +35,7 @@ export type ToolName =
   | "git_commit"
   | "get_open_files"
   | "read_active_file"
+  | "open_browser_preview"
   | "web_search"
   | "web_fetch"
   | "http_request"
@@ -137,6 +138,7 @@ const TOOL_NAME_SET = new Set<string>([
   "git_commit",
   "get_open_files",
   "read_active_file",
+  "open_browser_preview",
   "web_search",
   "web_fetch",
   "http_request",
@@ -184,6 +186,17 @@ export const TOOL_JSON_SCHEMAS: Record<ToolName, { description: string; paramete
     description:
       "List the files currently open in the editor tabs and which one is active/focused.",
     parameters: { type: "object", properties: {}, required: [] },
+  },
+  open_browser_preview: {
+    description:
+      "Open a website or running local development server in Struct's in-app browser tab. Use after starting a dev server when the user asks to preview the site.",
+    parameters: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "Absolute HTTP or HTTPS URL, such as http://localhost:3000." },
+      },
+      required: ["url"],
+    },
   },
   read_active_file: {
     description:
@@ -913,6 +926,7 @@ export interface EditorContext {
   activePath: string | null;
   /** Returns the live (possibly unsaved) buffer contents for an open path. */
   getTabContent?: (path: string) => string | null;
+  openBrowserPreview?: (url: string) => Promise<string>;
 }
 
 /**
@@ -925,6 +939,21 @@ async function executeToolUncached(
   workspaceRoot?: string | null,
   editor?: EditorContext
 ): Promise<ToolResult> {
+  if (name === "open_browser_preview") {
+    const url = typeof args.url === "string" ? args.url.trim() : "";
+    if (!url) return { ok: false, output: "A URL is required." };
+    if (!editor?.openBrowserPreview) {
+      return { ok: false, output: "The in-app browser preview is unavailable in this environment." };
+    }
+    try {
+      return { ok: true, output: await editor.openBrowserPreview(url) };
+    } catch (error) {
+      return {
+        ok: false,
+        output: `Could not open the browser preview: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  }
   // Editor-aware tools operate on open tabs; they take no paths, so run them
   // before path resolution.
   if (name === "get_open_files") {
@@ -2023,6 +2052,7 @@ export function formatToolResult(result: ToolResult): string {
 export const TOOL_LABELS: Record<ToolName, string> = {
   get_open_files: "List open tabs",
   read_active_file: "Read active file",
+  open_browser_preview: "Open browser preview",
   read_file: "Read file",
   read_file_range: "Read file range",
   write_file: "Write file",
@@ -2062,6 +2092,7 @@ export const TOOL_LABELS: Record<ToolName, string> = {
 export const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
   get_open_files: 'get_open_files() — list the files open in editor tabs and which is active.',
   read_active_file: 'read_active_file() — read the contents of the currently active editor file.',
+  open_browser_preview: 'open_browser_preview(url) — open a website or running local development server in the in-app browser tab.',
   read_file: 'read_file(path) — read the full contents of a text file.',
   read_file_range: 'read_file_range(path, start_line, end_line) — read a line range (end_line=0 means to EOF).',
   write_file: 'write_file(path, content) — create or overwrite a file (creates parent folders).',
@@ -2131,6 +2162,7 @@ System:
 - \`run_command(command, cwd?, timeout_secs?)\`
 - \`env_info()\`
 - \`analyze_project_structure()\`
+- \`open_browser_preview(url)\` — open a website or running local development server in Struct's browser tab when the user asks to preview it.
 
 ## HOW TO ACT (strict)
 1. Only use tools when the user clearly asks for live/external info (news, "latest" anything, docs) or file/system work. Otherwise answer normally without mentioning or emitting tools.

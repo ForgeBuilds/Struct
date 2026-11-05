@@ -1,4 +1,4 @@
-import { invoke } from "./native";
+import { invoke, listen } from "./native";
 import {
   buildAuthHeaders,
   getProviderSpec,
@@ -10,82 +10,118 @@ interface NativeHttpResponse {
   status: number;
   statusText: string;
   headers: Record<string, string>;
-  body: string;
 }
 
-async function nativeProviderFetch(
-  url: string,
-  init: RequestInit,
-  requestId?: string
-): Promise<Response> {
-  const parsed = new URL(url);
-  const loopback = parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost";
+interface ProviderStreamEvent {
+  requestId: string;
+  type: "chunk" | "end" | "error";
+  chunk?: Uint8Array;
+  message?: string;
+}
+
+async function nativeProviderFetch(url: string, init: RequestInit): Promise<Response> {
+  if (init.signal?.aborted) throw new DOMException("The request was aborted.", "AbortError");
   const body = typeof init.body === "string" ? init.body : null;
-
-  if (loopback && parsed.port === "11434") {
-    const result = await invoke<{ status: number; body: string }>("ollama_request", {
-      url,
-      method: init.method ?? "GET",
-      body,
-    });
-    return new Response(result.body, {
-      status: result.status,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-  if (loopback && parsed.port === "18080") {
-    const result = await invoke<{ status: number; body: string }>("llamacpp_request", {
-      url,
-      method: init.method ?? "GET",
-      body,
-    });
-    return new Response(result.body, {
-      status: result.status,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
   const headers: Record<string, string> = {};
   new Headers(init.headers).forEach((value, key) => {
     headers[key] = value;
   });
-  const result = await invoke<NativeHttpResponse>("http_fetch", {
-    url,
-    method: init.method ?? "GET",
-    headers,
-    ...(requestId ? { requestId } : {}),
-    ...(body !== null ? { body } : {}),
+
+  const requestId = crypto.randomUUID();
+  let controller: ReadableStreamDefaultController<Uint8Array> | undefined;
+  let unlisten: (() => void) | undefined;
+  let closed = false;
+  const pending: ProviderStreamEvent[] = [];
+  const cleanup = () => {
+    unlisten?.();
+    unlisten = undefined;
+    init.signal?.removeEventListener("abort", onAbort);
+  };
+  const cancelNative = () => {
+    void invoke("http_fetch_cancel", { requestId }).catch((error: unknown) => {
+      console.warn("Could not cancel the provider request:", error);
+    });
+  };
+  const failStream = (error: Error) => {
+    if (closed) return;
+    closed = true;
+    cleanup();
+    controller?.error(error);
+  };
+  const handleEvent = (event: ProviderStreamEvent) => {
+    if (closed || event.requestId !== requestId) return;
+    if (!controller) {
+      pending.push(event);
+      return;
+    }
+    if (event.type === "chunk") {
+      if (event.chunk) controller.enqueue(event.chunk);
+      return;
+    }
+    if (event.type === "end") {
+      closed = true;
+      controller.close();
+      cleanup();
+      return;
+    }
+    failStream(new Error(event.message || "The provider stream failed."));
+  };
+  const onAbort = () => {
+    cancelNative();
+    failStream(new DOMException("The request was aborted.", "AbortError"));
+    rejectAborted?.(new DOMException("The request was aborted.", "AbortError"));
+  };
+  let rejectAborted: ((error: Error) => void) | undefined;
+  const aborted = new Promise<never>((_, reject) => {
+    rejectAborted = reject;
   });
-  return new Response(result.body, {
-    status: result.status,
-    statusText: result.statusText,
-    headers: result.headers,
-  });
+  init.signal?.addEventListener("abort", onAbort, { once: true });
+
+  try {
+    unlisten = await listen<ProviderStreamEvent>("provider:http-stream", (event) => {
+      handleEvent(event.payload);
+    });
+    if (init.signal?.aborted) {
+      onAbort();
+      throw new DOMException("The request was aborted.", "AbortError");
+    }
+
+    const request = invoke<NativeHttpResponse>("http_fetch_stream", {
+      url,
+      method: init.method ?? "GET",
+      headers,
+      requestId,
+      ...(body !== null ? { body } : {}),
+    });
+    const response = await Promise.race([request, aborted]);
+    const stream = new ReadableStream<Uint8Array>({
+      start(streamController) {
+        controller = streamController;
+        for (const event of pending.splice(0)) handleEvent(event);
+      },
+      cancel() {
+        if (!closed) {
+          closed = true;
+          cancelNative();
+          cleanup();
+        }
+      },
+    });
+    return new Response(stream, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
+  } catch (error) {
+    cleanup();
+    throw error;
+  }
 }
 
 /** Route provider requests through Electron's main process to avoid renderer CORS. */
 export async function providerFetch(url: string, init: RequestInit): Promise<Response> {
   if (!window.neoDesktop) return fetch(url, init);
-  if (init.signal?.aborted) throw new DOMException("The request was aborted.", "AbortError");
-  if (!init.signal) return nativeProviderFetch(url, init);
-
-  const requestId = crypto.randomUUID();
-  let removeAbortListener = () => {};
-  const aborted = new Promise<never>((_, reject) => {
-    const onAbort = () => {
-      void invoke("http_fetch_cancel", { requestId }).catch((error: unknown) => {
-        console.warn("Could not cancel the provider request:", error);
-      });
-      reject(new DOMException("The request was aborted.", "AbortError"));
-    };
-    init.signal?.addEventListener("abort", onAbort, { once: true });
-    removeAbortListener = () => init.signal?.removeEventListener("abort", onAbort);
-  });
-  try {
-    return await Promise.race([nativeProviderFetch(url, init, requestId), aborted]);
-  } finally {
-    removeAbortListener();
-  }
+  return nativeProviderFetch(url, init);
 }
 
 function nonStreamingUrl(spec: ProviderSpec, url: string): string {

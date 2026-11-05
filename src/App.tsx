@@ -53,6 +53,8 @@ import {
 } from "./lib/updateCheck";
 import UpdateNotification from "../components/UpdateNotification";
 import PromptBar from "../components/PromptBar";
+import BrowserPreview from "./components/BrowserPreview";
+import { normalizeBrowserPreviewUrl, type BrowserPreviewTab } from "./browserPreview";
 import {
   buildAttachmentContext,
   expandCommand,
@@ -513,6 +515,30 @@ export default function App() {
   };
   const [editorTabs, setEditorTabs] = useState<EditorTab[]>([]);
   const [activeEditorPath, setActiveEditorPath] = useState<string | null>(null);
+  const [mainView, setMainView] = useState<"chat" | "browser">("chat");
+  const [browserTabs, setBrowserTabs] = useState<BrowserPreviewTab[]>([]);
+  const [activeBrowserTabId, setActiveBrowserTabId] = useState<string | null>(null);
+  const openBrowserPreview = useCallback((input: string) => {
+    const url = normalizeBrowserPreviewUrl(input);
+    const id = crypto.randomUUID();
+    setBrowserTabs((tabs) => [...tabs, { id, url }]);
+    setActiveBrowserTabId(id);
+    setMainView("browser");
+    return `Opened ${url} in the in-app browser.`;
+  }, []);
+  const navigateBrowserTab = useCallback((id: string, url: string) => {
+    const normalized = normalizeBrowserPreviewUrl(url);
+    setBrowserTabs((tabs) => tabs.map((tab) => (tab.id === id ? { ...tab, url: normalized } : tab)));
+  }, []);
+  const closeBrowserTab = useCallback((id: string) => {
+    const index = browserTabs.findIndex((tab) => tab.id === id);
+    const next = browserTabs.filter((tab) => tab.id !== id);
+    setBrowserTabs(next);
+    if (activeBrowserTabId === id) {
+      setActiveBrowserTabId(next[Math.max(0, index - 1)]?.id ?? next[0]?.id ?? null);
+    }
+    if (next.length === 0) setMainView("chat");
+  }, [activeBrowserTabId, browserTabs]);
   // --- UI settings (Settings tab) ---
   const [uiSettings, setUiSettings] = useState<UiSettings>(DEFAULT_UI_SETTINGS);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -2180,6 +2206,7 @@ MCP call rules:
             activePath: activeEditorRef.current,
             getTabContent: (p: string) =>
               editorTabsRef.current.find((t) => t.path === p)?.content ?? null,
+            openBrowserPreview: async (url: string) => openBrowserPreview(url),
           };
           try {
             const result = await executeTool(call.name, args, effRoot, editor);
@@ -2606,6 +2633,32 @@ const handleAnimationComplete = () => {
                 </button>
               </div>
             )}
+              <div className="flex shrink-0 items-center gap-0.5 rounded-md bg-(--fill-1) p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setMainView("chat")}
+                  aria-pressed={mainView === "chat"}
+                  className={`rounded px-2 py-1 text-[10.5px] transition ${
+                    mainView === "chat"
+                      ? "bg-(--fill-2) text-[var(--text-primary)]"
+                      : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                  }`}
+                >
+                  Chat
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMainView("browser")}
+                  aria-pressed={mainView === "browser"}
+                  className={`rounded px-2 py-1 text-[10.5px] transition ${
+                    mainView === "browser"
+                      ? "bg-(--fill-2) text-[var(--text-primary)]"
+                      : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                  }`}
+                >
+                  Browser{browserTabs.length ? ` · ${browserTabs.length}` : ""}
+                </button>
+              </div>
               {activeEditorPath && (
                 <div className="flex items-center gap-1 rounded border border-(--border) bg-(--fill-1) px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]">
                   <span>
@@ -2652,6 +2705,17 @@ const handleAnimationComplete = () => {
               </div>
             </div>
 
+            <BrowserPreview
+              visible={mainView === "browser"}
+              tabs={browserTabs}
+              activeTabId={activeBrowserTabId}
+              onSelectTab={setActiveBrowserTabId}
+              onOpenTab={openBrowserPreview}
+              onCloseTab={closeBrowserTab}
+              onNavigateTab={navigateBrowserTab}
+            />
+            {mainView === "chat" && (
+            <>
             <div
               ref={scrollRef}
               onScroll={handleScroll}
@@ -2911,6 +2975,8 @@ const handleAnimationComplete = () => {
                 </div>
               </div>
             </div>
+            </>
+            )}
           </main>
         </div>
 
