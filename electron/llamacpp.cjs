@@ -26,6 +26,7 @@ const {
 const os = require('node:os')
 const { basename, dirname, join, resolve, sep } = require('node:path')
 const { pipeline } = require('node:stream/promises')
+const { Transform } = require('node:stream')
 const { tmpdir } = require('node:os')
 const crypto = require('node:crypto')
 const zlib = require('node:zlib')
@@ -36,6 +37,7 @@ const inflateRaw = promisify(zlib.inflateRaw)
 
 const LLAMA_CPP_REPO = 'ggml-org/llama.cpp'
 const USER_AGENT = 'Struct/1.0 (+https://github.com/Lumorix-studios/Struct)'
+const modelDownloads = new Map()
 
 /* ── paths ─────────────────────────────────────────────────────────────── */
 
@@ -102,6 +104,10 @@ async function detectHardware() {
 function httpRequest(url, options = {}) {
   const lib = url.startsWith('https:') ? require('node:https') : require('node:http')
   return new Promise((resolveP, reject) => {
+    if (options.signal && options.signal.aborted) {
+      reject(new Error('Request cancelled'))
+      return
+    }
     const req = lib.request(
       url,
       {
@@ -119,6 +125,9 @@ function httpRequest(url, options = {}) {
         resolveP(res)
       },
     )
+    if (options.signal) {
+      options.signal.addEventListener('abort', () => req.destroy(new Error('Request cancelled')), { once: true })
+    }
     req.on('timeout', () => req.destroy(new Error('Request timed out')))
     req.on('error', reject)
     if (options.body) req.write(options.body)
@@ -127,6 +136,28 @@ function httpRequest(url, options = {}) {
 }
 
 /** Fetch and parse a JSON document. */
+async function readAll(res) {
+  return new Promise((resolveP, reject) => {
+    let data = ''
+    res.setEncoding('utf8')
+    res.on('data', (chunk) => { data += chunk })
+    res.on('end', () => resolveP(data))
+    res.on('error', reject)
+  })
+}
+
+async function jsonRequest(url) {
+  const res = await httpRequest(url, { timeout: 30000 })
+  const text = await readAll(res)
+  if (res.statusCode < 200 || res.statusCode >= 300) {
+    throw new Error(`Hugging Face returned ${res.statusCode}: ${text.slice(0, 300)}`)
+  }
+  try {
+    return JSON.parse(text)
+  } catch {
+    throw new Error('Hugging Face returned invalid JSON.')
+  }
+}
 
 /* ── archive extraction ─────────────────────────────────────────────────── */
 
@@ -523,6 +554,177 @@ function quantizationOf(name) {
   return null
 }
 
+function validRepoId(repoId) {
+  return typeof repoId === 'string' &&
+    /^[\w.-]+\/[\w.-]+$/.test(repoId) &&
+    !repoId.split('/').some((part) => part === '.' || part === '..')
+}
+
+function isSplitShard(name) {
+  return /-\d{5}-of-\d{5}\.gguf$/i.test(name)
+}
+
+async function searchModels(query, options = {}) {
+  const url = new URL('https://huggingface.co/api/models')
+  url.searchParams.set('filter', 'gguf')
+  url.searchParams.set('sort', 'downloads')
+  url.searchParams.set('direction', '-1')
+  url.searchParams.set('limit', String(Math.min(Math.max(Number(options.limit) || 20, 1), 50)))
+  if (query.trim()) url.searchParams.set('search', query.trim())
+  const results = await jsonRequest(url.href)
+  if (!Array.isArray(results)) throw new Error('Hugging Face returned an unexpected model list.')
+  return results.flatMap((model) => {
+    if (!model || typeof model.id !== 'string' || !validRepoId(model.id)) return []
+    const tags = Array.isArray(model.tags) ? model.tags.filter((tag) => typeof tag === 'string') : []
+    return [{
+      id: model.id,
+      downloads: Number(model.downloads) || 0,
+      likes: Number(model.likes) || 0,
+      pipelineTag: typeof model.pipeline_tag === 'string' ? model.pipeline_tag : null,
+      license: licenseOf(tags),
+      tags,
+      totalSize: Number(model.usedStorage) || Number(model.safetensors?.total) || 0,
+      architecture: typeof model.config?.model_type === 'string' ? model.config.model_type : null,
+      contextLength: Number(model.config?.max_position_embeddings) || 0,
+    }]
+  })
+}
+
+async function listModelFiles(repoId) {
+  if (!validRepoId(repoId)) throw new Error('Use a Hugging Face model ID in owner/model format.')
+  const encodedRepo = repoId.split('/').map(encodeURIComponent).join('/')
+  const model = await jsonRequest(`https://huggingface.co/api/models/${encodedRepo}?blobs=true`)
+  const siblings = Array.isArray(model.siblings) ? model.siblings : []
+  const files = siblings.flatMap((file) => {
+    const name = typeof file.rfilename === 'string' ? file.rfilename : file.path
+    if (typeof name !== 'string' || !name.toLowerCase().endsWith('.gguf') || isSplitShard(name)) return []
+    const size = Number(file.lfs?.size ?? file.size) || 0
+    return [{
+      name,
+      size,
+      sha256: typeof file.lfs?.sha256 === 'string'
+        ? file.lfs.sha256
+        : typeof file.lfs?.oid === 'string' && /^[a-f0-9]{64}$/i.test(file.lfs.oid)
+          ? file.lfs.oid
+          : null,
+      quant: quantizationOf(name),
+    }]
+  }).sort((a, b) => {
+    const aFit = /Q4_K_M|Q4_K_S/i.test(a.quant || '') ? 0 : /Q5_K_M|Q5_K_S/i.test(a.quant || '') ? 1 : 2
+    const bFit = /Q4_K_M|Q4_K_S/i.test(b.quant || '') ? 0 : /Q5_K_M|Q5_K_S/i.test(b.quant || '') ? 1 : 2
+    return aFit - bFit || a.size - b.size
+  })
+  return {
+    repoId,
+    files,
+    totalSize: files.reduce((total, file) => total + file.size, 0),
+    architecture: typeof model.config?.model_type === 'string' ? model.config.model_type : null,
+    contextLength: Number(model.config?.max_position_embeddings) || 0,
+    license: licenseOf(model.tags),
+  }
+}
+
+function estimateFit(fileSize, hardware, options = {}) {
+  const size = Number(fileSize) || 0
+  const totalRam = Number(hardware?.ramBytes) || 0
+  const reservedRam = Math.max(2 * 1024 ** 3, totalRam * 0.15)
+  const usableRam = Math.max(0, totalRam - reservedRam)
+  const ram = Math.max(Number(hardware?.freeRamBytes) || 0, usableRam)
+  const disk = Number(hardware?.freeDiskBytes) || 0
+  const context = Math.max(2048, Number(options.contextLength) || 4096)
+  const requiredRamBytes = Math.ceil(size * 1.2 + context * 1024 * 4)
+  if (!size || !ram || !disk) {
+    return { fileSize: size, requiredRamBytes, status: 'unknown', reason: 'Hardware or file-size information is unavailable.', canRun: true }
+  }
+  if (hardware.supportedArch === false) {
+    return { fileSize: size, requiredRamBytes, status: 'impossible', reason: 'llama.cpp CPU runtime requires a 64-bit x64 or arm64 system.', canRun: false }
+  }
+  if (disk < size * 1.05) {
+    return { fileSize: size, requiredRamBytes, status: 'impossible', reason: 'There is not enough free disk space for this model.', canRun: false }
+  }
+  if (ram < size) {
+    return { fileSize: size, requiredRamBytes, status: 'impossible', reason: 'The model weights exceed available system memory; loading may fail.', canRun: false }
+  }
+  if (ram < requiredRamBytes) {
+    return { fileSize: size, requiredRamBytes, status: 'risky', reason: 'This model may exhaust memory, especially with a long context.', canRun: true }
+  }
+  if (ram < requiredRamBytes * 1.35) {
+    return { fileSize: size, requiredRamBytes, status: 'tight', reason: 'This should run, but leave other memory-heavy apps closed.', canRun: true }
+  }
+  return { fileSize: size, requiredRamBytes, status: 'ok', reason: null, canRun: true }
+}
+
+async function downloadModel(spec, onProgress) {
+  if (
+    !spec ||
+    !validRepoId(spec.repoId) ||
+    typeof spec.fileName !== 'string' ||
+    !spec.fileName.toLowerCase().endsWith('.gguf') ||
+    spec.fileName.split('/').some((part) => !part || part === '.' || part === '..')
+  ) {
+    throw new Error('A valid Hugging Face repository and GGUF file are required.')
+  }
+  const id = typeof spec.id === 'string' && /^[\w.-]{1,100}$/.test(spec.id)
+    ? spec.id
+    : crypto.randomUUID()
+  if (modelDownloads.has(id)) throw new Error('A download with this ID is already running.')
+  const repoPrefix = spec.repoId.replace('/', '--')
+  const fileName = `${repoPrefix}--${basename(spec.fileName)}`
+  const dest = join(modelsDir(), fileName)
+  const part = `${dest}.part`
+  await mkdir(modelsDir(), { recursive: true })
+  const controller = new AbortController()
+  modelDownloads.set(id, controller)
+  let received = 0
+  let total = Number(spec.size) || 0
+  try {
+    const encodedRepo = spec.repoId.split('/').map(encodeURIComponent).join('/')
+    const encodedFile = spec.fileName.split('/').map(encodeURIComponent).join('/')
+    const res = await httpRequest(`https://huggingface.co/${encodedRepo}/resolve/main/${encodedFile}?download=true`, { timeout: 0, signal: controller.signal })
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      const message = (await readAll(res)).slice(0, 300)
+      throw new Error(`Model download failed (${res.statusCode}): ${message}`)
+    }
+    total = Number(res.headers['content-length']) || total
+    let lastReport = 0
+    const hash = crypto.createHash('sha256')
+    const progress = new Transform({
+      transform(chunk, _encoding, callback) {
+        received += chunk.length
+        hash.update(chunk)
+        const now = Date.now()
+        if (now - lastReport >= 200) {
+          lastReport = now
+          onProgress({ id, phase: 'downloading', received, total, percent: total > 0 ? Math.min(100, Math.round(received / total * 100)) : 0 })
+        }
+        callback(null, chunk)
+      },
+    })
+    await pipeline(res, progress, createWriteStream(part))
+    if (controller.signal.aborted) throw new Error('Model download cancelled.')
+    const digest = hash.digest('hex')
+    if (typeof spec.sha256 === 'string' && spec.sha256 && digest.toLowerCase() !== spec.sha256.toLowerCase()) {
+      throw new Error('Model download checksum did not match; the incomplete file was discarded.')
+    }
+    await rename(part, dest)
+    onProgress({ id, phase: 'done', received, total: total || received, percent: 100 })
+    return { id: fileName, path: dest, size: received, fileName, repoId: spec.repoId }
+  } catch (error) {
+    await rm(part, { force: true }).catch(() => {})
+    if (controller.signal.aborted) onProgress({ id, phase: 'cancelled', received, total, percent: total > 0 ? Math.min(100, Math.round(received / total * 100)) : 0 })
+    throw error
+  } finally {
+    if (modelDownloads.get(id) === controller) modelDownloads.delete(id)
+  }
+}
+
+function cancelDownload(id) {
+  const controller = modelDownloads.get(id)
+  if (!controller) return false
+  controller.abort()
+  return true
+}
+
 /* ── compatibility ─────────────────────────────────────────────────────── */
 
 /**
@@ -702,6 +904,9 @@ async function startServer(modelId, options = {}) {
  * Delete a local model file from the model directory.
  */
 async function deleteLocalModel(id) {
+  if (typeof id !== 'string' || id.length > 255 || !/^[^/\\]+\.gguf$/i.test(id)) {
+    throw new Error('Invalid local model ID.')
+  }
   const modelsDir = modelsDir()
   const modelPath = join(modelsDir, id)
   try {
@@ -748,11 +953,12 @@ module.exports = {
   downloadsDir,
   serverBinaryPath,
   detectHardware,
-
-
+  searchModels,
+  listModelFiles,
+  estimateFit,
+  downloadModel,
+  cancelDownload,
   quantizationOf,
-
-
 
   runtimeStatus,
   installRuntime,

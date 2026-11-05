@@ -82,6 +82,9 @@ supabase functions deploy api-keys
 supabase functions deploy plugin-data
 ```
 
+Redeploy `api-keys` after changing its supported provider list so newly added
+provider keys can be saved to signed-in accounts.
+
 `verify_jwt` stays ON (`supabase/config.toml`). The app calls these with the
 user's JWT. The `plugin-data` function stores Gmail, Spotify, Calendar, GitHub,
 and MCP connection data encrypted in `user_plugin_connections` using the same

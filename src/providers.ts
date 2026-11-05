@@ -416,6 +416,43 @@ export function buildAuthHeaders(spec: ProviderSpec, apiKey: string): Record<str
   return headers;
 }
 
+function openAiCompatibleProvider(
+  id: ProviderId,
+  label: string,
+  defaultBaseUrl: string,
+  defaultModel: string,
+): ProviderSpec {
+  return {
+    id,
+    label,
+    note: "OpenAI-compatible API. Change the model ID to one enabled for your account.",
+    defaultBaseUrl,
+    defaultModel,
+    needsAuth: true,
+    authHeader: "Authorization",
+    authScheme: "bearer",
+    authQueryParam: null,
+    extraHeaders: {},
+    buildUrl: (s) => openAiCompatibleUrl(s.baseUrl),
+    buildBody: (s, history, opts) => ({
+      model: s.model,
+      messages: [{ role: "system", content: s.systemPrompt }, ...toOpenAiMessages(history)],
+      temperature: s.temperature,
+      max_tokens: opts?.maxOutputTokens,
+      stream: true,
+      ...(opts?.enableTools && !nativeToolsUnsupported(s)
+        ? { tools: openAiTools(opts), tool_choice: "auto" }
+        : {}),
+    }),
+    extractDelta: openAiDeltaText,
+    extractContent: (j) => (j as OpenAiShape)?.choices?.[0]?.message?.content ?? "",
+    extractUsage: openAiUsage,
+    validateAuth: (key) => (!key ? `A ${label} API key is required.` : null),
+    authErrorHint: (status, s) =>
+      `${label} request failed (${status}). Verify the API key and model "${s.model}" in your ${label} account.`,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Models that reject native tool calls
 // ---------------------------------------------------------------------------
@@ -585,6 +622,61 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     authErrorHint: (status, s) =>
       `NVIDIA NIM request failed (${status}). Verify your NVIDIA API key, model name "${s.model}", and that the model is available in your NIM account.`,
   },
+
+  deepseek: openAiCompatibleProvider(
+    "deepseek",
+    "DeepSeek",
+    "https://api.deepseek.com",
+    "deepseek-chat",
+  ),
+  mistral: openAiCompatibleProvider(
+    "mistral",
+    "Mistral AI",
+    "https://api.mistral.ai/v1",
+    "mistral-small-latest",
+  ),
+  together: openAiCompatibleProvider(
+    "together",
+    "Together AI",
+    "https://api.together.xyz/v1",
+    "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
+  ),
+  fireworks: openAiCompatibleProvider(
+    "fireworks",
+    "Fireworks AI",
+    "https://api.fireworks.ai/inference/v1",
+    "accounts/fireworks/models/llama-v3p1-8b-instruct",
+  ),
+  cerebras: openAiCompatibleProvider(
+    "cerebras",
+    "Cerebras",
+    "https://api.cerebras.ai/v1",
+    "llama3.1-8b",
+  ),
+  perplexity: openAiCompatibleProvider(
+    "perplexity",
+    "Perplexity",
+    "https://api.perplexity.ai",
+    "sonar",
+  ),
+  xai: openAiCompatibleProvider(
+    "xai",
+    "xAI",
+    "https://api.x.ai/v1",
+    "grok-3-mini",
+  ),
+  deepinfra: openAiCompatibleProvider(
+    "deepinfra",
+    "DeepInfra",
+    "https://api.deepinfra.com/v1/openai",
+    "meta-llama/Meta-Llama-3.1-8B-Instruct",
+  ),
+  sambanova: openAiCompatibleProvider(
+    "sambanova",
+    "SambaNova",
+    "https://api.sambanova.ai/v1",
+    "Meta-Llama-3.3-70B-Instruct",
+  ),
 
   anthropic: {
     id: "anthropic",

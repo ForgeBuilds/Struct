@@ -103,7 +103,8 @@ import {
 import { computeLineDiff } from "./diff";
 import { checkRateLimit, estimateTokens, recordUsage } from "./tokenUsage";
 import { resolveFsPath } from "./agentic";
-import { ensureOllamaReady } from "./localModels";
+import { ensureOllamaReady, type LocalModelSelection } from "./localModels";
+import { startServer as startLlamaCppServer } from "./llamacpp";
 import type { SectionId } from "./components/SettingsPanel";
 import {
   applyUiSettings,
@@ -1038,21 +1039,33 @@ export default function App() {
     }
   };
 
-  const handleSelectLocalModel = async (modelName: string): Promise<string | null> => {
-    // Make sure an Ollama server is actually up before switching to it. This
-    // reuses the app's own server or an external one already on port 11434,
-    // or starts a fresh one — instead of silently pointing chat at a server
-    // that may have died (the old overlap bug).
-    const serverErr = await ensureOllamaReady();
+  const handleSelectLocalModel = async (selection: LocalModelSelection): Promise<string | null> => {
+    let provider: AISettings["provider"];
+    let model: string;
+    let baseUrl: string;
+    try {
+      if (selection.provider === "ollama") {
+        const serverErr = await ensureOllamaReady();
+        if (serverErr) return serverErr;
+        provider = "ollama";
+        model = selection.model;
+        baseUrl = "http://127.0.0.1:11434";
+      } else {
+        await startLlamaCppServer(selection.modelId);
+        provider = "llamacpp";
+        model = "local";
+        baseUrl = "http://127.0.0.1:18080";
+      }
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
 
-    // Switch to the Ollama provider and set the selected local model.
     const next: AISettings = {
       ...settings,
-      provider: "ollama",
-      model: modelName,
-      baseUrl: "http://127.0.0.1:11434",
+      provider,
+      model,
+      baseUrl,
       apiKey: "",
-      // Clear any potentially conflicting system prompts when switching to a local tool-model
     };
     setSettings(next);
     void saveSettings(next);
@@ -1064,7 +1077,7 @@ export default function App() {
       );
     }
 
-    return serverErr;
+    return null;
   };
 
   const handleScroll = () => {

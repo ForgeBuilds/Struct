@@ -24,6 +24,10 @@ export interface LocalModelStatus {
   running: boolean;
 }
 
+export type LocalModelSelection =
+  | { provider: "ollama"; model: string }
+  | { provider: "llamacpp"; modelId: string };
+
 /** Result of `start_ollama_server` from the Rust backend. */
 export interface OllamaStartStatus {
   /** An Ollama server is reachable on port 11434. */

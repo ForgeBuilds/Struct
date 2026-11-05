@@ -293,9 +293,71 @@ function capOut(t) {
   const s = String(t || '')
   return s.length <= RUN_CAP ? s : s.slice(0, RUN_CAP) + '...[truncated]'
 }
+function runBackgroundCommand(command, cwd) {
+  return new Promise((resolveP, reject) => {
+    const bin = process.platform === 'win32' ? 'powershell.exe' : 'sh'
+    const sargs = process.platform === 'win32'
+      ? ['-NoProfile', '-Command', '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; ' + command]
+      : ['-c', command]
+    let child
+    try {
+      child = spawn(bin, sargs, {
+        cwd,
+        detached: true,
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+    } catch (e) {
+      reject(new Error('Failed to spawn command: ' + e.message))
+      return
+    }
+
+    let out = ''
+    let err = ''
+    let settled = false
+    let timer
+    const finish = (result) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      resolveP({
+        ...result,
+        stdout: capOut(out),
+        stderr: capOut(err),
+        background: true,
+        pid: child.pid ?? null,
+      })
+    }
+    const isReady = () =>
+      /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?::\d+)?|(?:server|app|ready|listening).{0,40}(?:ready|started|listening)|ready in \d/i.test(`${out}\n${err}`)
+
+    child.stdout.on('data', (chunk) => {
+      if (out.length < RUN_CAP + 4096) out += chunk.toString('utf8')
+      if (isReady()) finish({ running: true, ready: true, exitCode: null })
+    })
+    child.stderr.on('data', (chunk) => {
+      if (err.length < RUN_CAP + 4096) err += chunk.toString('utf8')
+      if (isReady()) finish({ running: true, ready: true, exitCode: null })
+    })
+    child.on('error', (e) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      reject(new Error('Failed to spawn command: ' + e.message))
+    })
+    child.on('close', (code) => {
+      finish({ running: false, ready: false, exitCode: code })
+    })
+    timer = setTimeout(() => {
+      finish({ running: child.exitCode === null, ready: false, exitCode: child.exitCode })
+    }, 3000)
+    child.unref()
+  })
+}
 function runCommand(a) {
   const command = String(a.command || '')
   const cwd = typeof a.cwd === 'string' && a.cwd ? a.cwd : undefined
+  if (a.background === true) return runBackgroundCommand(command, cwd)
   let tsec = Number(a.timeoutSecs !== undefined ? a.timeoutSecs : a.timeout_secs !== undefined ? a.timeout_secs : 120) || 120
   tsec = Math.min(Math.max(tsec, 1), 900)
   return new Promise((resolveP, reject) => {

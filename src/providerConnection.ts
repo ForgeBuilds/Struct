@@ -10,6 +10,7 @@ interface NativeHttpResponse {
   status: number;
   statusText: string;
   headers: Record<string, string>;
+  body: string;
 }
 
 interface ProviderStreamEvent {
@@ -75,6 +76,7 @@ async function nativeProviderFetch(url: string, init: RequestInit): Promise<Resp
   const aborted = new Promise<never>((_, reject) => {
     rejectAborted = reject;
   });
+  void aborted.catch(() => {});
   init.signal?.addEventListener("abort", onAbort, { once: true });
 
   try {
@@ -86,14 +88,38 @@ async function nativeProviderFetch(url: string, init: RequestInit): Promise<Resp
       throw new DOMException("The request was aborted.", "AbortError");
     }
 
-    const request = invoke<NativeHttpResponse>("http_fetch_stream", {
-      url,
-      method: init.method ?? "GET",
-      headers,
-      requestId,
-      ...(body !== null ? { body } : {}),
-    });
-    const response = await Promise.race([request, aborted]);
+    let response: NativeHttpResponse;
+    try {
+      const request = invoke<NativeHttpResponse>("http_fetch_stream", {
+        url,
+        method: init.method ?? "GET",
+        headers,
+        requestId,
+        ...(body !== null ? { body } : {}),
+      });
+      response = await Promise.race([request, aborted]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/Electron native command is not implemented:\s*http_fetch_stream/i.test(message)) {
+        throw error;
+      }
+
+      const fallback = invoke<NativeHttpResponse>("http_fetch", {
+        url,
+        method: init.method ?? "GET",
+        headers,
+        requestId,
+        ...(body !== null ? { body } : {}),
+      });
+      const buffered = await Promise.race([fallback, aborted]);
+      closed = true;
+      cleanup();
+      return new Response(buffered.body, {
+        status: buffered.status,
+        statusText: buffered.statusText,
+        headers: buffered.headers,
+      });
+    }
     const stream = new ReadableStream<Uint8Array>({
       start(streamController) {
         controller = streamController;

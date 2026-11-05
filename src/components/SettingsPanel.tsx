@@ -32,7 +32,7 @@ import {
 import { 
   findAvailableOllamaPort 
 } from "../serverManager";
-import { ensureOllamaReady } from "../localModels";
+import { ensureOllamaReady, type LocalModelSelection } from "../localModels";
 import LocalModels from "../../components/LocalModels";
 import AccountSection from "./AccountSection";
 import type { NeoUser, Profile as AccountProfile } from "../lib/auth";
@@ -80,7 +80,7 @@ interface SettingsPanelProps {
   onAiChange: (next: AISettings) => void;
   /** User picked a local (Ollama) model from the Local Models browser.
    * Returns an error message (e.g. server not reachable), or null on success. */
-  onSelectLocalModel: (modelName: string) => void | Promise<string | null>;
+  onSelectLocalModel: (selection: LocalModelSelection) => void | Promise<string | null>;
   /** Section to show when the panel opens (defaults to "appearance"). */
   initialSection?: SectionId | null;
   onClose: () => void;
@@ -993,9 +993,9 @@ export default function SettingsPanel({
                 <div className="h-full">
                     <LocalModels
                       onClose={() => setShowLocalModels(false)}
-                      onSelectModel={async (modelName) => {
+                      onSelectModel={async (selection) => {
                         // Only close the browser when the model is usable.
-                        const err = (await onSelectLocalModel(modelName)) ?? null;
+                        const err = (await onSelectLocalModel(selection)) ?? null;
                         if (!err) setShowLocalModels(false);
                         return err;
                       }}

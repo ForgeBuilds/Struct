@@ -380,6 +380,7 @@ export const TOOL_JSON_SCHEMAS: Record<ToolName, { description: string; paramete
         command: { type: "string", description: "The shell command to run." },
         cwd: { type: "string", description: "Working directory. Defaults to the workspace root." },
         timeout_secs: { type: "integer", description: "Timeout in seconds (1-900, default 120). Use a long timeout for builds, installs and test suites." },
+        background: { type: "boolean", description: "Start a long-running process such as a website development server without waiting for it to exit. Returns after the server reports ready or a short startup wait." },
       },
       required: ["command"],
     },
@@ -1262,7 +1263,24 @@ async function executeToolUncached(
           command: String(args.command ?? ""),
           cwd: cwdArg ? resolveFsPath(cwdArg, workspaceRoot) : (workspaceRoot ?? null),
           timeoutSecs: typeof args.timeout_secs === "number" ? Math.round(args.timeout_secs) : null,
+          background: args.background === true,
         });
+        if (res.background === true) {
+          const output = [
+            res.ready === true
+              ? "Background process reports ready."
+              : res.running === true
+                ? "Background process started and is still initializing."
+                : `Background process exited with code ${String(res.exitCode)} before becoming ready.`,
+            typeof res.pid === "number" ? `PID: ${res.pid}` : "",
+            typeof res.stdout === "string" && res.stdout.trim() ? `stdout:\n${res.stdout.trim()}` : "",
+            typeof res.stderr === "string" && res.stderr.trim() ? `stderr:\n${res.stderr.trim()}` : "",
+          ].filter(Boolean);
+          return {
+            ok: res.running === true && res.exitCode == null,
+            output: output.join("\n\n"),
+          };
+        }
         const timedOut = Boolean(res.timedOut);
         const exitCode = res.exitCode as number | null;
         // Cap streams — massive outputs blow up downstream diff/render paths.
@@ -2107,7 +2125,7 @@ export const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
   rename: 'rename(path, new_path) — rename or move a file/folder.',
   copy_file: 'copy_file(path, new_path) — copy a file to a new location.',
   file_info: 'file_info(path) — get a path\'s size, type and last-modified time.',
-  run_command: 'run_command(command, cwd?, timeout_secs=120) — run a shell command (npm test, cargo build, git status…) and capture its output. Timeout is 1-900s; use a long timeout for builds and test suites.',
+  run_command: 'run_command(command, cwd?, timeout_secs=120, background=false) — run a shell command and capture its output. Set background=true for long-running processes such as npm run dev; it returns after ready output or a short startup wait. Use timeout_secs for foreground builds and tests.',
   git_status: 'git_status() — show the workspace git branch and changed files.',
   git_diff: 'git_diff(staged=false) — show the current (or staged) diff.',
   git_commit: 'git_commit(message) — stage all workspace changes and commit with the message.',
@@ -2159,10 +2177,12 @@ GitHub (requires GitHub connected in Plugins):
 Git (workspace):
 - \`git_status()\`, \`git_diff(staged?)\`, \`git_commit(message)\`
 System:
-- \`run_command(command, cwd?, timeout_secs?)\`
+- \`run_command(command, cwd?, timeout_secs?, background?)\` — use \`background=true\` to start a long-running process such as a website dev server without waiting for it to exit.
 - \`env_info()\`
 - \`analyze_project_structure()\`
 - \`open_browser_preview(url)\` — open a website or running local development server in Struct's browser tab when the user asks to preview it.
+
+For website previews, start the dev server with \`run_command(..., background=true)\` so the tool does not wait for the server to stop. Use the localhost URL printed by the server, then call \`open_browser_preview(url)\`.
 
 ## HOW TO ACT (strict)
 1. Only use tools when the user clearly asks for live/external info (news, "latest" anything, docs) or file/system work. Otherwise answer normally without mentioning or emitting tools.

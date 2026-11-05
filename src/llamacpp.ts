@@ -164,6 +164,7 @@ export function estimateFit(
 }
 
 export function downloadModel(spec: {
+  id?: string;
   repoId: string;
   fileName: string;
   size: number;

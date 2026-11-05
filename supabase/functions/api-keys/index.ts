@@ -69,7 +69,10 @@ async function decrypt(blob64: string): Promise<string> {
 }
 
 const ALLOWED_PROVIDERS = new Set([
-  "openai", "openrouter", "groq", "nvidia", "anthropic", "google", "custom",
+  "openai", "openrouter", "groq", "nvidia",
+  "deepseek", "mistral", "together", "fireworks", "cerebras",
+  "perplexity", "xai", "deepinfra", "sambanova",
+  "anthropic", "google", "custom",
 ]);
 
 // BYOK is no longer a paid feature: any authenticated account may store and

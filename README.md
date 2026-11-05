@@ -36,7 +36,9 @@ never shipped with the app; local models (Ollama) never leave your device at all
   destructive actions wait for your approval.
 - **Any provider** — OpenAI, Anthropic, Google, Groq, Mistral, xAI, OpenRouter, DeepSeek,
   Ollama (local), and any OpenAI-compatible endpoint. Switch models right from the composer.
-- **Local models** — run Ollama on `127.0.0.1` for fully offline, private inference.
+- **Local models** — manage Ollama models or search Hugging Face for GGUFs, check
+  hardware fit, download with progress, and run them through the managed llama.cpp
+  server. Local inference stays on your device.
 - **In-app browser preview** — open websites and local development servers in browser
   tabs inside Struct, either from the Browser view or by asking the agent to preview a URL.
 - **MCP support** — connect Model Context Protocol servers over `http` or `stdio` and
@@ -59,6 +61,14 @@ never shipped with the app; local models (Ollama) never leave your device at all
 | Git | `git_status`, `git_diff`, `git_commit` |
 | Web | `web_search`, `web_fetch`, `http_request` |
 | MCP | `mcp_<server>_<tool>` (any connected server's tools) |
+
+For website previews, agents can start a development server with `run_command`'s
+`background: true` option, then open its localhost URL in the in-app browser.
+
+Provider presets include OpenAI, OpenRouter, Groq, NVIDIA NIM, DeepSeek, Mistral,
+Together AI, Fireworks AI, Cerebras, Perplexity, xAI, DeepInfra, SambaNova,
+Anthropic, Google Gemini, Ollama, and llama.cpp. Other OpenAI-compatible services
+can use the Custom provider with their API base URL, model ID, and key.
 
 ## Tech stack
 
