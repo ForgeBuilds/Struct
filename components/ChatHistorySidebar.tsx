@@ -222,7 +222,7 @@ export default function ChatHistorySidebar({
     <>
     <nav aria-label="Main navigation" className="z-30 flex w-14 shrink-0 flex-col items-center gap-2 bg-(--fill-0) py-3">
       <button type="button" onClick={onNewChat} className={railButton} title={t("history.newChat")} aria-label={t("Chat history")}><IoAdd size={21}/></button>
-      <button type="button" onClick={onToggleHistory ?? onClose} className={`${railButton} ${isOpen ? "bg-(--fill-1) text-[var(--text-primary)]" : ""}`} title={t("history.chatHistory")} aria-label={t("history.chatHistory")} aria-expanded={isOpen}><IoChatbubbleOutline size={21}/></button>
+      <button type="button" onClick={onToggleHistory ?? onClose} className={`${railButton} ${isOpen ? "bg-(--fill-1) text-[var(--text-primary)]" : ""}`} title={t("history.chatHistory")} aria-label={t("history.chatHistory")} aria-expanded={isOpen}><IoSearch size={21}/></button>
       <button type="button" onClick={onOpenWorkspace} className={railButton} title="Open folder" aria-label="Open folder"><IoFolderOpenOutline size={21}/></button>
       <button type="button" onClick={onOpenPlugins} className={railButton} title="Plugins" aria-label="Plugins"><LuLibraryBig size={22}/></button>
       <div className="mt-auto flex flex-col gap-2">

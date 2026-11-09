@@ -26,7 +26,7 @@ import { connectGitHub, disconnectGitHub, githubConnected } from "../src/github"
 import gmailIcon from "../src/assets/images/gmail.webp";
 import robloxIcon from "../src/assets/images/roblox.webp";
 import spotifyIcon from "../src/assets/images/spotify.webp";
-import googleIcon from "../src/assets/images/googlecalander.jpeg";
+import googleIcon from "../src/assets/images/googlecal.webp";
 import githubIcon from "../src/assets/images/github.png";
 interface Props {
   isOpen?: boolean;
@@ -234,7 +234,7 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
         {githubUser && <span className="text-[9px] text-[var(--success)]">Connected</span>}
       </button>
        <button
-        onClick={() => alert("Coming soon!")}
+        onClick={() => alert("Enabled on default!")}
         className=" muted flex items-center gap-3 rounded-md border-(--border) bg-(--fill-0) px-3 py-2.5 text-left transition hover:bg-(--fill-2) w-50"
       >
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-(--fill-2) text-lg"><TbWorldWww size = {26}/></span>
