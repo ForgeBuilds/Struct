@@ -14,7 +14,7 @@ html[data-seasonal-theme="christmas"][data-seasonal-decorations="1"] .seasonal-s
 .seasonal-snowflake {
   position: absolute;
   top: -18px;
-  color: var(--text-secondary);
+  color: var(--flake-color);
   opacity: 0;
   animation-name: seasonal-snowflake-fall;
   animation-timing-function: linear;

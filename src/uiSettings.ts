@@ -44,7 +44,7 @@ export interface ThemePreset {
 /** Two modes only — Dark and Light. Any other stored id falls back to Dark on load. */
 export const THEMES: ThemePreset[] = [
   { id: "neo", label: "Dark", base: "#1f1f1f", panel: "#191919", elevated: "#2b2b2b", active: "#343434" },
-  { id: "paper", label: "Light", base: "#f7f7f8", panel: "#f0f0f2", elevated: "#e6e6e9", active: "#dcdce0" },
+  { id: "paper", label: "Light", base: "#f6f7f9", panel: "#eef1f5", elevated: "#ffffff", active: "#e3e8ef" },
 ];
 
 export const ACCENT_SWATCHES: Array<{ label: string; value: string }> = [

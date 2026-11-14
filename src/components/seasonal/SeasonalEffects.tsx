@@ -1,5 +1,7 @@
 import type { CSSProperties } from "react";
 
+const flakeColors = ["#f5fbff", "#53c878", "#ff6268", "#ffd166"];
+
 const snowflakes = Array.from({ length: 500 }, (_, index) => {
   const random = (salt: number) => {
     let value = Math.imul(index + 1 + salt * 101, 0x45d9f3b);
@@ -15,7 +17,10 @@ const snowflakes = Array.from({ length: 500 }, (_, index) => {
     duration,
     drift: Math.round(random(5) * 36 - 18),
     size: 4 + random(6) * 4,
-    opacity: 0.26 + random(7) * 0.11,
+    opacity: 0.36 + random(7) * 0.14,
+    color: flakeColors[
+      random(8) < 0.58 ? 0 : random(8) < 0.73 ? 1 : random(8) < 0.88 ? 2 : 3
+    ],
   };
 });
 
@@ -27,6 +32,7 @@ export default function SeasonalEffects() {
           "--flake-drift": string;
           "--flake-static-y": string;
           "--flake-opacity": number;
+          "--flake-color": string;
         } = {
           left: `${flake.x}%`,
           "--flake-static-y": `${flake.y}%`,
@@ -36,6 +42,7 @@ export default function SeasonalEffects() {
           animationDuration: `${flake.duration}s`,
           "--flake-drift": `${flake.drift}px`,
           "--flake-opacity": flake.opacity,
+          "--flake-color": flake.color,
         };
         return (
           <svg

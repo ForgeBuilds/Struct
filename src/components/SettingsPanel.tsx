@@ -51,10 +51,207 @@ import {
   loadTokenRateSettings,
   resetUsage,
   saveTokenRateSettings,
+  type UsageSnapshot,
   type TokenRateSettings,
 } from "../tokenUsage";
 import PluginsPanel from "../../components/plugins";
 
+function TokenUsageChart({
+  days,
+  chartLabel,
+  totalLabel,
+  emptyLabel,
+}: {
+  days: UsageSnapshot["last7"];
+  chartLabel: string;
+  totalLabel: string;
+  emptyLabel: string;
+}) {
+  const width = 640;
+  const left = 54;
+  const right = 12;
+  const top = 14;
+  const bottom = 38;
+  const plotHeight = 126;
+  const plotWidth = width - left - right;
+  const maxTokens = Math.max(1, ...days.map((day) => day.input + day.output));
+  const yTicks = maxTokens < 2
+    ? [{ fraction: 0, value: 0 }, { fraction: 1, value: maxTokens }]
+    : [
+        { fraction: 0, value: 0 },
+        { fraction: 0.5, value: maxTokens / 2 },
+        { fraction: 1, value: maxTokens },
+      ];
+  const points = days.map((day, index) => ({
+      x: left + (plotWidth * index) / Math.max(1, days.length - 1),
+      total: day.input + day.output,
+      y: top + plotHeight * (1 - (day.input + day.output) / maxTokens),
+      day,
+    }));
+  const linePath = points
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+    .join(" ");
+  const areaPath = `${linePath} L ${points.at(-1)?.x ?? left} ${top + plotHeight} L ${left} ${top + plotHeight} Z`;
+  const empty = days.every((day) => day.input + day.output === 0);
+  const latestTotal = (days.at(-1)?.input ?? 0) + (days.at(-1)?.output ?? 0);
+  const previous = days.at(-2);
+  const previousTotal = (previous?.input ?? 0) + (previous?.output ?? 0);
+  const change = previousTotal > 0
+    ? Math.round(((latestTotal - previousTotal) / previousTotal) * 100)
+    : null;
+
+  return (
+    <div className="rounded-lg border border-(--border) bg-(--fill-1) px-3 py-3">
+      <div className="mb-2 flex items-center justify-between text-[10.5px] text-[var(--text-muted)]">
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-(--accent)" />
+          {totalLabel}
+        </span>
+        <span className={`tabular-nums ${change === null ? "" : change >= 0 ? "text-(--success)" : "text-(--danger)"}`}>
+          {change === null ? formatTokens(latestTotal) : `${change >= 0 ? "+" : ""}${change}%`}
+        </span>
+      </div>
+      <svg
+        viewBox={`0 0 ${width} ${top + plotHeight + bottom}`}
+        className="block h-40 w-full overflow-visible"
+        role="img"
+        aria-label={`${chartLabel}: ${totalLabel}`}
+        preserveAspectRatio="none"
+      >
+        <defs>
+          <linearGradient id="token-usage-area" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.28" />
+            <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.015" />
+          </linearGradient>
+        </defs>
+        {yTicks.map(({ fraction, value }) => {
+          const y = top + plotHeight * (1 - fraction);
+          return (
+            <g key={value}>
+              <line
+                x1={left}
+                x2={width - right}
+                y1={y}
+                y2={y}
+                stroke="var(--border-strong)"
+                strokeDasharray={fraction === 0 ? undefined : "3 5"}
+              />
+              <text
+                x={left - 8}
+                y={y + 3}
+                textAnchor="end"
+                fill="var(--text-faint)"
+                fontSize="10"
+              >
+                {formatTokens(Math.round(value))}
+              </text>
+            </g>
+          );
+        })}
+        <path d={areaPath} fill="url(#token-usage-area)" />
+        <path
+          d={linePath}
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth="2.5"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        {points.map((point) => (
+            <circle
+              key={point.day.date}
+              cx={point.x}
+              cy={point.y}
+              r="4"
+              fill="var(--bg-elevated)"
+              stroke="var(--accent)"
+              strokeWidth="2"
+            >
+              <title>
+                {`${point.day.date} · ${point.total.toLocaleString()} tokens · ${point.day.requests} requests`}
+              </title>
+            </circle>
+          ))}
+        {days.map((day, index) => {
+          const x = left + (plotWidth * index) / Math.max(1, days.length - 1);
+          const label = new Date(`${day.date}T00:00:00`).toLocaleDateString(undefined, {
+            weekday: "short",
+          });
+          return (
+            <text
+              key={day.date}
+              x={x}
+              y={top + plotHeight + 23}
+              textAnchor="middle"
+              fill="var(--text-faint)"
+              fontSize="10"
+            >
+              {label}
+            </text>
+          );
+        })}
+      </svg>
+      {empty && (
+        <p className="text-center text-[10.5px] text-[var(--text-faint)]">{emptyLabel}</p>
+      )}
+    </div>
+  );
+}
+
+function TokenShareRing({
+  label,
+  tokens,
+  percent,
+  color,
+}: {
+  label: string;
+  tokens: number;
+  percent: number;
+  color: string;
+}) {
+  const radius = 30;
+  const circumference = 2 * Math.PI * radius;
+  const boundedPercent = Math.max(0, Math.min(100, percent));
+  return (
+    <div
+      className="flex items-center gap-3 rounded-lg border border-(--border) bg-(--fill-1) px-3 py-2.5"
+      role="img"
+      aria-label={`${label}: ${boundedPercent}%, ${tokens.toLocaleString()} tokens`}
+    >
+      <svg viewBox="0 0 72 72" className="h-16 w-16 shrink-0 -rotate-90">
+        <circle cx="36" cy="36" r={radius} fill="none" stroke="var(--fill-3)" strokeWidth="7" />
+        <circle
+          cx="36"
+          cy="36"
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth="7"
+          strokeLinecap="round"
+          strokeDasharray={`${(circumference * boundedPercent) / 100} ${circumference}`}
+        />
+        <text
+          x="36"
+          y="36"
+          dominantBaseline="central"
+          textAnchor="middle"
+          fill="var(--text-primary)"
+          fontSize="13"
+          fontWeight="600"
+          transform="rotate(90 36 36)"
+        >
+          {boundedPercent}%
+        </text>
+      </svg>
+      <div className="min-w-0">
+        <p className="truncate text-[11px] text-[var(--text-muted)]">{label}</p>
+        <p className="mt-0.5 text-[14px] font-semibold tabular-nums text-[var(--text-primary)]">
+          {formatTokens(tokens)}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export type SectionId =
   | "dashboard"
@@ -1692,6 +1889,29 @@ export default function SettingsPanel({
                   </p>
                 </div>
 
+                {(() => {
+                  const todayTotal = usageSnapshot.today.input + usageSnapshot.today.output;
+                  return (
+                    <>
+                      <SectionTitle>{t("settings.dashTokenShare")}</SectionTitle>
+                      <div className="grid grid-cols-2 gap-2">
+                        <TokenShareRing
+                          label={t("settings.dashInput")}
+                          tokens={usageSnapshot.today.input}
+                          percent={todayTotal ? Math.round((usageSnapshot.today.input / todayTotal) * 100) : 0}
+                          color="var(--accent)"
+                        />
+                        <TokenShareRing
+                          label={t("settings.dashOutput")}
+                          tokens={usageSnapshot.today.output}
+                          percent={todayTotal ? Math.round((usageSnapshot.today.output / todayTotal) * 100) : 0}
+                          color="var(--success)"
+                        />
+                      </div>
+                    </>
+                  );
+                })()}
+
                 {rateSettings.maxTokensPerDay > 0 && (() => {
                   const todayTotal = usageSnapshot.today.input + usageSnapshot.today.output;
                   const dailyLimit = rateSettings.maxTokensPerDay;
@@ -1728,38 +1948,13 @@ export default function SettingsPanel({
                     </>
                   );
                 })()}
-                
-                {/* <SectionTitle>{t("settings.dash7")}</SectionTitle> **THis graph is pretty much repeating what the other functions do so removing is more beneficial
-                <div className="flex h-28 items-end gap-1.5">
-                  {usageSnapshot.last7.map((d) => {
-                    const total = d.input + d.output;
-                    const max = Math.max(
-                      ...usageSnapshot.last7.map((x) => x.input + x.output),
-                      1
-                    );
-                    const dayLabel = new Date(`${d.date}T00:00:00`).toLocaleDateString(undefined, {
-                      weekday: "narrow",
-                    });
-                    return (
-                      <div
-                        key={d.date}
-                        className="flex min-w-0 flex-1 flex-col items-center gap-1"
-                        title={`${t("settings.dashDayTitle", { date: d.date, total: total.toLocaleString() })} \u00b7 ${t("settings.dashDayReq", { req: d.requests })}`}
-                      >
-                        <span className="text-[9px] tabular-nums text-[var(--text-faint)]">
-                          {total > 0 ? formatTokens(total) : "—"}
-                        </span>
-                        <div className="relative w-full">
-                          <div
-                            className="w-full rounded-t-sm bg-gradient-to-t from-(--accent)/70 to-(--accent)/40"
-                            style={{ height: `${Math.max(4, Math.round((total / max) * 80))}px` }}
-                          />
-                        </div>
-                        <span className="text-[9.5px] text-[var(--text-faint)]">{dayLabel}</span>
-                      </div>
-                    );
-                  })}
-                </div> */}
+                <SectionTitle>{t("settings.dash7")}</SectionTitle>
+                <TokenUsageChart
+                  days={usageSnapshot.last7}
+                  chartLabel={t("settings.dash7")}
+                  totalLabel={t("settings.dashTotalTokens")}
+                  emptyLabel={t("settings.dashEmpty")}
+                />
 
                 <SectionTitle>{t("settings.dashRates")}</SectionTitle>
                 <Row title={t("settings.dashEnforce")} description={t("settings.dashEnforceDesc")}>

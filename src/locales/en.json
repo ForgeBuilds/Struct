@@ -407,6 +407,7 @@
   "settings.termBlinkDesc": "Blink the block cursor in terminals.",
   "settings.termNote": "Changes apply instantly to open terminals; new terminals pick them up automatically.",
   "settings.dashToday": "Usage today",
+  "settings.dashTokenShare": "Today's token split",
   "settings.dashRequests": "Requests",
   "settings.dashInput": "Input tokens",
   "settings.dashOutput": "Output tokens",
