@@ -259,7 +259,7 @@ export type SectionId =
   | "ai"
   | "editor"
   //| "terminal"
-  | "files"
+  //| "files"
   | "plugins"
   | "data"
   | "shortcuts"
@@ -454,16 +454,16 @@ const SECTIONS: SectionMeta[] = [
     groupKey: "settings.navGroupWorkspace",
     keywords: "tokens usage cost rate limits statistics budget",
   },
-  {
-    id: "files",
-    label: "Files & Save",
-    hint: "Autosave and recent items",
-    group: "Workspace",
-    labelKey: "settings.files",
-    hintKey: "settings.hintFiles",
-    groupKey: "settings.navGroupWorkspace",
-    keywords: "autosave recent files folders save",
-  },
+  // {
+  //   id: "files",
+  //   label: "Files & Save",
+  //   hint: "Autosave and recent items",
+  //   group: "Workspace",
+  //   labelKey: "settings.files",
+  //   hintKey: "settings.hintFiles",
+  //   groupKey: "settings.navGroupWorkspace",
+  //   keywords: "autosave recent files folders save",
+  // },
   {
     id: "plugins",
     label: "Plugins",
@@ -814,10 +814,20 @@ export default function SettingsPanel({
     const knownProviderUrl = Object.values(PROVIDER_OPTIONS)
       .map((provider) => providerById(provider.id).defaultBaseUrl)
       .filter(Boolean);
+    const currentUrlIsLocal =
+      /^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(?:\/|$)/i.test(
+        aiSettings.baseUrl.trim()
+      );
+    const nextProviderIsHosted =
+      nextId !== "custom" &&
+      nextId !== "ollama" &&
+      nextId !== "llamacpp" &&
+      nextId !== "freellmapi";
     const usingDefaultUrl =
       !aiSettings.baseUrl ||
       (prevSpec !== undefined && aiSettings.baseUrl === prevSpec.defaultBaseUrl) ||
-      knownProviderUrl.includes(aiSettings.baseUrl);
+      knownProviderUrl.includes(aiSettings.baseUrl) ||
+      (currentUrlIsLocal && nextProviderIsHosted);
     const usingDefaultModel =
       !aiSettings.model || (prevSpec !== undefined && aiSettings.model === prevSpec.defaultModel);
     onAiChange({
@@ -1430,10 +1440,19 @@ export default function SettingsPanel({
                       type="text"
                       value={aiSettings.baseUrl}
                       onChange={(e) => updateAi("baseUrl", e.target.value)}
-                      placeholder="https://api.openai.com/v1"
+                      placeholder={aiSpec.defaultBaseUrl || "https://your-provider.example/v1"}
                       spellCheck={false}
                       className="w-56 shrink-0 rounded-md bg-(--fill-1) px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                     />
+                    {aiSettings.baseUrl !== aiSpec.defaultBaseUrl && (
+                      <button
+                        type="button"
+                        onClick={() => updateAi("baseUrl", aiSpec.defaultBaseUrl)}
+                        className="shrink-0 rounded-md bg-(--fill-1) px-2 py-1.5 text-[10px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
+                      >
+                        Use default
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => void testProvider()}
@@ -1876,7 +1895,7 @@ export default function SettingsPanel({
               </div>
             )}
 
-            {section === "files" && (
+            {/* {section === "files" && (
               <div>
                 <SectionTitle>{t("settings.filesAutoSave")}</SectionTitle>
                 <Row title={t("settings.filesAutoSaveRow")} description={t("settings.filesAutoSaveDesc")}>
@@ -1902,7 +1921,7 @@ export default function SettingsPanel({
                   </button>
                 </Row>
               </div>
-            )}
+            )} */}
             {section === "plugins" && (
               <div>
                 <PluginsPanel inline />

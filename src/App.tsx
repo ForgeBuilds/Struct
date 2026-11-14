@@ -16,9 +16,8 @@ import CommandPalette from "../components/CommandPalette";
 //import StatusBar from "../components/StatusBar.tsx";
 import Tab2 from "../components/Tab2.tsx";
 import Markdown from "./components/Markdown";
-// import BottomPanel, { type PanelTab } from "./components/BottomPanel";
-//was the terminal panel for the main chat interface ->
-// but i assume there is no need for that as it exists inside the IDE
+//import BottomPanel, { type PanelTab } from "./components/BottomPanel";
+
 import "./editor.css";
 import type { AISettings, ChatSession, Message } from "./types";
 import { DEFAULT_SETTINGS } from "./types";
@@ -2963,7 +2962,7 @@ const handleAnimationComplete = () => {
                     </span>
                   )}
                   <label
-                    className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded border border-(--border) bg-black px-2 py-0.5 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2)"
+                    className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded border border-(--border) bg-transparent px-2 py-0.5 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2)"
                     title={t("app.toolAllowanceTitle")}
                   >
                     <span
