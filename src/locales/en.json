@@ -535,7 +535,7 @@
   "settings.themeLight": "Light",
   "settings.seasonal": "Snowfall schedule",
   "settings.christmasTheme": "Christmas theme",
-  "settings.christmasThemeDesc": "Snowfall is on by default. Automatic mode follows the December 1 through January 6 season.",
+  "settings.christmasThemeDesc": "Snowfall is on by default. Automatic mode starts December 1 and ends January 6.",
   "settings.seasonalAutomatic": "Automatic",
   "settings.seasonalAlwaysOn": "Always on",
   "settings.seasonalOff": "Off",

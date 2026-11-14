@@ -743,7 +743,26 @@ export default function SettingsPanel({
     const id = window.setInterval(() => setUsageTick((t) => t + 1), 2000);
     return () => window.clearInterval(id);
   }, [section]);
+  const [creditInfoOpen, setCreditInfoOpen] = useState(false);
+  const creditInfoRef = useRef<HTMLDivElement>(null);
+  useEffect(()=> {
+      if (!setCreditInfoOpen) return;
+      const onPointerDown = (e :PointerEvent) => {
+        if (!creditInfoRef.current?.contains(e.target  as Node)) setCreditInfoOpen(false);
+      };
+      const onKeyDown = (e: KeyboardEvent) => {
+        if (e.key =="Escape") setCreditInfoOpen(false);
 
+      };
+      window.addEventListener("pointerdown", onPointerDown);
+      window.addEventListener("keydown", onKeyDown);
+      return () => {
+        window.removeEventListener("pointerdown", onPointerDown);
+        window.removeEventListener("keydown", onKeyDown);
+
+      };
+
+  }, [setCreditInfoOpen])
   // --- "About builds" popover (sidebar footer) ---
   const [buildsInfoOpen, setBuildsInfoOpen] = useState(false);
   const buildsInfoRef = useRef<HTMLDivElement>(null);
@@ -1077,7 +1096,7 @@ export default function SettingsPanel({
           </nav>
           <div className="hidden px-3 py-2.5 text-[10px] text-[var(--text-faint)] sm:block">
             <div ref={buildsInfoRef} className="relative flex items-center justify-between gap-2">
-              <span>{t("settings.versionBeta")}</span>
+              <span className="relative">V1.16.0 BETA</span>
               <button
                 type="button"
                 aria-label={t("settings.aboutBuilds")}
@@ -1089,7 +1108,7 @@ export default function SettingsPanel({
               </button>
 
               {buildsInfoOpen && (
-                <div className="absolute bottom-0 left-full z-50 ml-2 w-72 rounded-lg bg-[var(--bg-elevated)] p-4 text-left shadow-[0_10px_32px_rgba(0,0,0,0.5)]">
+                <div className="relative bottom-0 right-0 z-50 w-72 rounded-lg bg-[var(--bg-elevated)] p-4 text-left shadow-[0_10px_32px_rgba(0,0,0,0.5)]">
                   <p className="text-xs font-medium text-[var(--text-primary)]">
                     {t("settings.buildsTitle")}
                   </p>
@@ -2222,7 +2241,7 @@ export default function SettingsPanel({
                   </div>
                   <div>
                     <p className="text-[13px] font-medium text-[var(--text-primary)]">Struct</p>
-                    <p className="text-[11px] text-[var(--text-muted)]">{t("settings.versionBeta")}</p>
+                    <p className="text-[11px] text-[var(--text-muted)]">v1.16.0</p>
                   </div>
                 </div>
 
@@ -2233,6 +2252,42 @@ export default function SettingsPanel({
                 <p className = "text-[11.5px] leading-5 text-[var(--text-secondary)]">
                   {t("settings.aboutBetaNotice")}
                 </p>
+                <span>
+                  
+                 <div ref={creditInfoRef} className="relative items-center">
+              <button
+                type="button"
+                className="inline-flex items-center text-[var(--text-faint)] transition hover:text-blue-500  rounded-2xl"
+                onClick={() => setCreditInfoOpen((v) => !v)}
+              >
+                <p className = "text-[11.5px] bg-(--fill-0) rounded-lg text-amber-500 hover:bg-(--fill-3)">
+                Credits</p>
+              </button>
+
+              {creditInfoOpen && (
+                <div className=" relative z-50 mx-0 my-5 mb-0 w-50 rounded-lg bg-[var(--bg-elevated)] p-4 text-left">
+                  <p className="text-xs font-medium text-[var(--text-primary)]">
+                    Credits opensource tools bundled inside Struct
+                  </p>
+
+                 
+                    
+                    <a
+                      href="https://github.com/tashfeenahmed/freellmapi"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[var(--text-primary)] hover:text-blue-500 text-[11.5px] underline"
+                    >
+                      FreeLLMapi
+                    </a>
+                  
+
+          
+                </div>
+              )}
+            </div>
+          
+                </span>
                 <SectionTitle>{t("settings.aboutLinks")}</SectionTitle>
                 <div className="flex flex-col gap-1">
                   {[
