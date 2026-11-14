@@ -2100,7 +2100,7 @@ export default function SettingsPanel({
                   />
                 </Row>
 
-                {/* <SectionTitle>{t("settings.dashRecent")}</SectionTitle>
+                <SectionTitle>{t("settings.dashRecent")}</SectionTitle>
                 {usageSnapshot.recent.length === 0 ? (
                   <p className="text-[11.5px] text-[var(--text-muted)]">
                     {t("settings.dashEmpty")}
@@ -2121,7 +2121,7 @@ export default function SettingsPanel({
                       </div>
                     ))}
                   </div>
-                )} */}
+                )}
 
                 <Row title={t("settings.dashReset")} description={t("settings.dashResetDesc")}>
                   <button
@@ -2260,7 +2260,7 @@ export default function SettingsPanel({
                 className="inline-flex items-center text-[var(--text-faint)] transition hover:text-blue-500  rounded-2xl"
                 onClick={() => setCreditInfoOpen((v) => !v)}
               >
-                <p className = "text-[11.5px] bg-(--fill-0) rounded-lg text-amber-500 hover:bg-(--fill-3)">
+                <p className = "text-[14.5px] bg-(--fill-0) rounded-lg text-green-500 hover:bg-(--fill-3)">
                 Credits</p>
               </button>
 
@@ -2270,8 +2270,7 @@ export default function SettingsPanel({
                     Credits opensource tools bundled inside Struct
                   </p>
 
-                 
-                    
+          
                     <a
                       href="https://github.com/tashfeenahmed/freellmapi"
                       target="_blank"
