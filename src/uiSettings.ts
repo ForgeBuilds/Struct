@@ -3,8 +3,13 @@
  * Check the LICENSE in the GitHub repo (https://github.com/forgebuilds/Struct) for more information on permissions to use this code.
  */
 import { invoke, isNativeRuntime } from "./native";
+import type { SeasonalThemeMode } from "./themes/seasonal/christmas/config";
+import { resolveSeasonalTheme } from "./themes/registry";
+
 export interface UiSettings {
   themeId: string;
+  seasonalThemeMode: SeasonalThemeMode;
+  seasonalDecorations: boolean;
   language: string;
   customBackground: string | null;
 
@@ -89,6 +94,8 @@ export function getLanguageCode(language: string | null | undefined): string {
 
 export const DEFAULT_UI_SETTINGS: UiSettings = {
   themeId: "neo",
+  seasonalThemeMode: "on",
+  seasonalDecorations: true,
   language: "English",
   customBackground: null,
   bgBrightness: 0,
@@ -140,6 +147,12 @@ export async function loadUiSettings(): Promise<UiSettings> {
     // resolve — fall back to the default palette.
     if (typeof merged.themeId !== "string" || !THEMES.some((t) => t.id === merged.themeId)) {
       merged.themeId = DEFAULT_UI_SETTINGS.themeId;
+    }
+    if (!["auto", "on", "off"].includes(merged.seasonalThemeMode)) {
+      merged.seasonalThemeMode = DEFAULT_UI_SETTINGS.seasonalThemeMode;
+    }
+    if (typeof merged.seasonalDecorations !== "boolean") {
+      merged.seasonalDecorations = DEFAULT_UI_SETTINGS.seasonalDecorations;
     }
     if (typeof merged.language !== "string" || !LANGUAGE_OPTIONS.includes(merged.language as (typeof LANGUAGE_OPTIONS)[number])) {
       merged.language = DEFAULT_UI_SETTINGS.language;
@@ -383,12 +396,20 @@ export function resolveThemeVars(s: UiSettings): Record<string, string> {
   };
 }
 
-export function applyUiSettings(s: UiSettings): void {
+export function applyUiSettings(s: UiSettings, date = new Date()): void {
   const vars = resolveThemeVars(s);
+  const seasonalTheme = resolveSeasonalTheme(s.seasonalThemeMode, date);
   for (const [k, v] of Object.entries(vars)) {
     document.documentElement.style.setProperty(k, v);
   }
   document.documentElement.dataset.glass = s.glass ? "1" : "0";
+  if (seasonalTheme) {
+    document.documentElement.dataset.seasonalTheme = seasonalTheme.id;
+  } else {
+    delete document.documentElement.dataset.seasonalTheme;
+  }
+  document.documentElement.dataset.seasonalDecorations =
+    s.seasonalDecorations ? "1" : "0";
 }
 
 

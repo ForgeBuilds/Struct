@@ -75,6 +75,7 @@ import {
 import type { ProviderSpec } from "./providers";
 import type { ProviderId } from "./types";
 import AgenticActivity from "./components/AgenticActivity";
+import SeasonalEffects from "./components/seasonal/SeasonalEffects";
 import {
   AGENTIC_PROMPT,
   activityId,
@@ -935,7 +936,18 @@ export default function App() {
 
   // Apply UI settings to the document immediately, then persist (debounced).
   useEffect(() => {
-    applyUiSettings(uiSettings);
+    let timer: number;
+    const applyAndSchedule = () => {
+      applyUiSettings(uiSettings);
+      const nextDay = new Date();
+      nextDay.setHours(24, 0, 0, 0);
+      timer = window.setTimeout(
+        applyAndSchedule,
+        Math.max(1000, nextDay.getTime() - Date.now()),
+      );
+    };
+    applyAndSchedule();
+    return () => window.clearTimeout(timer);
   }, [uiSettings]);
   useEffect(() => {
     if (!restored) return;
@@ -2546,8 +2558,9 @@ const handleAnimationComplete = () => {
 };
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-[var(--bg-base)] text-[var(--text-primary)] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+    <div className="relative flex h-screen flex-col overflow-hidden bg-[var(--bg-base)] text-[var(--text-primary)] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
 
+        <SeasonalEffects />
         <InfoPanel isOpen={infoPanelOpen} onClose={() => setInfoPanelOpen(false)} />
         <PrivacyPolicy isOpen={privacyPolicyOpen} onClose={() => setPrivacyPolicyOpen(false)} />
         {updateNotification && (
@@ -2737,9 +2750,7 @@ const handleAnimationComplete = () => {
             >
               {messages.length === 0 ? (
                 <div className="relative flex min-h-full items-center justify-center px-6">
-                  
                   <div className="msg-in relative z-0 w-full pb-24 text-center" data-debug="welcome-wrap">
-                
                      <BlurText
                           text="Ready to start working?"
                           effect="blur"

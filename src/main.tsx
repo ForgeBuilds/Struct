@@ -5,6 +5,7 @@
 import { lazy, StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import './themes/seasonal/christmas/theme.css'
 import { ErrorProvider } from './errorContext'
 
 // Single-window chat app. Electron draws the native frame; the renderer is
