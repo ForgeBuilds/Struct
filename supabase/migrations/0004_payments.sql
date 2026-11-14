@@ -1,6 +1,9 @@
 -- Author: Lumorix Studios
 -- Check the LICENSE in the GitHub repo (https://github.com/Lumorix-studios/Struct) for more information on permissions to use this code.
 -- ═══════════════════════════════════════════════════════════════════════════
+--!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+-- NOT USED INSIDE THE APP RN AND I REPEAT THI IS NOT USED AND IT WAS A TEST FUNCTION
+--!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 -- Struct — Supabase schema 0004_payments
 --
 -- Subscription billing for the BYOK paywall:
