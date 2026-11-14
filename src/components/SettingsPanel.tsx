@@ -235,7 +235,7 @@ const SECTIONS: SectionMeta[] = [
     labelKey: "settings.appearance",
     hintKey: "settings.hintAppearance",
     groupKey: "settings.navGroupWorkspace",
-    keywords: "theme dark light color colour accent glass translucent blur background contrast",
+    keywords: "theme dark light color colour accent glass translucent blur background contrast christmas seasonal",
   },
   {
     id: "ai",
@@ -937,6 +937,36 @@ export default function SettingsPanel({
                   description={t("settings.glassyDesc")}
                 >
                   <Toggle checked={settings.glass ?? true} onChange={(v) => onChange({ glass: v })} />
+                </Row>
+
+                <SectionTitle>{t("settings.seasonal")}</SectionTitle>
+                <Row
+                  title={t("settings.seasonal")}
+                  description={t("settings.christmasThemeDesc")}
+                >
+                  <select
+                    value={settings.seasonalThemeMode}
+                    onChange={(event) => {
+                      const mode = event.currentTarget.value;
+                      if (mode === "auto" || mode === "on" || mode === "off") {
+                        onChange({ seasonalThemeMode: mode });
+                      }
+                    }}
+                    className="appearance-none rounded-md border border-(--border) bg-(--bg-elevated) px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none focus:border-(--border-strong)"
+                  >
+                    <option value="auto">{t("settings.seasonalAutomatic")}</option>
+                    <option value="on">{t("settings.seasonalAlwaysOn")}</option>
+                    <option value="off">{t("settings.seasonalOff")}</option>
+                  </select>
+                </Row>
+                <Row
+                  title={t("settings.seasonalDecorations")}
+                  description={t("settings.seasonalDecorationsDesc")}
+                >
+                  <Toggle
+                    checked={settings.seasonalDecorations}
+                    onChange={(v) => onChange({ seasonalDecorations: v })}
+                  />
                 </Row>
 
                 <SectionTitle>{t("settings.accent")}</SectionTitle>

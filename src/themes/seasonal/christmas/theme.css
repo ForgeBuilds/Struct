@@ -1,0 +1,47 @@
+.seasonal-snowfall {
+  display: none;
+  position: fixed;
+  z-index: 10;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+html[data-seasonal-theme="christmas"][data-seasonal-decorations="1"] .seasonal-snowfall {
+  display: block;
+}
+
+.seasonal-snowflake {
+  position: absolute;
+  top: -18px;
+  color: var(--text-secondary);
+  opacity: 0;
+  animation-name: seasonal-snowflake-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes seasonal-snowflake-fall {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -4vh, 0) rotate(0deg);
+  }
+  12% {
+    opacity: var(--flake-opacity);
+  }
+  82% {
+    opacity: calc(var(--flake-opacity) * 0.84);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--flake-drift), 105vh, 0) rotate(210deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seasonal-snowflake {
+    top: var(--flake-static-y);
+    animation: none;
+    opacity: var(--flake-opacity);
+  }
+}

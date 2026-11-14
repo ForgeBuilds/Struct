@@ -7,6 +7,7 @@ import {
   IoGlobeOutline,
   IoOpenOutline,
   IoRefresh,
+  IoSearch,
 } from "react-icons/io5";
 import { invoke, isNativeRuntime, listen } from "../native";
 import { normalizeBrowserPreviewUrl, type BrowserPreviewTab } from "../browserPreview";
@@ -199,15 +200,7 @@ export default function BrowserPreview({
             </button>
           </div>
         ))}
-        <button
-          type="button"
-          onClick={() => onOpenTab("http://localhost:3000")}
-          title="New browser tab"
-          aria-label="New browser tab"
-          className="mb-1 rounded p-1.5 text-[var(--text-muted)] hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
-        >
-          <IoAdd />
-        </button>
+        
       </div>
 
       <form onSubmit={openAddress} className="flex shrink-0 items-center gap-2 border-b border-(--border) px-3 py-2">
@@ -217,6 +210,15 @@ export default function BrowserPreview({
         <button type="button" onClick={() => perform("browser_view_forward")} disabled={!activeTab} title="Forward" className="rounded p-1.5 text-[var(--text-muted)] hover:bg-(--fill-2) disabled:opacity-40">
           <IoArrowForward />
         </button>
+        <button
+          type="button"
+          onClick={() => onOpenTab("http://localhost:3000")}
+          title="New browser tab"
+          aria-label="New browser tab"
+          className="rounded p-1.5 text-[var(--text-muted)] hover:bg-(--fill-2) disabled:opacity-40"
+        >
+         <IoAdd/>
+        </button>
         <button type="button" onClick={() => perform("browser_view_reload")} disabled={!activeTab} title="Reload" className="rounded p-1.5 text-[var(--text-muted)] hover:bg-(--fill-2) disabled:opacity-40">
           <IoRefresh />
         </button>
@@ -225,12 +227,12 @@ export default function BrowserPreview({
           name="browser-address"
           type="text"
           defaultValue={activeTab?.url ?? ""}
-          placeholder="http://localhost:3000"
+          placeholder="http://localhost:"
           aria-label="Browser address"
-          className="min-w-0 flex-1 rounded-md border border-(--border) bg-(--fill-1) px-3 py-1.5 text-[12px] text-[var(--text-primary)] outline-none focus:border-(--border-strong)"
+          className="min-w-0 flex-1 rounded-md bg-(--fill-2) px-3 py-1.5 text-[12px] text-[var(--text-primary)] outline-none focus:border-(--border-strong)"
         />
-        <button type="submit" className="rounded-md bg-(--fill-2) px-3 py-1.5 text-[11px] text-[var(--text-primary)] hover:bg-(--fill-3)">
-          Go
+        <button type="submit" className="rounded-md bg-(--fill-0) px-3 py-1.5 text-[11px] text-[var(--text-primary)] hover:bg-(--fill-1)">
+          <IoSearch/>
         </button>
         {activeTab && isNativeRuntime() && (
           <button
@@ -250,7 +252,7 @@ export default function BrowserPreview({
           <IoGlobeOutline size={28} className="text-[var(--text-muted)]" />
           <p className="text-[13px] text-[var(--text-secondary)]">Preview a site or local development server</p>
           <button type="button" onClick={() => onOpenTab("http://localhost:3000")} className="rounded-md bg-(--fill-2) px-3 py-1.5 text-[11px] hover:bg-(--fill-3)">
-            Open localhost:3000
+            Open localhost: (localhost port code)
           </button>
         </div>
       )}
