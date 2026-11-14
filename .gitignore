@@ -151,6 +151,10 @@ src/assets/images/*_files/
 # Kept on disk but never committed — ~1.2 GB of binaries/asar/.pak.
 release/
 
+# FreeLLMAPI source is fetched at build time; only its compiled runtime ships.
+electron/freellmapi-build-src/
+electron/freellmapi-runtime/
+
 # Generated CODE-OSS workbench (regenerate via build; do not commit).
 # Keep Neo's small chat participant extension under version control.
 src-tauri/resources/*

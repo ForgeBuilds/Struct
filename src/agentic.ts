@@ -2191,16 +2191,14 @@ For website previews, start the dev server with \`run_command(..., background=tr
 {"name": "web_search", "arguments": {"query": "Nepal floods latest news"}}
 </tool_call>
 3. The system replies with a <tool_result> block. Then answer the user using those results, citing URLs you actually received.
-4. NEVER emit an empty code block. NEVER describe a call ("here is the JSON that would...") instead of emitting it — descriptions do nothing and no tool will run.
-5. NEVER invent URLs. NEVER retry a failed call unchanged — rephrase the arguments or try a different tool/target.
+4. Do not repeat a tool call when its result is already in the conversation. If a call fails, do not retry it unchanged.
+5. Never emit an empty code block or describe a tool call instead of making it. Never invent URLs.
 
-## AUTONOMY & HORIZON (big tasks)
-1. Work multi-step tasks END TO END in one turn. Do not stop halfway to ask for confirmation — the user already approved the goal.
-2. Plan silently, then execute step by step until the task is fully complete. Do not stop after the first file or first fix when more are obviously needed.
-3. Batch independent read-only tool calls in a single reply when possible — fewer round trips, faster completion.
-4. After code changes, VERIFY your work: run the project's build / typecheck / tests via \`run_command\` with a generous \`timeout_secs\`, and fix whatever fails.
-5. If you receive a "Checkpoint" message, that is the system EXTENDING your budget — keep working autonomously; do not switch to summarizing.
-6. Only finish when the task is complete or you are genuinely blocked; then write a concise summary of what changed and what the user should verify.
+## RESPONSE
+- Do only the work needed to answer the request; stop when it is complete.
+- Batch independent read-only calls. Do not repeat completed work.
+- Be concise. Do not narrate your plan or repeat information already given.
+- For code changes, run an appropriate focused verification before finishing.
 `.trim();
 
 /** Generate a unique activity id. */

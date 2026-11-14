@@ -52,6 +52,8 @@ const { pipeline } = require('node:stream/promises')
 
 /* Managed llama.cpp runtime: GGUF downloads + local inference server. */
 const llamacpp = require('./llamacpp.cjs')
+/* Embedded FreeLLMAPI router for the FreeLLMAPI provider preset. */
+const freellmapi = require('./freellmapi.cjs')
 
 /* ── Spotify OAuth loopback (Authorization Code + PKCE) ─────────────────────
  * Spotify only accepts HTTPS or loopback redirect URIs, so the consent
@@ -142,6 +144,7 @@ if (process.env.NEO_DISABLE_HARDWARE_ACCELERATION === '1') {
 
 const APP_PROTOCOL = 'agenticcoder'
 let mainWindow
+let freeLLMAPIWindow
 const browserPreviewViews = new Map()
 let deepLinkReady = false
 const pendingDeepLinks = []
@@ -1339,6 +1342,33 @@ async function invoke(cmd, a) {
   if (cmd === 'spotify_oauth_listen') return spotifyOAuthListen()
   if (cmd === 'spotify_oauth_wait') return spotifyOAuthWait(a)
   if (cmd === 'spotify_oauth_cancel') { spotifyOAuthClose(); return true }
+  if (cmd === 'freellmapi_start') return freellmapi.start(app)
+  if (cmd === 'freellmapi_open_dashboard') {
+    const url = await freellmapi.start(app)
+    if (freeLLMAPIWindow && !freeLLMAPIWindow.isDestroyed()) {
+      freeLLMAPIWindow.focus()
+      return url
+    }
+    freeLLMAPIWindow = new BrowserWindow({
+      width: 1120,
+      height: 800,
+      minWidth: 760,
+      minHeight: 560,
+      title: 'FreeLLMAPI — Provider Setup',
+      webPreferences: {
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true,
+      },
+    })
+    freeLLMAPIWindow.on('closed', () => { freeLLMAPIWindow = undefined })
+    freeLLMAPIWindow.webContents.setWindowOpenHandler(({ url: target }) => {
+      void shell.openExternal(target)
+      return { action: 'deny' }
+    })
+    await freeLLMAPIWindow.loadURL(`${url}/keys`)
+    return url
+  }
   if (cmd === 'load_state') return readState(a.key)
   if (cmd === 'save_state') { if (typeof a.value !== 'string') throw new Error('State value must be a string'); return writeState(a.key, a.value) }
   if (cmd === 'fs_read_file') return readFile(String(a.path), 'utf8').catch((e) => { throw new Error('Failed to read ' + a.path + ': ' + e.message) })
@@ -1659,5 +1689,6 @@ if (gotLock) {
     if (ollamaChild && !ollamaChild.killed) { try { ollamaChild.kill() } catch {} }
     // Stop the managed llama-server so it does not outlive the app.
     try { llamacpp.stopServer() } catch {}
+    freellmapi.stop()
   })
 }

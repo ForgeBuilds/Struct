@@ -5,6 +5,7 @@
 export type ProviderId =
   | "openai"
   | "openrouter"
+  | "freellmapi"
   | "groq"
   | "nvidia"
   | "deepseek"

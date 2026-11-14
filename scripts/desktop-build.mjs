@@ -91,6 +91,13 @@ if (!flags.bundleOnly) {
     console.error('[build] Renderer build failed.')
     process.exit(built.status ?? 1)
   }
+} else {
+  console.log('[build] Building the embedded FreeLLMAPI runtime...')
+  const built = spawnSync('npm', ['run', 'build:freellmapi'], { cwd: root, stdio: 'inherit', shell: true })
+  if (built.status !== 0) {
+    console.error('[build] Embedded FreeLLMAPI build failed.')
+    process.exit(built.status ?? 1)
+  }
 }
 
 console.log('[build] Packaging with electron-builder...')

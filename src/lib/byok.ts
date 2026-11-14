@@ -29,6 +29,7 @@ const LOCAL_BYOK_STATE_KEY = "neochat.byok.local.v1";
 export const BYOK_PROVIDERS = [
   "openai",
   "openrouter",
+  "freellmapi",
   "groq",
   "nvidia",
   "deepseek",

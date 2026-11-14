@@ -51,8 +51,6 @@ interface OpenAiShape {
   choices?: Array<{
     delta?: {
       content?: string | Array<{ text?: string }>;
-      reasoning_content?: string;
-      reasoning?: string;
     };
     message?: { content?: string };
   }>;
@@ -396,9 +394,6 @@ function openAiDeltaText(j: unknown): string | null {
     const text = content.map((part) => part.text ?? "").join("");
     if (text) return text;
   }
-  for (const value of [delta?.reasoning_content, delta?.reasoning]) {
-    if (typeof value === "string" && value.length > 0) return value;
-  }
   return null;
 }
 
@@ -421,11 +416,13 @@ function openAiCompatibleProvider(
   label: string,
   defaultBaseUrl: string,
   defaultModel: string,
+  note = "OpenAI-compatible API. Change the model ID to one enabled for your account.",
+  fixedModel?: string,
 ): ProviderSpec {
   return {
     id,
     label,
-    note: "OpenAI-compatible API. Change the model ID to one enabled for your account.",
+    note,
     defaultBaseUrl,
     defaultModel,
     needsAuth: true,
@@ -435,7 +432,7 @@ function openAiCompatibleProvider(
     extraHeaders: {},
     buildUrl: (s) => openAiCompatibleUrl(s.baseUrl),
     buildBody: (s, history, opts) => ({
-      model: s.model,
+      model: fixedModel ?? s.model,
       messages: [{ role: "system", content: s.systemPrompt }, ...toOpenAiMessages(history)],
       temperature: s.temperature,
       max_tokens: opts?.maxOutputTokens,
@@ -449,7 +446,7 @@ function openAiCompatibleProvider(
     extractUsage: openAiUsage,
     validateAuth: (key) => (!key ? `A ${label} API key is required.` : null),
     authErrorHint: (status, s) =>
-      `${label} request failed (${status}). Verify the API key and model "${s.model}" in your ${label} account.`,
+      `${label} request failed (${status}). Verify the API key and model "${fixedModel ?? s.model}" in your ${label} account.`,
   };
 }
 
@@ -553,6 +550,15 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     authErrorHint: (status) =>
       `Authentication failed (${status}). Check your OpenRouter key at openrouter.ai/keys and that the model is available.`,
   },
+
+  freellmapi: openAiCompatibleProvider(
+    "freellmapi",
+    "FreeLLMAPI (included)",
+    "http://127.0.0.1:3001/v1",
+    "auto",
+    "Included in the Struct desktop app. Add your own upstream provider keys in the router dashboard, then use its unified key here. The \"auto\" model routes and fails over across available models and their actual quotas.",
+    "auto",
+  ),
 
   groq: {
     id: "groq",

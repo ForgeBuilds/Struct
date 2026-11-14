@@ -67,8 +67,19 @@ For website previews, agents can start a development server with `run_command`'s
 
 Provider presets include OpenAI, OpenRouter, Groq, NVIDIA NIM, DeepSeek, Mistral,
 Together AI, Fireworks AI, Cerebras, Perplexity, xAI, DeepInfra, SambaNova,
-Anthropic, Google Gemini, Ollama, and llama.cpp. Other OpenAI-compatible services
-can use the Custom provider with their API base URL, model ID, and key.
+Anthropic, Google Gemini, Ollama, llama.cpp, and FreeLLMAPI. The router is bundled
+in the Struct desktop app. In AI settings, choose FreeLLMAPI, open its setup
+dashboard, add your own upstream provider keys, then copy its unified API key
+into Struct. Routing and failover use only the providers you configured, and
+their quotas and availability vary. Other OpenAI-compatible services can use
+the Custom provider with their API base URL, model ID, and key.
+
+FreeLLMAPI is MIT-licensed software by Tashfeen Ahmed. Its license is included
+at [`licenses/freellmapi-MIT.txt`](licenses/freellmapi-MIT.txt).
+Its source is downloaded from the pinned
+[upstream commit `2ce0f4f`](https://github.com/tashfeenahmed/freellmapi/tree/2ce0f4fefce75bfe133a23f5a34d5fd2e6f707d4)
+only during builds, so the upstream repository does not appear in Struct's
+source control.
 
 ## Tech stack
 
@@ -105,6 +116,10 @@ npm run build
 # Package the desktop app (installers for the current OS)
 npm run build:desktop
 ```
+
+Linux desktop builds support AppImage, deb, and rpm packages. macOS produces
+DMG installers, and Windows produces NSIS `.exe` installers. FreeLLMAPI's
+compiled router and MIT license are included in each desktop package.
 
 ## Project layout
 

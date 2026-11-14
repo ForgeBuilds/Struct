@@ -586,6 +586,8 @@ export default function SettingsPanel({
     message: string;
     ok: boolean;
   } | null>(null);
+  const [freeLLMAPIStatus, setFreeLLMAPIStatus] = useState<string | null>(null);
+  const [freeLLMAPIStarting, setFreeLLMAPIStarting] = useState(false);
   const [aiTab, setAiTab] = useState<"general" | "mcp">("general");
   const [mcpServers, setMcpServers] = useState<McpServerConfig[]>(() => loadMcpServers());
   useEffect(() => {
@@ -617,6 +619,40 @@ export default function SettingsPanel({
   // --- Cloud data management state ---
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudMsg, setCloudMsg] = useState<string | null>(null);
+  const ensureFreeLLMAPI = useCallback(async (openDashboard: boolean) => {
+    if (!window.neoDesktop) {
+      setFreeLLMAPIStatus("The bundled router is available in the Struct desktop app.");
+      return;
+    }
+    setFreeLLMAPIStarting(true);
+    setFreeLLMAPIStatus(null);
+    try {
+      await window.neoDesktop.invoke<string>(
+        openDashboard ? "freellmapi_open_dashboard" : "freellmapi_start"
+      );
+      setFreeLLMAPIStatus(
+        openDashboard
+          ? "Router ready. Add your provider keys in its dashboard, then paste its unified API key below."
+          : "Local router is running."
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setFreeLLMAPIStatus(
+        /native command is not implemented: freellmapi_/i.test(message)
+          ? "This Struct build predates the embedded router. Restart the development app or install a new desktop build, then try again."
+          : message
+      );
+    } finally {
+      setFreeLLMAPIStarting(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (aiSettings.provider === "freellmapi" && window.neoDesktop) {
+      void ensureFreeLLMAPI(false);
+    }
+  }, [aiSettings.provider, ensureFreeLLMAPI]);
+
   const handleLanguageChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const nextLanguage = event.target.value;
     if (nextLanguage && nextLanguage !== selectedValue) {
@@ -655,6 +691,10 @@ export default function SettingsPanel({
       setByokDraft("");
     } catch (e) {
       let message = e instanceof Error ? e.message : String(e);
+      if (aiSettings.provider === "freellmapi" && /unknown provider/i.test(message)) {
+        message =
+          "Your account service does not recognize FreeLLMAPI yet. Deploy the updated Supabase api-keys function, then try saving this key again.";
+      }
       if (/BYOK_ENCRYPTION_KEY secret is missing or not 64 hex chars/i.test(message)) {
         message =
           t("settings.byokNoServer");
@@ -765,7 +805,10 @@ export default function SettingsPanel({
       ...aiSettings,
       provider: nextId,
       baseUrl: usingDefaultUrl ? spec.defaultBaseUrl : aiSettings.baseUrl,
-      model: usingDefaultModel ? spec.defaultModel : aiSettings.model,
+      model:
+        nextId === "freellmapi" || usingDefaultModel
+          ? spec.defaultModel
+          : aiSettings.model,
     });
   };
 
@@ -1277,6 +1320,34 @@ export default function SettingsPanel({
                       t("settings.apiKeyNote")}
                   </p>
                 )}
+                {aiSettings.provider === "freellmapi" && (
+                  <div className="mb-3 rounded-lg border border-(--border) bg-(--fill-1) p-3">
+                    <p className="mb-2 text-[11px] leading-4 text-[var(--text-secondary)]">
+                      Struct includes the router in its desktop app. In the router dashboard:
+                    </p>
+                    <ol className="mb-3 list-decimal space-y-1 pl-4 text-[10.5px] leading-4 text-[var(--text-muted)]">
+                      <li>Create the local dashboard account.</li>
+                      <li>Add API keys for the providers you already have accounts with.</li>
+                      <li>Create a unified API key, then paste it in Struct’s API Key field below.</li>
+                    </ol>
+                    <p className="mb-2 text-[10px] leading-4 text-[var(--text-muted)]">
+                      Powered by FreeLLMAPI by Tashfeen Ahmed (MIT License).
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void ensureFreeLLMAPI(true)}
+                      disabled={freeLLMAPIStarting || !window.neoDesktop}
+                      className="rounded-md bg-(--fill-2) px-2.5 py-1.5 text-[11px] text-[var(--text-secondary)] transition hover:text-[var(--text-primary)] disabled:opacity-50"
+                    >
+                      {freeLLMAPIStarting ? "Starting router…" : "Open router setup"}
+                    </button>
+                    {freeLLMAPIStatus && (
+                      <p role="status" className="mt-2 text-[10.5px] leading-4 text-[var(--text-muted)]">
+                        {freeLLMAPIStatus}
+                      </p>
+                    )}
+                  </div>
+                )}
                 <Row title={t("settings.localModelsRow")} description={t("settings.localModelsDesc")}>
                   <div className="flex gap-2">
                     <button
@@ -1472,13 +1543,21 @@ export default function SettingsPanel({
                 )}
 
                 <SectionTitle>{t("settings.secModel")}</SectionTitle>
-                <Row title={t("settings.modelId")} description={t("settings.modelIdDesc")}>
+                <Row
+                  title={t("settings.modelId")}
+                  description={
+                    aiSettings.provider === "freellmapi"
+                      ? "FreeLLMAPI automatically selects a model based on available upstream providers."
+                      : t("settings.modelIdDesc")
+                  }
+                >
                   <input
                     type="text"
-                    value={aiSettings.model}
+                    value={aiSettings.provider === "freellmapi" ? "auto" : aiSettings.model}
                     onChange={(e) => updateAi("model", e.target.value)}
                     placeholder={t("settings.modelPh")}
                     spellCheck={false}
+                    disabled={aiSettings.provider === "freellmapi"}
                     className="w-56 shrink-0 rounded-md border border-transparent bg-(--fill-1) px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] focus:border-(--border-strong)"
                   />
                 </Row>

@@ -69,7 +69,7 @@ async function decrypt(blob64: string): Promise<string> {
 }
 
 const ALLOWED_PROVIDERS = new Set([
-  "openai", "openrouter", "groq", "nvidia",
+  "openai", "openrouter", "freellmapi", "groq", "nvidia",
   "deepseek", "mistral", "together", "fireworks", "cerebras",
   "perplexity", "xai", "deepinfra", "sambanova",
   "anthropic", "google", "custom",

@@ -573,10 +573,12 @@ export default function App() {
    *  other provider's default model. Picking one switches provider + model
    *  (this used to live in a pill in the top menu). */
   const promptModels = useMemo(() => {
+    const activeModel =
+      settings.provider === "freellmapi" ? spec.defaultModel : settings.model;
     const rows: { key: string; name: string; tag?: string }[] = [
       {
-        key: `${settings.provider}:${settings.model}`,
-        name: settings.model || spec.label,
+        key: `${settings.provider}:${activeModel}`,
+        name: activeModel || spec.label,
         tag: spec.label,
       },
     ];
@@ -603,7 +605,10 @@ export default function App() {
       ...settings,
       provider: parsed.provider,
       baseUrl: next.defaultBaseUrl,
-      model: parsed.model || next.defaultModel,
+      model:
+        parsed.provider === "freellmapi"
+          ? next.defaultModel
+          : parsed.model || next.defaultModel,
     };
     setSettings(updated);
     void saveSettings(updated);
@@ -1426,6 +1431,18 @@ Tool allowance: No Tools Allowed. Do not attempt to use tools or claim to have u
           : {}),
     };
     const s = getProviderSpec(effectiveSettings);
+    if (s.id === "freellmapi" && window.neoDesktop) {
+      try {
+        await window.neoDesktop.invoke("freellmapi_start");
+      } catch (error) {
+        throw new Error(
+          `Could not start the bundled FreeLLMAPI router: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          { cause: error }
+        );
+      }
+    }
     const endpoint = s.buildUrl(effectiveSettings);
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -1999,6 +2016,7 @@ MCP call rules:
       let nudgeCount = 0;
       let failStreak = 0;
       let lastFailSig = "";
+      let lastToolCallSig = "";
       // Cumulative failures per tool NAME (across rounds). Catches models
       // that keep failing with *different* arguments (e.g. guessing news
       // site URLs one after another), which the identical-signature guard
@@ -2076,6 +2094,15 @@ MCP call rules:
           seenKeys.add(key);
           calls.push({ call, native, key });
         }
+
+        const toolCallSig = calls.map(({ key }) => key).sort().join("|");
+        if (toolCallSig && toolCallSig === lastToolCallSig) {
+          setError(
+            "Stopped because the model repeated the same tool calls instead of using their results. Try again or switch models."
+          );
+          break;
+        }
+        lastToolCallSig = toolCallSig;
 
         // If the model produced no tool calls, we're done.
         if (calls.length === 0) {
