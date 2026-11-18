@@ -2783,8 +2783,8 @@ const handleAnimationComplete = () => {
                           animateBy="letters"
                           direction="top"
                           trigger="view"
-                          delay={300}
-                          stepDuration={0.35}
+                          delay={100}
+                          stepDuration={0.45}
                           blur={10}
                           distance={50}
                           onAnimationComplete={handleAnimationComplete}
