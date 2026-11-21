@@ -628,6 +628,13 @@ const PromptBar: React.FC<PromptBarProps> = ({
           // matter how the agent panel was resized). Inline always wins, so the
           // bar follows its container and `width` only ever caps it.
           width: width === undefined ? '100%' : `min(${width}px, 100%)`,
+          // Set the base text color inline. The `[color:var(--pb-ink)]` utility
+          // class is not emitted by Tailwind on its own (only its data-/hover
+          // variants are), so without this the bar inherits the page's
+          // --text-primary — which seasonal themes turn dark in light mode,
+          // making typed text dark/unreadable.
+          color: 'var(--pb-ink)',
+          caretColor: 'var(--pb-ink)',
           '--pb-bg': background,
           '--pb-ink': color,
           '--pb-menu': menuBackground,

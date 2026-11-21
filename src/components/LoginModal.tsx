@@ -107,19 +107,8 @@ function OAuthButtons({
             {checking ? "Checking..." : "Continue with GitHub"}
           </button>
         )}
-        {providers?.google !== false && (
-          <button
-            type="button"
-            disabled={busy || checking}
-            onClick={() => onOAuth("google")}
-
-            className="flex h-14 w-full items-center justify-center gap-4 rounded-2xl border border-(--border-strong) text-[15px] font-semibold text-[var(--text-primary)] transition-colors hover:bg-(--fill-1) disabled:opacity-40"
-          >
-            <IoLogoGoogle size={28} className="opacity-70" />
-            {checking ? "Checking..." : "Continue with Google"}
-          </button>
-        )}
-      </div>
+       
+      {/* </div> */}
         {/* {providers?.google !== false && (
           <button
             type="button"
