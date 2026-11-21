@@ -23,10 +23,8 @@ one lightweight Electron app. No IDE, no bloat: just you and the model.
 ## Showcase
 
 <div align="center">
-<h3>👀 Struct showcase</h3>
-<p>The clip below plays inline — GIFs always render in GitHub READMEs.</p>
 <img src="src/assets/showcase.gif" style="display:block; border-radius:12px; width:100%; max-width:900px;" />
-<p><a href="src/assets/Recording_11_17_2026_4_44_06_PM.mp4" target="_blank"><code>Watch the full-resolution mp4</code></a> · <a href="src/assets/showcase.gif">Original clip</a></p>
+<p> 
 </div>
 
 ---
