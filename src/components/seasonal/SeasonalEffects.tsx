@@ -1,7 +1,7 @@
 import FallEffects from "../../themes/seasonal/fall/FallEffects";
 import HalloweenEffects from "../../themes/seasonal/halloween/HalloweenEffects";
 import ThanksgivingEffects from "../../themes/seasonal/thanksgiving/ThanksgivingEffects";
-import Snowfall from "../shared/Snowfall";
+import Snowfall from "../../themes/seasonal/shared/Snowfall";
 
 interface SeasonalEffectsProps {
   /** Resolved active theme id, or null when seasonal mode is off. */
@@ -9,12 +9,16 @@ interface SeasonalEffectsProps {
 }
 
 export default function SeasonalEffects({ themeId }: SeasonalEffectsProps) {
-  return (
-    <>
-      <Snowfall />
-      <FallEffects />
-      <HalloweenEffects />
-      <ThanksgivingEffects />
-    </>
-  );
+  switch (themeId) {
+    case "christmas":
+      return <Snowfall />;
+    case "halloween":
+      return <HalloweenEffects />;
+    case "fall":
+      return <FallEffects />;
+    case "thanksgiving":
+      return <ThanksgivingEffects />;
+    default:
+      return null;
+  }
 }
