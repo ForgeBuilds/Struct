@@ -18,16 +18,11 @@ one lightweight Electron app. No IDE, no bloat: just you and the model.
 </video>
 </div>
 
----
-
-## Showcase
 
 <div align="center">
 <img src="src/assets/showcase.gif" style="display:block; border-radius:12px; width:100%; max-width:900px;" />
-<p> 
 </div>
 
----
 
 ## What is Struct?
 
