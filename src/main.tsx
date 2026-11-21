@@ -5,7 +5,11 @@
 import { lazy, StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import './themes/seasonal/shared/effects.css'
 import './themes/seasonal/christmas/theme.css'
+import './themes/seasonal/halloween/theme.css'
+import './themes/seasonal/fall/theme.css'
+import './themes/seasonal/thanksgiving/theme.css'
 import { ErrorProvider } from './errorContext'
 
 // Single-window chat app. Electron draws the native frame; the renderer is

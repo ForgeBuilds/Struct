@@ -3,12 +3,16 @@
  * Check the LICENSE in the GitHub repo (https://github.com/forgebuilds/Struct) for more information on permissions to use this code.
  */
 import { invoke, isNativeRuntime } from "./native";
-import type { SeasonalThemeMode } from "./themes/seasonal/christmas/config";
-import { resolveSeasonalTheme } from "./themes/registry";
+import { DEFAULT_SEASONAL_THEME_ID, resolveSeasonalTheme, SEASONAL_THEMES } from "./themes/registry";
+import type { SeasonalPaletteMode, SeasonalThemeMode } from "./themes/seasonal/types";
 
 export interface UiSettings {
   themeId: string;
   seasonalThemeMode: SeasonalThemeMode;
+  /** Which seasonal theme is used when the mode is "on". */
+  seasonalThemeId: string;
+  /** Per-seasonal-theme surface choice; missing means "auto". */
+  seasonalPalettes: Record<string, SeasonalPaletteMode>;
   seasonalDecorations: boolean;
   language: string;
   customBackground: string | null;
@@ -95,6 +99,13 @@ export function getLanguageCode(language: string | null | undefined): string {
 export const DEFAULT_UI_SETTINGS: UiSettings = {
   themeId: "neo",
   seasonalThemeMode: "on",
+  seasonalThemeId: DEFAULT_SEASONAL_THEME_ID,
+  seasonalPalettes: {
+    // Autumn and Thanksgiving ship with the cream/amber surface the user
+    // preferred; Christmas and Halloween follow the app appearance.
+    fall: "light",
+    thanksgiving: "light",
+  },
   seasonalDecorations: true,
   language: "English",
   customBackground: null,
@@ -151,6 +162,25 @@ export async function loadUiSettings(): Promise<UiSettings> {
     if (!["auto", "on", "off"].includes(merged.seasonalThemeMode)) {
       merged.seasonalThemeMode = DEFAULT_UI_SETTINGS.seasonalThemeMode;
     }
+    if (
+      typeof merged.seasonalThemeId !== "string" ||
+      !SEASONAL_THEMES.some((theme) => theme.id === merged.seasonalThemeId)
+    ) {
+      merged.seasonalThemeId = DEFAULT_UI_SETTINGS.seasonalThemeId;
+    }
+    const rawPalettes = (merged as { seasonalPalettes?: unknown }).seasonalPalettes;
+    const validPalettes: Record<string, SeasonalPaletteMode> = {
+      ...DEFAULT_UI_SETTINGS.seasonalPalettes,
+    };
+    if (rawPalettes && typeof rawPalettes === "object" && !Array.isArray(rawPalettes)) {
+      for (const theme of SEASONAL_THEMES) {
+        const value = (rawPalettes as Record<string, unknown>)[theme.id];
+        if (value === "auto" || value === "light" || value === "dark") {
+          validPalettes[theme.id] = value;
+        }
+      }
+    }
+    merged.seasonalPalettes = validPalettes;
     if (typeof merged.seasonalDecorations !== "boolean") {
       merged.seasonalDecorations = DEFAULT_UI_SETTINGS.seasonalDecorations;
     }
@@ -398,11 +428,25 @@ export function resolveThemeVars(s: UiSettings): Record<string, string> {
 
 export function applyUiSettings(s: UiSettings, date = new Date()): void {
   const vars = resolveThemeVars(s);
-  const seasonalTheme = resolveSeasonalTheme(s.seasonalThemeMode, date);
+  const seasonalTheme = resolveSeasonalTheme(s.seasonalThemeMode, date, s.seasonalThemeId);
   for (const [k, v] of Object.entries(vars)) {
     document.documentElement.style.setProperty(k, v);
   }
   document.documentElement.dataset.glass = s.glass ? "1" : "0";
+  // Per-theme palette: "auto" follows the app appearance, while "light" and
+  // "dark" force the seasonal surface (and its matching code tokens).
+  const seasonalPalette = seasonalTheme
+    ? s.seasonalPalettes?.[seasonalTheme.id] ?? "auto"
+    : "auto";
+  const seasonalMode =
+    seasonalPalette === "light"
+      ? "light"
+      : seasonalPalette === "dark"
+        ? "dark"
+        : isDarkColor(vars["--bg-base"])
+          ? "dark"
+          : "light";
+  document.documentElement.dataset.themeMode = seasonalMode;
   if (seasonalTheme) {
     document.documentElement.dataset.seasonalTheme = seasonalTheme.id;
   } else {

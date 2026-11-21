@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import { useTranslation } from "../i18n";
+import { SEASONAL_THEMES, seasonalThemeForDate, type SeasonalPaletteMode } from "../themes/registry";
 import {
   ACCENT_SWATCHES,
   DEFAULT_UI_SETTINGS,
@@ -432,7 +433,7 @@ const SECTIONS: SectionMeta[] = [
     labelKey: "settings.appearance",
     hintKey: "settings.hintAppearance",
     groupKey: "settings.navGroupWorkspace",
-    keywords: "theme dark light color colour accent glass translucent blur background contrast christmas seasonal",
+    keywords: "theme dark light color colour accent glass translucent blur background contrast christmas seasonal halloween thanksgiving autumn fall",
   },
   {
     id: "ai",
@@ -1042,6 +1043,30 @@ export default function SettingsPanel({
   const usageSnapshot = getUsageSnapshot();
   void usageTick;
   const activeMeta = SECTIONS.find((s) => s.id === section) ?? SECTIONS[0];
+  const autoSeasonalTheme = seasonalThemeForDate();
+  const selectedSeasonalTheme = SEASONAL_THEMES.some(
+    (theme) => theme.id === settings.seasonalThemeId,
+  )
+    ? settings.seasonalThemeId
+    : DEFAULT_UI_SETTINGS.seasonalThemeId;
+  const selectedSeasonalDefinition =
+    SEASONAL_THEMES.find((theme) => theme.id === selectedSeasonalTheme) ?? null;
+  const seasonalDescription =
+    settings.seasonalThemeMode === "off"
+      ? t("settings.seasonalThemeDesc")
+      : settings.seasonalThemeMode === "auto"
+        ? autoSeasonalTheme
+          ? `Automatic · ${autoSeasonalTheme.description}`
+          : t("settings.seasonalThemeDesc")
+        : selectedSeasonalDefinition
+          ? selectedSeasonalDefinition.description
+          : t("settings.seasonalThemeDesc");
+  const seasonalValue =
+    settings.seasonalThemeMode === "off"
+      ? "off"
+      : settings.seasonalThemeMode === "auto"
+        ? "auto"
+        : `theme:${selectedSeasonalTheme}`;
   return (
     <div
       className="dialog-backdrop fixed inset-0 z-[95] flex items-center justify-center bg-(--scrim) p-2 sm:p-6"
@@ -1208,24 +1233,38 @@ export default function SettingsPanel({
                   <Toggle checked={settings.glass ?? true} onChange={(v) => onChange({ glass: v })} />
                 </Row>
 
-                <SectionTitle>{t("settings.seasonal")}</SectionTitle>
+                <SectionTitle>{t("settings.seasonalSection")}</SectionTitle>
                 <Row
                   title={t("settings.seasonal")}
-                  description={t("settings.christmasThemeDesc")}
+                  description={seasonalDescription}
                 >
                   <select
-                    value={settings.seasonalThemeMode}
+                    value={seasonalValue}
                     onChange={(event) => {
-                      const mode = event.currentTarget.value;
-                      if (mode === "auto" || mode === "on" || mode === "off") {
-                        onChange({ seasonalThemeMode: mode });
+                      const value = event.currentTarget.value;
+                      if (value === "auto" || value === "off") {
+                        onChange({ seasonalThemeMode: value });
+                        return;
+                      }
+                      if (value.startsWith("theme:")) {
+                        onChange({
+                          seasonalThemeMode: "on",
+                          seasonalThemeId: value.slice("theme:".length),
+                        });
                       }
                     }}
                     className="appearance-none rounded-md border border-(--border) bg-(--bg-elevated) px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none focus:border-(--border-strong)"
                   >
-                    <option value="auto">{t("settings.seasonalAutomatic")}</option>
-                    <option value="on">{t("settings.seasonalAlwaysOn")}</option>
+                    <option value="auto">
+                      {t("settings.seasonalAutomatic")}
+                      {autoSeasonalTheme ? ` · ${autoSeasonalTheme.label}` : ""}
+                    </option>
                     <option value="off">{t("settings.seasonalOff")}</option>
+                    {SEASONAL_THEMES.map((theme) => (
+                      <option key={theme.id} value={`theme:${theme.id}`}>
+                        {theme.label}
+                      </option>
+                    ))}
                   </select>
                 </Row>
                 <Row
@@ -1237,6 +1276,47 @@ export default function SettingsPanel({
                     onChange={(v) => onChange({ seasonalDecorations: v })}
                   />
                 </Row>
+
+                <div className="py-2">
+                  <p className="text-[12.5px] font-medium text-[var(--text-primary)]">
+                    {t("settings.seasonalPalettes")}
+                  </p>
+                  <p className="mt-0.5 text-[11px] leading-4 text-[var(--text-muted)]">
+                    {t("settings.seasonalPalettesDesc")}
+                  </p>
+                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {SEASONAL_THEMES.map((theme) => {
+                      const palette = settings.seasonalPalettes?.[theme.id] ?? "auto";
+                      return (
+                        <label
+                          key={theme.id}
+                          className="flex items-center justify-between gap-3 rounded-md border border-(--border) bg-(--fill-1) px-2.5 py-1.5"
+                        >
+                          <span className="truncate text-[11.5px] text-[var(--text-secondary)]">
+                            {theme.label}
+                          </span>
+                          <select
+                            value={palette}
+                            onChange={(event) => {
+                              const next = event.currentTarget.value as SeasonalPaletteMode;
+                              onChange({
+                                seasonalPalettes: {
+                                  ...(settings.seasonalPalettes ?? {}),
+                                  [theme.id]: next,
+                                },
+                              });
+                            }}
+                            className="shrink-0 appearance-none rounded border border-(--border) bg-(--bg-elevated) px-2 py-1 text-[11px] text-[var(--text-primary)] outline-none focus:border-(--border-strong)"
+                          >
+                            <option value="auto">{t("settings.seasonalAutomatic")}</option>
+                            <option value="light">{t("settings.themeLight")}</option>
+                            <option value="dark">{t("settings.themeDark")}</option>
+                          </select>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
 
                 <SectionTitle>{t("settings.accent")}</SectionTitle>
                 <div className="flex items-center gap-2">

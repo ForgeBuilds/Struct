@@ -1,47 +1,193 @@
-.seasonal-snowfall {
+/*
+ * Christmas seasonal theme.
+ * applyUiSettings() writes the normal palette inline on <html>, so the
+ * seasonal palette below intentionally uses !important: it owns the look
+ * while the theme is active, and disappears the moment the season is
+ * switched off.
+ */
+
+html[data-seasonal-theme="christmas"] {
+  color-scheme: dark;
+
+  /* Deep spruce surfaces with a warm candle-lit cast. */
+  --bg-base: #0b1811 !important;
+  --bg-panel: #08120d !important;
+  --bg-elevated: #15251b !important;
+  --bg-active: #1d3124 !important;
+  --bg-chrome: #07100b !important;
+  --bg-editor: #0c1912 !important;
+  --bg-input: #122018 !important;
+
+  --border: rgba(232, 205, 150, 0.14) !important;
+  --border-strong: rgba(232, 205, 150, 0.26) !important;
+  --fill-1: rgba(255, 255, 255, 0.04) !important;
+  --fill-2: rgba(255, 255, 255, 0.075) !important;
+  --fill-3: rgba(255, 255, 255, 0.14) !important;
+
+  --text-primary: #edf4ec !important;
+  --text-secondary: #bcd2bf !important;
+  --text-muted: #90a896 !important;
+  --text-faint: #75907c !important;
+
+  /* Holly red accent; gold stays in the decorations. */
+  --accent: #d95a4e !important;
+  --accent-soft: rgba(217, 90, 78, 0.16) !important;
+  --on-accent: #fff8f2 !important;
+
+  --danger: #ff7b6e !important;
+  --success: #63d999 !important;
+  --warning: #f5c451 !important;
+
+  --ambient-a: rgba(48, 148, 94, 0.16);
+  --ambient-b: rgba(217, 90, 78, 0.12);
+  --ambient-c: rgba(226, 178, 92, 0.1);
+  --ambient-blend: screen;
+
+  --seasonal-frame: rgba(226, 190, 130, 0.2);
+  --seasonal-frame-glow: rgba(5, 14, 9, 0.5);
+  --seasonal-ribbon: linear-gradient(
+    90deg,
+    transparent 2%,
+    rgba(48, 148, 94, 0.5),
+    rgba(217, 90, 78, 0.45),
+    rgba(233, 183, 95, 0.5),
+    transparent 98%
+  );
+
+  --seasonal-flake: #eaf6ff;
+  --seasonal-flake-warm: #ffe7b0;
+  --seasonal-flake-glow: rgba(200, 235, 255, 0.55);
+  --seasonal-twinkle: #f4cf8a;
+
+  --ornament-string: rgba(233, 196, 120, 0.42);
+  --ornament-red: #c94b53;
+  --ornament-gold: #e6b45c;
+  --ornament-green: #2f7a54;
+  --ornament-pearl: #e8e3d7;
+}
+
+html[data-seasonal-theme="christmas"][data-theme-mode="light"] {
+  color-scheme: light;
+
+  /* Frosted mint-white with cranberry accents. */
+  --bg-base: #f4f8f1 !important;
+  --bg-panel: #eaf1e6 !important;
+  --bg-elevated: #ffffff !important;
+  --bg-active: #dbe8d8 !important;
+  --bg-chrome: #eff5ea !important;
+  --bg-editor: #f7faf4 !important;
+  --bg-input: #edf3e8 !important;
+
+  --border: rgba(20, 74, 49, 0.16) !important;
+  --border-strong: rgba(20, 74, 49, 0.3) !important;
+  --fill-1: rgba(0, 0, 0, 0.03) !important;
+  --fill-2: rgba(0, 0, 0, 0.06) !important;
+  --fill-3: rgba(0, 0, 0, 0.1) !important;
+
+  --text-primary: #16281c !important;
+  --text-secondary: #3d5243 !important;
+  --text-muted: #617668 !important;
+  --text-faint: #7d907f !important;
+
+  --accent: #b23a32 !important;
+  --accent-soft: rgba(178, 58, 50, 0.13) !important;
+  --on-accent: #ffffff !important;
+
+  --danger: #b91c1c !important;
+  --success: #15803d !important;
+  --warning: #b45309 !important;
+
+  --ambient-a: rgba(31, 122, 76, 0.09);
+  --ambient-b: rgba(178, 58, 50, 0.06);
+  --ambient-c: rgba(180, 131, 41, 0.07);
+  --ambient-blend: normal;
+
+  --seasonal-frame: rgba(23, 107, 75, 0.18);
+  --seasonal-frame-glow: rgba(23, 107, 75, 0.06);
+  --seasonal-ribbon: linear-gradient(
+    90deg,
+    transparent 2%,
+    rgba(23, 107, 75, 0.4),
+    rgba(178, 58, 50, 0.3),
+    rgba(180, 131, 41, 0.4),
+    transparent 98%
+  );
+
+  --seasonal-flake: #7894a8;
+  --seasonal-flake-warm: #b8892f;
+  --seasonal-flake-glow: rgba(80, 110, 130, 0.28);
+  --seasonal-twinkle: #b8892f;
+
+  --ornament-string: rgba(23, 107, 75, 0.35);
+  --ornament-red: #b23a32;
+  --ornament-gold: #d9a441;
+  --ornament-green: #2f7a54;
+  --ornament-pearl: #f4efe4;
+}
+
+/* Wreath ornaments - clean geometric design, not uncanny */
+html[data-seasonal-theme="christmas"] .seasonal-ornaments {
+  opacity: 0.92;
+}
+
+.seasonal-wreath {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.28));
+}
+
+/* Prompt bar: a sagging vine with vine-wrapped circular baubles resting on
+   the composer rim. Only visible for Christmas + decorations. */
+.pb-christmas-trim {
   display: none;
-  position: fixed;
-  z-index: 10;
-  inset: 0;
-  overflow: hidden;
+}
+
+html[data-seasonal-theme="christmas"][data-seasonal-decorations="1"] .pb-christmas-trim {
+  display: block;
+  position: absolute;
+  top: -12px;
+  left: 8px;
+  right: 8px;
+  height: 24px;
+  z-index: 1;
   pointer-events: none;
 }
 
-html[data-seasonal-theme="christmas"][data-seasonal-decorations="1"] .seasonal-snowfall {
-  display: block;
-}
-
-.seasonal-snowflake {
+.pb-christmas-vine {
   position: absolute;
-  top: -18px;
-  color: var(--flake-color);
-  opacity: 0;
-  animation-name: seasonal-snowflake-fall;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
+  inset: 0 0 auto 0;
+  width: 100%;
+  height: 10px;
+  color: var(--pb-vine, #2f7a54);
+  overflow: visible;
 }
 
-@keyframes seasonal-snowflake-fall {
-  0% {
-    opacity: 0;
-    transform: translate3d(0, -4vh, 0) rotate(0deg);
+.pb-christmas-ornament {
+  position: absolute;
+  top: 0;
+  transform-origin: 50% 0;
+  will-change: transform;
+  animation: pb-christmas-sway ease-in-out infinite alternate;
+}
+
+.pb-christmas-ornament svg {
+  display: block;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.35));
+}
+
+@keyframes pb-christmas-sway {
+  from {
+    transform: rotate(calc(var(--pb-swing, 4deg) * -1));
   }
-  12% {
-    opacity: var(--flake-opacity);
-  }
-  82% {
-    opacity: calc(var(--flake-opacity) * 0.84);
-  }
-  100% {
-    opacity: 0;
-    transform: translate3d(var(--flake-drift), 105vh, 0) rotate(210deg);
+  to {
+    transform: rotate(var(--pb-swing, 4deg));
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .seasonal-snowflake {
-    top: var(--flake-static-y);
+  .pb-christmas-ornament {
     animation: none;
-    opacity: var(--flake-opacity);
   }
 }

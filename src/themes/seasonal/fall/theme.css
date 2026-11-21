@@ -1,0 +1,113 @@
+/*
+ * Autumn seasonal theme: umber surfaces, amber accent and drifting leaves.
+ * Palette overrides use !important because applyUiSettings() writes the
+ * regular theme variables inline on <html>.
+ */
+
+html[data-seasonal-theme="fall"] {
+  color-scheme: dark;
+
+  --bg-base: #19130d !important;
+  --bg-panel: #140f0a !important;
+  --bg-elevated: #251c13 !important;
+  --bg-active: #312519 !important;
+  --bg-chrome: #110d08 !important;
+  --bg-editor: #1a140e !important;
+  --bg-input: #201810 !important;
+
+  --border: rgba(230, 180, 110, 0.16) !important;
+  --border-strong: rgba(230, 180, 110, 0.3) !important;
+  --fill-1: rgba(255, 255, 255, 0.04) !important;
+  --fill-2: rgba(255, 255, 255, 0.075) !important;
+  --fill-3: rgba(255, 255, 255, 0.14) !important;
+
+  --text-primary: #f7efe3 !important;
+  --text-secondary: #d6c3a8 !important;
+  --text-muted: #a8947a !important;
+  --text-faint: #8a7862 !important;
+
+  --accent: #e0a34e !important;
+  --accent-soft: rgba(224, 163, 78, 0.16) !important;
+  --on-accent: #221405 !important;
+
+  --danger: #ff8f7a !important;
+  --success: #7bd9a0 !important;
+  --warning: #f4c25a !important;
+
+  --ambient-a: rgba(224, 163, 78, 0.12);
+  --ambient-b: rgba(194, 97, 58, 0.09);
+  --ambient-c: rgba(138, 154, 76, 0.08);
+  --ambient-blend: screen;
+
+  --seasonal-frame: rgba(224, 163, 78, 0.18);
+  --seasonal-frame-glow: rgba(15, 10, 5, 0.4);
+  --seasonal-ribbon: linear-gradient(
+    90deg,
+    transparent 2%,
+    rgba(224, 163, 78, 0.5),
+    rgba(194, 97, 58, 0.42),
+    rgba(138, 154, 76, 0.38),
+    rgba(224, 163, 78, 0.5),
+    transparent 98%
+  );
+
+  --leaf-amber: #e8a44f;
+  --leaf-rust: #c2613a;
+  --leaf-olive: #8a9a4c;
+  --leaf-crimson: #a8463b;
+  --mote-color: #f0b463;
+}
+
+html[data-seasonal-theme="fall"][data-theme-mode="light"] {
+  color-scheme: light;
+
+  --bg-base: #f8f2e7 !important;
+  --bg-panel: #f1e8d8 !important;
+  --bg-elevated: #fffdf8 !important;
+  --bg-active: #e8dbc7 !important;
+  --bg-chrome: #f4ecdf !important;
+  --bg-editor: #faf5ec !important;
+  --bg-input: #f2e9da !important;
+
+  --border: rgba(90, 60, 30, 0.16) !important;
+  --border-strong: rgba(90, 60, 30, 0.3) !important;
+  --fill-1: rgba(0, 0, 0, 0.03) !important;
+  --fill-2: rgba(0, 0, 0, 0.06) !important;
+  --fill-3: rgba(0, 0, 0, 0.1) !important;
+
+  --text-primary: #2a1f14 !important;
+  --text-secondary: #5c4a36 !important;
+  --text-muted: #806c54 !important;
+  --text-faint: #98846c !important;
+
+  --accent: #a16207 !important;
+  --accent-soft: rgba(161, 98, 7, 0.13) !important;
+  --on-accent: #ffffff !important;
+
+  --danger: #b91c1c !important;
+  --success: #15803d !important;
+  --warning: #b45309 !important;
+
+  --ambient-a: rgba(194, 120, 31, 0.08);
+  --ambient-b: rgba(163, 77, 44, 0.06);
+  --ambient-c: rgba(111, 125, 58, 0.06);
+  --ambient-blend: normal;
+
+  --seasonal-frame: rgba(120, 80, 30, 0.18);
+  --seasonal-frame-glow: rgba(90, 60, 30, 0.05);
+  --seasonal-ribbon: linear-gradient(
+    90deg,
+    transparent 2%,
+    rgba(194, 120, 31, 0.4),
+    rgba(163, 77, 44, 0.35),
+    rgba(111, 125, 58, 0.35),
+    rgba(194, 120, 31, 0.4),
+    transparent 98%
+  );
+
+  --leaf-amber: #c2761f;
+  --leaf-rust: #a34d2c;
+  --leaf-olive: #6f7d3a;
+  --leaf-crimson: #8f3d33;
+  --mote-color: #b7791f;
+}

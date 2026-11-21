@@ -1,0 +1,116 @@
+/*
+ * Halloween seasonal theme: aubergine surfaces, pumpkin accent, fog and bats.
+ * Palette overrides use !important because applyUiSettings() writes the
+ * regular theme variables inline on <html>.
+ */
+
+html[data-seasonal-theme="halloween"] {
+  color-scheme: dark;
+
+  --bg-base: #0d0a12 !important;
+  --bg-panel: #09070d !important;
+  --bg-elevated: #171020 !important;
+  --bg-active: #211730 !important;
+  --bg-chrome: #08060c !important;
+  --bg-editor: #0e0b13 !important;
+  --bg-input: #140e1c !important;
+
+  --border: rgba(255, 154, 84, 0.15) !important;
+  --border-strong: rgba(255, 154, 84, 0.28) !important;
+  --fill-1: rgba(255, 255, 255, 0.04) !important;
+  --fill-2: rgba(255, 255, 255, 0.075) !important;
+  --fill-3: rgba(255, 255, 255, 0.14) !important;
+
+  --text-primary: #f4eef8 !important;
+  --text-secondary: #cbbfd7 !important;
+  --text-muted: #9b8dab !important;
+  --text-faint: #7d708c !important;
+
+  --accent: #ff8a3d !important;
+  --accent-soft: rgba(255, 138, 61, 0.17) !important;
+  --on-accent: #1b0d04 !important;
+
+  --danger: #ff6b6b !important;
+  --success: #6ee7a8 !important;
+  --warning: #fbbf24 !important;
+
+  --ambient-a: rgba(255, 138, 61, 0.12);
+  --ambient-b: rgba(139, 92, 246, 0.13);
+  --ambient-c: rgba(92, 40, 122, 0.12);
+  --ambient-blend: screen;
+
+  --seasonal-frame: rgba(255, 154, 84, 0.18);
+  --seasonal-frame-glow: rgba(8, 4, 14, 0.5);
+  --seasonal-ribbon: linear-gradient(
+    90deg,
+    transparent 2%,
+    rgba(139, 92, 246, 0.45),
+    rgba(255, 138, 61, 0.5),
+    rgba(92, 40, 122, 0.45),
+    rgba(139, 92, 246, 0.45),
+    transparent 98%
+  );
+
+  --fog-ink: rgba(196, 179, 220, 0.17);
+  --bat-ink: #4a2a60;
+  --mote-color: #ff9a4d;
+  --web-ink: rgba(230, 218, 240, 0.3);
+  --web-opacity: 0.55;
+  --web-size: 120px;
+}
+
+html[data-seasonal-theme="halloween"][data-theme-mode="light"] {
+  color-scheme: light;
+
+  /* Aged parchment rather than a bright white. */
+  --bg-base: #f6f1e9 !important;
+  --bg-panel: #ede6db !important;
+  --bg-elevated: #fffdf9 !important;
+  --bg-active: #e3d9cb !important;
+  --bg-chrome: #f1ebe1 !important;
+  --bg-editor: #f9f5ee !important;
+  --bg-input: #f0e9de !important;
+
+  --border: rgba(80, 40, 20, 0.16) !important;
+  --border-strong: rgba(80, 40, 20, 0.3) !important;
+  --fill-1: rgba(0, 0, 0, 0.03) !important;
+  --fill-2: rgba(0, 0, 0, 0.06) !important;
+  --fill-3: rgba(0, 0, 0, 0.1) !important;
+
+  --text-primary: #241a20 !important;
+  --text-secondary: #55434f !important;
+  --text-muted: #7a6572 !important;
+  --text-faint: #927e8a !important;
+
+  --accent: #c2410c !important;
+  --accent-soft: rgba(194, 65, 12, 0.14) !important;
+  --on-accent: #ffffff !important;
+
+  --danger: #b91c1c !important;
+  --success: #15803d !important;
+  --warning: #b45309 !important;
+
+  --ambient-a: rgba(194, 65, 12, 0.08);
+  --ambient-b: rgba(109, 40, 217, 0.07);
+  --ambient-c: rgba(88, 28, 135, 0.06);
+  --ambient-blend: normal;
+
+  --seasonal-frame: rgba(120, 60, 20, 0.18);
+  --seasonal-frame-glow: rgba(80, 40, 20, 0.05);
+  --seasonal-ribbon: linear-gradient(
+    90deg,
+    transparent 2%,
+    rgba(109, 40, 217, 0.35),
+    rgba(194, 65, 12, 0.4),
+    rgba(88, 28, 135, 0.3),
+    rgba(109, 40, 217, 0.35),
+    transparent 98%
+  );
+
+  --fog-ink: rgba(90, 70, 110, 0.11);
+  --bat-ink: #3a2448;
+  --mote-color: #d97706;
+  --web-ink: rgba(70, 50, 80, 0.3);
+  --web-opacity: 0.4;
+  --web-size: 110px;
+}

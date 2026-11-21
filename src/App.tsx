@@ -75,6 +75,7 @@ import type { ProviderSpec } from "./providers";
 import type { ProviderId } from "./types";
 import AgenticActivity from "./components/AgenticActivity";
 import SeasonalEffects from "./components/seasonal/SeasonalEffects";
+import { resolveSeasonalTheme } from "./themes/registry";
 import {
   AGENTIC_PROMPT,
   activityId,
@@ -2583,10 +2584,16 @@ const handleAnimationComplete = () => {
   console.log('Animation completed!');
 };
 
+  const activeSeasonalTheme = resolveSeasonalTheme(
+    uiSettings.seasonalThemeMode,
+    new Date(),
+    uiSettings.seasonalThemeId,
+  );
+
   return (
     <div className="relative flex h-screen flex-col overflow-hidden bg-[var(--bg-base)] text-[var(--text-primary)] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
 
-        <SeasonalEffects />
+        <SeasonalEffects themeId={activeSeasonalTheme?.id} />
         <InfoPanel isOpen={infoPanelOpen} onClose={() => setInfoPanelOpen(false)} />
         <PrivacyPolicy isOpen={privacyPolicyOpen} onClose={() => setPrivacyPolicyOpen(false)} />
         {updateNotification && (

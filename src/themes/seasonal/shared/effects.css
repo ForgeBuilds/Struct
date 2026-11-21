@@ -1,0 +1,529 @@
+/* Shared seasonal decoration primitives.
+   Palettes and per-theme colours live in each theme's theme.css. */
+
+/* Code tokens follow the resolved seasonal surface (dark/light), so forcing a
+   palette while the app's own Dark/Light setting disagrees stays readable. */
+html[data-seasonal-theme][data-theme-mode="dark"] {
+  --code-kw: #c678dd !important;
+  --code-str: #98c379 !important;
+  --code-num: #d19a66 !important;
+  --code-com: #7f848e !important;
+  --code-fn: #61afef !important;
+  --code-tag: #e06c75 !important;
+}
+
+html[data-seasonal-theme][data-theme-mode="light"] {
+  --code-kw: #a626a4 !important;
+  --code-str: #50a14f !important;
+  --code-num: #986801 !important;
+  --code-com: #8f9dae !important;
+  --code-fn: #4078f2 !important;
+  --code-tag: #e45649 !important;
+}
+
+.seasonal-ambient,
+.seasonal-frame,
+.seasonal-decor {
+  pointer-events: none;
+}
+
+/* ── Ambient glow + gilded frame ─────────────────────────────────────── */
+
+.seasonal-ambient {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  background:
+    radial-gradient(ellipse 72% 46% at 16% -12%, var(--ambient-a, transparent), transparent 64%),
+    radial-gradient(ellipse 54% 38% at 88% -8%, var(--ambient-b, transparent), transparent 66%),
+    radial-gradient(ellipse 64% 44% at 50% 110%, var(--ambient-c, transparent), transparent 70%);
+  mix-blend-mode: var(--ambient-blend, screen);
+}
+
+.seasonal-frame {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  border: 1px solid var(--seasonal-frame, transparent);
+  box-shadow:
+    inset 0 0 70px var(--seasonal-frame-glow, transparent),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+}
+
+.seasonal-frame::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: var(--seasonal-ribbon, transparent);
+  opacity: 0.65;
+}
+
+html[data-seasonal-theme] .seasonal-ambient,
+html[data-seasonal-theme] .seasonal-frame {
+  display: block;
+}
+
+.seasonal-decor {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  overflow: hidden;
+  contain: strict;
+}
+
+html[data-seasonal-theme][data-seasonal-decorations="1"] .seasonal-decor {
+  display: block;
+}
+
+/* ── Snowfall ────────────────────────────────────────────────────────── */
+
+@keyframes seasonal-snow-fall {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0;
+  }
+  10% {
+    opacity: var(--flake-opacity);
+  }
+  90% {
+    opacity: var(--flake-opacity);
+  }
+  100% {
+    transform: translate3d(calc(var(--flake-drift) * 1%), 120vh, 0);
+    opacity: 0;
+  }
+}
+
+.seasonal-snowfall {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.seasonal-snowflake {
+  position: absolute;
+  top: -20vh;
+  width: var(--flake-size, 4px);
+  height: var(--flake-size, 4px);
+  background: var(--seasonal-flake, #7894a8);
+  border-radius: 50%;
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: seasonal-snow-fall linear infinite;
+}
+
+/* ── Twinkles ────────────────────────────────────────────────────────── */
+
+.seasonal-twinkle {
+  position: absolute;
+  width: var(--twinkle-size);
+  height: var(--twinkle-size);
+  background: currentColor;
+  clip-path: polygon(50% 0%, 61% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0% 50%, 38% 38%);
+  opacity: 0;
+  filter: drop-shadow(0 0 4px currentColor);
+  animation: seasonal-twinkle-pulse ease-in-out infinite;
+}
+
+@keyframes seasonal-twinkle-pulse {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  45%,
+  55% {
+    opacity: var(--twinkle-opacity);
+    transform: scale(1);
+  }
+}
+
+/* ── Hanging ornaments - simplified, clean circular baubles ──────────── */
+
+.seasonal-ornaments {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 140px;
+}
+
+.seasonal-ornament {
+  position: absolute;
+  top: 0;
+  width: var(--ornament-size);
+  height: var(--ornament-size);
+  transform-origin: 50% 0;
+  animation: seasonal-ornament-sway var(--ornament-sway-duration, 6s) ease-in-out infinite alternate;
+  border-radius: 50%;
+}
+
+.seasonal-ornament-string {
+  display: block;
+  width: 1px;
+  height: var(--ornament-hang);
+  margin: 0 auto;
+  background: var(--ornament-string);
+  border-radius: 2px;
+}
+
+.seasonal-ornament-ball {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--ornament-color, var(--ornament-red));
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.seasonal-ornament-ball::after {
+  content: "";
+  position: absolute;
+  top: 8%;
+  right: 8%;
+  width: 14%;
+  height: 18%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  filter: blur(0.5px);
+}
+
+@keyframes seasonal-ornament-sway {
+  from {
+    transform: rotate(calc(var(--ornament-sway, 3deg) * -1));
+  }
+  to {
+    transform: rotate(var(--ornament-sway, 3deg));
+  }
+}
+
+/* ── Falling leaves ──────────────────────────────────────────────────── */
+
+.seasonal-leaves {
+  position: absolute;
+  inset: 0;
+}
+
+.seasonal-leaf {
+  position: absolute;
+  top: -14vh;
+  width: var(--leaf-size);
+  height: var(--leaf-size);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: seasonal-leaf-fall linear infinite;
+}
+
+.seasonal-leaf-inner {
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation: seasonal-leaf-sway ease-in-out infinite alternate;
+}
+
+.seasonal-leaf svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.18));
+}
+
+@keyframes seasonal-leaf-fall {
+  0% {
+    transform: translate3d(0, -14vh, 0) rotate(0deg);
+    opacity: 0;
+  }
+  8% {
+    opacity: var(--leaf-opacity);
+  }
+  86% {
+    opacity: var(--leaf-opacity);
+  }
+  100% {
+    transform: translate3d(var(--leaf-drift), 114vh, 0) rotate(var(--leaf-spin));
+    opacity: 0;
+  }
+}
+
+@keyframes seasonal-leaf-sway {
+  from {
+    transform: translate3d(calc(var(--leaf-sway) * -1), 0, 0) rotate(-16deg);
+  }
+  to {
+    transform: translate3d(var(--leaf-sway), 0, 0) rotate(16deg);
+  }
+}
+
+/* ── Bats ────────────────────────────────────────────────────────────── */
+
+.seasonal-bat {
+  position: absolute;
+  top: var(--bat-y);
+  left: -12vw;
+  width: var(--bat-size);
+  color: var(--bat-ink);
+  opacity: var(--bat-opacity);
+  will-change: transform;
+  animation: seasonal-bat-fly var(--bat-duration) linear infinite;
+}
+
+.seasonal-bat svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  animation: seasonal-bat-flap 0.42s ease-in-out infinite alternate;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+}
+
+@keyframes seasonal-bat-fly {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  25% {
+    transform: translate3d(32vw, -2vh, 0);
+  }
+  50% {
+    transform: translate3d(58vw, 2vh, 0);
+  }
+  75% {
+    transform: translate3d(88vw, -1vh, 0);
+  }
+  100% {
+    transform: translate3d(128vw, 1vh, 0);
+  }
+}
+
+@keyframes seasonal-bat-flap {
+  from {
+    transform: scaleY(1);
+  }
+  to {
+    transform: scaleY(0.42);
+  }
+}
+
+.seasonal-bat[data-direction="rtl"] {
+  right: -12vw;
+  left: auto;
+  animation-name: seasonal-bat-fly-rtl;
+}
+
+@keyframes seasonal-bat-fly-rtl {
+  0% {
+    transform: translate3d(0, 0, 0) scaleX(-1);
+  }
+  25% {
+    transform: translate3d(-32vw, 2vh, 0) scaleX(-1);
+  }
+  50% {
+    transform: translate3d(-58vw, -2vh, 0) scaleX(-1);
+  }
+  75% {
+    transform: translate3d(-88vw, 1vh, 0) scaleX(-1);
+  }
+  100% {
+    transform: translate3d(-128vw, -1vh, 0) scaleX(-1);
+  }
+}
+
+/* ── Fog ─────────────────────────────────────────────────────────────── */
+
+.seasonal-fog {
+  position: absolute;
+  inset: -15% -10% -5% -10%;
+}
+
+.seasonal-fog span {
+  position: absolute;
+  width: 74vw;
+  height: 38vh;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, var(--fog-ink), transparent 68%);
+  filter: blur(22px);
+  opacity: 0.7;
+  animation: seasonal-fog-drift 34s ease-in-out infinite alternate;
+}
+
+.seasonal-fog span:nth-child(1) {
+  top: 2%;
+  left: -18%;
+}
+
+.seasonal-fog span:nth-child(2) {
+  top: 42%;
+  right: -22%;
+  animation-delay: -14s;
+  animation-duration: 44s;
+}
+
+.seasonal-fog span:nth-child(3) {
+  bottom: -14%;
+  left: 18%;
+  animation-delay: -24s;
+  animation-duration: 52s;
+}
+
+@keyframes seasonal-fog-drift {
+  from {
+    transform: translate3d(-5%, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(9%, -4%, 0) scale(1.18);
+  }
+}
+
+/* ── Rising motes / embers ───────────────────────────────────────────── */
+
+.seasonal-motes {
+  position: absolute;
+  inset: 0;
+  color: var(--mote-color);
+}
+
+.seasonal-mote {
+  position: absolute;
+  bottom: -12px;
+  width: var(--mote-size);
+  height: var(--mote-size);
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+  opacity: 0;
+  animation: seasonal-mote-rise linear infinite;
+}
+
+@keyframes seasonal-mote-rise {
+  0% {
+    transform: translate3d(0, 0, 0) scale(0.6);
+    opacity: 0;
+  }
+  12% {
+    opacity: var(--mote-opacity);
+  }
+  80% {
+    opacity: calc(var(--mote-opacity) * 0.7);
+  }
+  100% {
+    transform: translate3d(var(--mote-drift), -105vh, 0) scale(1);
+    opacity: 0;
+  }
+}
+
+/* ── Spider webs ─────────────────────────────────────────────────────── */
+
+.seasonal-web {
+  position: absolute;
+  width: var(--web-size, 120px);
+  height: var(--web-size, 120px);
+  color: var(--web-ink);
+  opacity: var(--web-opacity);
+}
+
+.seasonal-web--tl {
+  top: -4px;
+  left: -4px;
+}
+
+.seasonal-web--br {
+  right: -4px;
+  bottom: -4px;
+  transform: rotate(180deg);
+}
+
+.seasonal-web svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Wheat ───────────────────────────────────────────────────────────── */
+
+.seasonal-wheat {
+  position: absolute;
+  bottom: -10px;
+  width: 84px;
+  color: var(--wheat-ink);
+  opacity: var(--wheat-opacity, 0.16);
+  transform-origin: bottom center;
+  animation: seasonal-wheat-sway 9s ease-in-out infinite alternate;
+}
+
+.seasonal-wheat--left {
+  left: 14px;
+}
+
+.seasonal-wheat--right {
+  right: 14px;
+  animation-delay: -4.5s;
+}
+
+.seasonal-wheat-flip {
+  display: block;
+}
+
+.seasonal-wheat--right .seasonal-wheat-flip {
+  transform: scaleX(-1);
+}
+
+.seasonal-wheat svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@keyframes seasonal-wheat-sway {
+  from {
+    transform: rotate(-1.6deg);
+  }
+  to {
+    transform: rotate(1.6deg);
+  }
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .seasonal-flake {
+    top: var(--flake-static-y);
+    opacity: var(--flake-opacity);
+    animation: none;
+  }
+
+  .seasonal-flake[data-layer="2"] {
+    filter: none;
+  }
+
+  .seasonal-flake-inner,
+  .seasonal-leaf-inner,
+  .seasonal-bat svg,
+  .seasonal-fog span,
+  .seasonal-mote,
+  .seasonal-ornament,
+  .seasonal-wheat {
+    animation: none;
+  }
+
+  .seasonal-leaf {
+    top: var(--leaf-static-y);
+    opacity: var(--leaf-opacity);
+    animation: none;
+    transform: rotate(var(--leaf-spin));
+  }
+
+  .seasonal-bat,
+  .seasonal-mote {
+    display: none;
+  }
+
+  .seasonal-twinkle {
+    animation: none;
+    opacity: calc(var(--twinkle-opacity) * 0.7);
+  }
+}

@@ -1,0 +1,118 @@
+/*
+ * Thanksgiving seasonal theme: mahogany surfaces, cranberry/gold accents,
+ * leaves, candlelight motes and wheat in the corners.
+ * Palette overrides use !important because applyUiSettings() writes the
+ * regular theme variables inline on <html>.
+ */
+
+html[data-seasonal-theme="thanksgiving"] {
+  color-scheme: dark;
+
+  --bg-base: #1a1110 !important;
+  --bg-panel: #140d0c !important;
+  --bg-elevated: #271916 !important;
+  --bg-active: #33201c !important;
+  --bg-chrome: #110b0a !important;
+  --bg-editor: #1b1210 !important;
+  --bg-input: #211513 !important;
+
+  --border: rgba(220, 170, 100, 0.16) !important;
+  --border-strong: rgba(220, 170, 100, 0.3) !important;
+  --fill-1: rgba(255, 255, 255, 0.04) !important;
+  --fill-2: rgba(255, 255, 255, 0.075) !important;
+  --fill-3: rgba(255, 255, 255, 0.14) !important;
+
+  --text-primary: #f7ece4 !important;
+  --text-secondary: #d8c0b2 !important;
+  --text-muted: #ab9184 !important;
+  --text-faint: #8f766a !important;
+
+  --accent: #e0705f !important;
+  --accent-soft: rgba(224, 112, 95, 0.16) !important;
+  --on-accent: #220b07 !important;
+
+  --danger: #ff8f7a !important;
+  --success: #7bd9a0 !important;
+  --warning: #f4c25a !important;
+
+  --ambient-a: rgba(224, 169, 79, 0.1);
+  --ambient-b: rgba(176, 64, 58, 0.1);
+  --ambient-c: rgba(150, 98, 46, 0.08);
+  --ambient-blend: screen;
+
+  --seasonal-frame: rgba(220, 170, 100, 0.18);
+  --seasonal-frame-glow: rgba(15, 8, 7, 0.4);
+  --seasonal-ribbon: linear-gradient(
+    90deg,
+    transparent 2%,
+    rgba(224, 169, 79, 0.5),
+    rgba(176, 64, 58, 0.42),
+    rgba(150, 98, 46, 0.38),
+    rgba(224, 169, 79, 0.5),
+    transparent 98%
+  );
+
+  --leaf-amber: #d99a45;
+  --leaf-rust: #b95a3a;
+  --leaf-olive: #8b9450;
+  --leaf-crimson: #9e3f3f;
+  --mote-color: #f1c06a;
+  --wheat-ink: rgba(226, 190, 120, 0.55);
+  --wheat-opacity: 0.16;
+}
+
+html[data-seasonal-theme="thanksgiving"][data-theme-mode="light"] {
+  color-scheme: light;
+
+  --bg-base: #faf4ea !important;
+  --bg-panel: #f3e9da !important;
+  --bg-elevated: #fffdf8 !important;
+  --bg-active: #eadbc8 !important;
+  --bg-chrome: #f6ede0 !important;
+  --bg-editor: #fbf6ee !important;
+  --bg-input: #f4ebdd !important;
+
+  --border: rgba(90, 50, 30, 0.16) !important;
+  --border-strong: rgba(90, 50, 30, 0.3) !important;
+  --fill-1: rgba(0, 0, 0, 0.03) !important;
+  --fill-2: rgba(0, 0, 0, 0.06) !important;
+  --fill-3: rgba(0, 0, 0, 0.1) !important;
+
+  --text-primary: #2b1a15 !important;
+  --text-secondary: #5d4336 !important;
+  --text-muted: #826455 !important;
+  --text-faint: #98796a !important;
+
+  --accent: #9f3a34 !important;
+  --accent-soft: rgba(159, 58, 52, 0.13) !important;
+  --on-accent: #ffffff !important;
+
+  --danger: #b91c1c !important;
+  --success: #15803d !important;
+  --warning: #b45309 !important;
+
+  --ambient-a: rgba(194, 134, 49, 0.08);
+  --ambient-b: rgba(159, 58, 52, 0.06);
+  --ambient-c: rgba(130, 90, 40, 0.06);
+  --ambient-blend: normal;
+
+  --seasonal-frame: rgba(120, 70, 30, 0.18);
+  --seasonal-frame-glow: rgba(90, 50, 30, 0.05);
+  --seasonal-ribbon: linear-gradient(
+    90deg,
+    transparent 2%,
+    rgba(194, 134, 49, 0.4),
+    rgba(159, 58, 52, 0.35),
+    rgba(130, 90, 40, 0.35),
+    rgba(194, 134, 49, 0.4),
+    transparent 98%
+  );
+
+  --leaf-amber: #b97d22;
+  --leaf-rust: #a34a32;
+  --leaf-olive: #6f7a3a;
+  --leaf-crimson: #8e3434;
+  --mote-color: #b7791f;
+  --wheat-ink: rgba(130, 90, 30, 0.5);
+  --wheat-opacity: 0.12;
+}
