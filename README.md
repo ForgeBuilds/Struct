@@ -20,6 +20,15 @@ one lightweight Electron app. No IDE, no bloat: just you and the model.
 
 ---
 
+## Showcase
+
+<video src="src/assets/Recording_11_17_2026_4_44_06_PM.mp4" controls loop muted playsinline width="100%">
+  Your browser does not support the video tag.
+  <a href="src/assets/Recording_11_17_2026_4_44_06_PM.mp4">Watch the Struct showcase</a>
+</video>
+
+---
+
 ## What is Struct?
 
 Struct is a standalone desktop chat app for talking to frontier and local AI models with
