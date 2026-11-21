@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { signInWithOAuth, signInWithEmail, signUpWithEmail, resetPassword, refreshEnabledProviders, checkSupabaseHealth, onAuthError, getLastAuthError, clearLastAuthError, AUTH_ERROR_EVENT } from "../lib/auth";
 import { listen } from "../native";
-import { IoClose, IoLogoGithub, IoLogoGoogle, IoEye, IoEyeOff } from "react-icons/io5";
+import { IoClose, IoLogoGithub, IoEye, IoEyeOff } from "react-icons/io5";
 import appIcon from "../assets/images/icon.png";
 
 interface LoginModalProps {
@@ -28,23 +28,23 @@ function ModalOverlay({ open, onClose, children }: { open: boolean; onClose: () 
 
   return (
     <div
-      className="dialog-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="dialog-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-8"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label="Sign in or create an account"
     >
       <div
-        className="panel-in relative w-full max-w-[340px] rounded-lg border border-(--border-strong) bg-(--bg-panel) p-5"
+        className="panel-in relative w-full max-w-[420px] rounded-2xl border-2 border-(--border-strong) bg-(--bg-panel) p-8"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-3 top-3 rounded-md p-1 text-(--text-muted) transition hover:text-[var(--text-primary)]"
+          className="absolute right-6 top-6 rounded-lg p-2 text-(--text-muted) transition hover:text-[var(--text-primary)]"
           aria-label="Close"
         >
-          <IoClose size={18} />
+          <IoClose size={22} />
         </button>
         {children}
       </div>
@@ -53,15 +53,15 @@ function ModalOverlay({ open, onClose, children }: { open: boolean; onClose: () 
 }
 
 const TEXT_BUTTON =
-  "shrink-0 rounded px-1 text-[11.5px] transition-colors " +
+  "shrink-0 rounded px-3 text-[14px] transition-colors " +
   "text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-40";
 
 const INPUT_CLASS =
-  "h-8 w-full rounded-md border border-(--border) bg-(--fill-1) px-2.5 text-[12px] " +
+  "h-12 w-full rounded-2xl border border-(--border) bg-(--fill-1) px-4 text-[14px] " +
   "text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-faint)] " +
   "focus:border-(--border-strong)";
 
-const LABEL_CLASS = "mb-1 block text-[11px] text-[var(--text-muted)]";
+const LABEL_CLASS = "mb-4 block text-[14px] text-[var(--text-muted)]";
 
 function OAuthButtons({
   busy,
@@ -90,22 +90,37 @@ function OAuthButtons({
   useEffect(() => {
     void check();
   }, [check]);
-
+//this is the part for the two buttons that users can use to sign in 
+//google and github auth
   return (
     <>
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col items-center gap-8">
         {providers?.github !== false && (
           <button
             type="button"
             disabled={busy || checking}
             onClick={() => onOAuth("github")}
-            className="flex h-8 w-full items-center justify-center gap-2 rounded-md border border-(--border-strong) text-[12px] text-[var(--text-primary)] transition-colors hover:bg-(--fill-1) disabled:opacity-40"
+
+            className="flex h-14 w-full items-center justify-center gap-4 rounded-2xl border border-(--border-strong) text-[15px] font-semibold text-[var(--text-primary)] transition-colors hover:bg-(--fill-1) disabled:opacity-40"
           >
-            <IoLogoGithub size={15} className="opacity-70" />
+            <IoLogoGithub size={28} className="opacity-70" />
             {checking ? "Checking..." : "Continue with GitHub"}
           </button>
         )}
         {providers?.google !== false && (
+          <button
+            type="button"
+            disabled={busy || checking}
+            onClick={() => onOAuth("google")}
+
+            className="flex h-14 w-full items-center justify-center gap-4 rounded-2xl border border-(--border-strong) text-[15px] font-semibold text-[var(--text-primary)] transition-colors hover:bg-(--fill-1) disabled:opacity-40"
+          >
+            <IoLogoGoogle size={28} className="opacity-70" />
+            {checking ? "Checking..." : "Continue with Google"}
+          </button>
+        )}
+      </div>
+        {/* {providers?.google !== false && (
           <button
             type="button"
             disabled={busy || checking}
@@ -115,7 +130,7 @@ function OAuthButtons({
             <IoLogoGoogle size={15} className="opacity-70" />
             {checking ? "Checking..." : "Continue with Google"}
           </button>
-        )}
+        )} */}
       </div>
       {(providers?.github === false || providers?.google === false) && (
         <p className="mt-2 text-[10.5px] leading-4 text-[var(--text-muted)]">

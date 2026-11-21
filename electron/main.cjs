@@ -184,7 +184,14 @@ function createWindow() {
   let devFallbackStarted = false
   mainWindow.once('ready-to-show', () => { if (mainWindow) mainWindow.show() })
   mainWindow.webContents.on('did-start-loading', () => { deepLinkReady = false })
-  mainWindow.webContents.on('did-finish-load', () => { devLoadPending = false })
+  mainWindow.webContents.on('did-finish-load', () => {
+    devLoadPending = false
+    deepLinkReady = true
+    // Flush any pending deep links that arrived while the page was loading
+    for (const url of pendingDeepLinks.splice(0)) {
+      mainWindow?.webContents?.send('neo:deep-link', url)
+    }
+  })
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, description, failedUrl, isMainFrame) => {
     if (!isMainFrame || !devLoadPending || !devUrl || devFallbackStarted) return
     devFallbackStarted = true
@@ -230,6 +237,11 @@ async function openExternal(value) {
   if (typeof value !== 'string') throw new Error('External URL must be a string')
   let url
   try { url = new URL(value) } catch { throw new Error('Invalid external URL') }
+  // Allow the app's own protocol (agenticcoder://) for OAuth callback deep links
+  if (url.protocol === APP_PROTOCOL) {
+    // handled below as a deep link
+    return null
+  }
   if (['https:', 'http:', 'mailto:'].indexOf(url.protocol) < 0) throw new Error('Unsupported URL scheme: ' + url.protocol)
   await shell.openExternal(url.href)
 }
