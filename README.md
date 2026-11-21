@@ -22,10 +22,11 @@ one lightweight Electron app. No IDE, no bloat: just you and the model.
 
 ## Showcase
 
-<video src="src/assets/Recording_11_17_2026_4_44_06_PM.mp4" controls loop muted playsinline width="100%">
-  Your browser does not support the video tag.
-  <a href="src/assets/Recording_11_17_2026_4_44_06_PM.mp4">Watch the Struct showcase</a>
-</video>
+<video src="src/assets/Recording_11_17_2026_4_44_06_PM.mp4" controls loop muted playsinline width="100%"></video>
+
+<p align="center"><a href="src/assets/Recording_11_17_2026_4_44_06_PM.mp4"><img src="src/assets/showcase-thumbnail.png" width="100%" /></a></p>
+
+<p align="center"><a href="src/assets/Recording_11_17_2026_4_44_06_PM.mp4">📹 Open the Struct showcase clip in a new tab</a></p>
 
 ---
 
