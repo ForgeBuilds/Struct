@@ -18,7 +18,7 @@
     "build:desktop:bundle": "node scripts/desktop-build.mjs --bundle-only",
     "build:desktop:unsigned": "node scripts/desktop-build.mjs",
     "build:linux": "node scripts/desktop-build.mjs -- --linux AppImage deb rpm",
-    "build:mac": "node scripts/desktop-build.mjs -- --mac dmg",
+    "build:mac": "node scripts/desktop-build.mjs -- --mac zip --x64 --arm64",
     "build:win": "node scripts/desktop-build.mjs -- --win nsis",
     "icons": "node scripts/generate-icons.mjs",
     "electron": "electron .",

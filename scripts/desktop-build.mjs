@@ -37,6 +37,11 @@ const forwarded = []
 for ( const arg of process.argv.slice(2)) {
   if (arg === '--bundle-only') flags.bundleOnly = true
   else if (arg === '--help' || arg === '-h') flags.help = true
+  // '--' is the conventional separator between this script's own flags and
+  // the electron-builder arguments; never forward it, since a leading '--'
+  // would make electron-builder treat the following flags as positionals
+  // and fall back to the host platform's default targets.
+  else if (arg === '--') continue
   else forwarded.push(arg)
 }
 
