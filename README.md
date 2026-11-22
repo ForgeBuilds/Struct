@@ -13,7 +13,7 @@ one lightweight Electron app. No IDE, no bloat: just you and the model.
 [Download](https://forgebuilds.github.io/ForgeHQ/downloads) ·
 [Documentation](https://forgebuilds.github.io/ForgeHQ/documentation) ·
 [Report an issue](https://github.com/ForgeBuilds/Struct/issues)
-<video width="640" height="360" controls>
+<video width="640" height="360" controls >
   <source src="src/assets/Recording_11_17_2026_4_44_06_PM.mp4" type="video/mp4">
 </video>
 </div>
