@@ -1,10 +1,10 @@
 {
   "name": "struct",
   "private": true,
-  "version": "1.16.0",
+  "version": "1.17.0",
   "desktopName": "com.lumorixstudios.agenticcoder",
-  "description": "Struct - a fast, local-first AI coding agent in a single native window",
-  "author": "Lumorix Studios <contact@lumorixstudios.com>",
+  "description": "Struct - a fast, local-first AI coding agent in a single native window(lumorixstudios has been renamed to forgebuilds)",
+  "author": "ForgeBuilds<madhusudhant207@gmail.com>",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {

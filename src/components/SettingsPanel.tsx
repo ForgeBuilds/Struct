@@ -1129,9 +1129,10 @@ export default function SettingsPanel({
               );
             })}
           </nav>
+          
           <div className="hidden px-3 py-2.5 text-[10px] text-[var(--text-faint)] sm:block">
             <div ref={buildsInfoRef} className="relative flex items-center justify-between gap-2">
-              <span className="relative">V1.16.0 BETA</span>
+              <span className="relative">V1.17.0</span>
               <button
                 type="button"
                 aria-label={t("settings.aboutBuilds")}
@@ -1277,20 +1278,20 @@ export default function SettingsPanel({
                   />
                 </Row>
 
-                <div className="py-2">
+                <div className="py-4">
                   <p className="text-[12.5px] font-medium text-[var(--text-primary)]">
                     {t("settings.seasonalPalettes")}
                   </p>
                   <p className="mt-0.5 text-[11px] leading-4 text-[var(--text-muted)]">
                     {t("settings.seasonalPalettesDesc")}
                   </p>
-                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <div className= "w-45">
                     {SEASONAL_THEMES.map((theme) => {
                       const palette = settings.seasonalPalettes?.[theme.id] ?? "auto";
                       return (
                         <label
                           key={theme.id}
-                          className="flex items-center justify-between gap-3 rounded-md border border-(--border) bg-(--fill-1) px-2.5 py-1.5"
+                          className="flex items-center justify-between my-2 rounded-md  bg-(--fill-1) px-2.5 py-1.5"
                         >
                           <span className="truncate text-[11.5px] text-[var(--text-secondary)]">
                             {theme.label}
@@ -1380,7 +1381,7 @@ export default function SettingsPanel({
                       }}
                       selectedModel={aiSettings.model}
                     />
-                  )
+                  
                 </div>
               ) : (
               <div>
@@ -1423,20 +1424,20 @@ export default function SettingsPanel({
                     </select>
                   </div>
                 </Row>
-                {(aiSpec.note || aiNeedsKey) && (
+                {/* {(aiSpec.note || aiNeedsKey) && (
                   <p className="pb-3 text-[11px] leading-4 text-[var(--text-muted)]">
                     {aiSpec.note ??
                       t("settings.apiKeyNote")}
                   </p>
-                )}
+                )} */}
                 {aiSettings.provider === "freellmapi" && (
-                  <div className="mb-3 rounded-lg border border-(--border) bg-(--fill-1) p-3">
+                  <div className="mb-3 rounded-lg bg-(--fill-1) p-3">
                     <p className="mb-2 text-[11px] leading-4 text-[var(--text-secondary)]">
-                      Struct includes the router in its desktop app. In the router dashboard:
+                      Struct includes the router in its desktop app.
                     </p>
                     <ol className="mb-3 list-decimal space-y-1 pl-4 text-[10.5px] leading-4 text-[var(--text-muted)]">
                       <li>Create the local dashboard account.</li>
-                      <li>Add API keys for the providers you already have accounts with.</li>
+                      <li>Add API keys for the providers you already have accounts with inside freellmapi</li>
                       <li>Create a unified API key, then paste it in Struct’s API Key field below.</li>
                     </ol>
                     <p className="mb-2 text-[10px] leading-4 text-[var(--text-muted)]">
@@ -1937,7 +1938,10 @@ export default function SettingsPanel({
                 </p>
               </div>
               ))}
-            {section === "editor" && (
+              {/*Editor had been deprecated since Release: v1.13.0 so this isnt needed anymore but dont edit this since it could be used later on
+              */}
+              
+            {/* {section === "editor" && (
               <div>
                 <SectionTitle>{t("settings.edTypography")}</SectionTitle>
                 <Row title={t("settings.edFontSize")} description={t("settings.edFontSizeDesc")}>
@@ -1969,12 +1973,12 @@ export default function SettingsPanel({
                       >
                         {n}
                       </button>
-                    ))}
-                  </div>
-                </Row>
+                //     ))} 
+                //   </div>
+                // </Row>
               </div>
             )}
-
+            // same with this. deprecated
             {/* {section === "files" && (
               <div>
                 <SectionTitle>{t("settings.filesAutoSave")}</SectionTitle>
@@ -2178,7 +2182,7 @@ export default function SettingsPanel({
                       setRateSettings(next);
                       void saveTokenRateSettings(next);
                     }}
-                    className="w-24 rounded-md border border-(--border-strong) bg-(--fill-1) px-2 py-1 text-right text-[11.5px] tabular-nums text-[var(--text-primary)] outline-none"
+                    className="w-24 rounded-md  bg-(--fill-1) px-2 py-1 text-right text-[11.5px] tabular-nums text-[var(--text-primary)] outline-none"
                   />
                 </Row>
                 <Row title={t("settings.dashPerDay")} description={t("settings.dashPerDayDesc")}>
@@ -2195,7 +2199,7 @@ export default function SettingsPanel({
                       setRateSettings(next);
                       void saveTokenRateSettings(next);
                     }}
-                    className="w-24 rounded-md border border-(--border-strong) bg-(--fill-1) px-2 py-1 text-right text-[11.5px] tabular-nums text-[var(--text-primary)] outline-none"
+                    className="w-24 rounded-md bg-(--fill-1) px-2 py-1 text-right text-[11.5px] tabular-nums text-[var(--text-primary)] outline-none"
                   />
                 </Row>
 
@@ -2209,7 +2213,7 @@ export default function SettingsPanel({
                     {usageSnapshot.recent.slice(0, 8).map((r, i) => (
                       <div
                         key={`${r.at}-${i}`}
-                        className="flex items-center justify-between rounded-md border border-(--border) px-3 py-1.5 text-[11px]"
+                        className="flex items-center justify-between border-b border-rose-400 px-3 py-1.5 text-[11px]"
                       >
                         <span className="min-w-0 truncate text-[var(--text-primary)]">
                           {r.provider} · {r.model}
@@ -2229,7 +2233,7 @@ export default function SettingsPanel({
                       void resetUsage();
                       setUsageTick((t) => t + 1);
                     }}
-                    className="shrink-0 rounded-md border border-(--border-strong) px-2.5 py-1 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
+                    className="shrink-0 rounded-md px-2.5 py-1 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-3) bg-(--fill-1) hover:text-[var(--text-primary)]"
                   >
                     {t("settings.resetBtn")}
                   </button>
@@ -2266,7 +2270,7 @@ export default function SettingsPanel({
                       setMcpServers([]);
                       saveMcpServers([]);
                     }}
-                    className="shrink-0 rounded-md border border-(--border-strong) px-2.5 py-1 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
+                    className="shrink-0 rounded-md px-2.5 py-1 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
                   >
                     {t("settings.clearBtn")}
                   </button>
@@ -2278,7 +2282,7 @@ export default function SettingsPanel({
                       clearRecentFiles();
                       clearRecentFolders();
                     }}
-                    className="shrink-0 rounded-md border border-(--border-strong) px-2.5 py-1 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
+                    className="shrink-0 rounded-md px-2.5 py-1 text-[11px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
                   >
                     {t("settings.clearBtn")}
                   </button>
@@ -2340,7 +2344,7 @@ export default function SettingsPanel({
                   </div>
                   <div>
                     <p className="text-[13px] font-medium text-[var(--text-primary)]">Struct</p>
-                    <p className="text-[11px] text-[var(--text-muted)]">v1.16.0</p>
+                    <p className="text-[11px] text-[var(--text-muted)]">v1.17.0</p>
                   </div>
                 </div>
 
@@ -2359,7 +2363,7 @@ export default function SettingsPanel({
                 className="inline-flex items-center text-[var(--text-faint)] transition hover:text-blue-500  rounded-2xl"
                 onClick={() => setCreditInfoOpen((v) => !v)}
               >
-                <p className = "text-[14.5px] bg-(--fill-0) rounded-lg text-green-500 hover:bg-(--fill-3)">
+                <p className = "text-[12.5px] my-2 bg-(--fill-0) rounded-lg text-black-500 hover:bg-(--fill-3)">
                 Credits</p>
               </button>
 
