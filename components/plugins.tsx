@@ -531,7 +531,7 @@ function FreeCadSetup(p: FreeCadSetupProps) {
         </div>
       ) : (
         <>
-          <div className="flex flex-col gap-1.5 rounded-md border border-(--border) bg-(--fill-1) px-3 py-2.5 text-[11.5px]">
+          <div className="flex flex-col gap-1.5 rounded-md  bg-(--fill-1) px-3 py-2.5 text-[11.5px]">
             <div className="flex items-center justify-between gap-2">
               <span className="text-[var(--text-muted)]">FreeCAD</span>
               <span className={found ? "text-[var(--success)]" : "text-[var(--danger)]"}>
@@ -578,7 +578,7 @@ function FreeCadSetup(p: FreeCadSetupProps) {
             ) : p.serverOn ? (
               <button
                 onClick={p.onDisconnect}
-                className="rounded-md border border-(--border-strong) px-3 py-1.5 text-[12px] text-[var(--text-secondary)] transition hover:bg-red-500/10 hover:text-[var(--danger)]"
+                className="rounded-md  px-3 py-1.5 text-[12px] text-[var(--text-secondary)] transition hover:bg-red-500/10 hover:text-[var(--danger)]"
               >
                 {t("plugins.freecadDisconnect")}
               </button>
@@ -593,7 +593,7 @@ function FreeCadSetup(p: FreeCadSetupProps) {
             )}
             <button
               onClick={p.onRefresh}
-              className="rounded-md border border-(--border) px-2.5 py-1.5 text-[11.5px] text-[var(--text-secondary)] transition hover:bg-(--fill-2)"
+              className="rounded-md  px-2.5 py-1.5 text-[11.5px] text-[var(--text-secondary)] transition hover:bg-(--fill-2)"
             >
               {t("plugins.freecadRefresh")}
             </button>

@@ -101,6 +101,8 @@ export async function ensureFreeCadMcpServer(): Promise<McpServerConfig> {
     ? servers.map((server) => (isFreeCadServer(server) ? next : server))
     : [...servers, next];
   saveMcpServers(updated);
+  // Let the settings panel and agent UI reload their MCP lists immediately.
+  window.dispatchEvent(new Event("struct:mcp-servers-restored"));
   return next;
 }
 
@@ -111,4 +113,5 @@ export function removeFreeCadMcpServer(): void {
   if (removed.length === 0) return;
   for (const server of removed) void stopStdio(server.id);
   saveMcpServers(servers.filter((server) => !isFreeCadServer(server)));
+  window.dispatchEvent(new Event("struct:mcp-servers-restored"));
 }

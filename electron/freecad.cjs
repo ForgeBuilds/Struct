@@ -29,7 +29,7 @@ const {
   writeFileSync,
 } = require('node:fs')
 const { homedir } = require('node:os')
-const { join } = require('node:path')
+const { dirname, join } = require('node:path')
 
 const RPC_PORT = 9875
 const RPC_HOST = '127.0.0.1'
@@ -197,8 +197,22 @@ function rpcPing(timeoutMs = 900) {
   })
 }
 
+/**
+ * Locate the vendored addon. In a packaged build electron-builder unpacks it
+ * next to app.asar, because Node's recursive fs.copy cannot read a directory
+ * that only exists inside the archive.
+ */
+function runtimeRoot(app) {
+  const appPath = app.getAppPath()
+  if (appPath.endsWith('.asar')) {
+    const unpacked = join(dirname(appPath), 'app.asar.unpacked', 'electron', 'freecad-runtime')
+    if (existsSync(unpacked)) return unpacked
+  }
+  return join(appPath, 'electron', 'freecad-runtime')
+}
+
 function addonSource(app) {
-  return join(app.getAppPath(), 'electron', 'freecad-runtime', 'addon', ADDON_NAME)
+  return join(runtimeRoot(app), 'addon', ADDON_NAME)
 }
 
 function writeSettings(appDataDir, patch) {
@@ -236,7 +250,7 @@ function installAddon(app) {
   rmSync(target, { recursive: true, force: true })
   cpSync(source, target, { recursive: true })
   // Keep the upstream MIT notice next to the code we copy into FreeCAD.
-  const license = join(app.getAppPath(), 'electron', 'freecad-runtime', 'LICENSE')
+  const license = join(runtimeRoot(app), 'LICENSE')
   if (existsSync(license)) cpSync(license, join(target, 'LICENSE'))
   const settingsPath = writeSettings(info.appDataDir, { auto_start_rpc: true })
   return { ...detect(), settingsPath, installed: true }

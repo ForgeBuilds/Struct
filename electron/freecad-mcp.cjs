@@ -545,8 +545,12 @@ async function handleMessage(message) {
       }
     } catch (error) {
       if (!isNotification) {
+        const offline = error?.code === 'ECONNREFUSED'
+        const message = offline
+          ? `FreeCAD is not running (no answer on ${HOST}:${PORT}). Open the FreeCAD plugin in Struct and press "Launch FreeCAD & connect", then retry.`
+          : `FreeCAD tool "${name}" failed: ${error.message}`
         sendResult(id, {
-          content: [{ type: 'text', text: `FreeCAD tool "${name}" failed: ${error.message}` }],
+          content: [{ type: 'text', text: message }],
           isError: true,
         })
       }
