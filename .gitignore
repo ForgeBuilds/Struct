@@ -155,6 +155,10 @@ release/
 electron/freellmapi-build-src/
 electron/freellmapi-runtime/
 
+# FreeCAD MCP addon is vendored at build time from a pinned upstream commit.
+electron/freecad-build-src/
+electron/freecad-runtime/
+
 # Generated CODE-OSS workbench (regenerate via build; do not commit).
 # Keep Neo's small chat participant extension under version control.
 src-tauri/resources/*

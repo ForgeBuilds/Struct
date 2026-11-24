@@ -23,11 +23,20 @@ import {
 } from "../src/spotify";
 import { connectCalendar, disconnectCalendar, calendarConnectedUser } from "../src/googleCalendar";
 import { connectGitHub, disconnectGitHub, githubConnected } from "../src/github";
+import {
+  ensureFreeCadMcpServer,
+  freecadConnected,
+  freecadConnect,
+  freecadDisable,
+  freecadStatus,
+  removeFreeCadMcpServer,
+  type FreeCadStatus,
+} from "../src/freecad";
 import gmailIcon from "../src/assets/images/gmail.webp";
 import robloxIcon from "../src/assets/images/roblox.webp";
 import spotifyIcon from "../src/assets/images/spotify.webp";
 import googleIcon from "../src/assets/images/googlecal.webp";
-import freecad from "../src/assets/images/fd.webp";
+import freecadIcon from "../src/assets/images/fd.webp";
 import githubIcon from "../src/assets/images/github.png";
 interface Props {
   isOpen?: boolean;
@@ -37,7 +46,7 @@ interface Props {
   onOpenAiSettings?: () => void;
 }
 
-type View = "picker" | "gmail" | "spotify" | "calendar" | "github";
+type View = "picker" | "gmail" | "spotify" | "calendar" | "github" | "freecad";
 
 
 export default function PluginsPanel({ isOpen = false, onClose = () => {}, inline = false }: Props) {
@@ -67,6 +76,22 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
   const [githubError, setGithubError] = useState("");
   const [githubBusy, setGithubBusy] = useState(false);
 
+  // ── FreeCAD setup state ─────────────────────────────────────────────
+  const [freecadState, setFreecadState] = useState<FreeCadStatus | null>(null);
+  const [freecadError, setFreecadError] = useState("");
+  const [freecadBusy, setFreecadBusy] = useState(false);
+  const [freecadServerOn, setFreecadServerOn] = useState(false);
+
+
+  const refreshFreecad = async () => {
+    if (!window.neoDesktop) return;
+    try {
+      setFreecadState(await freecadStatus());
+      setFreecadServerOn(freecadConnected());
+    } catch (e) {
+      setFreecadError(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   // Reset the view and Gmail state whenever the panel opens (modal) or is
   // forced to render inline (e.g. inside the Settings panel).
@@ -84,6 +109,9 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
       setSpotifyUser(spotifyConnectedUser());
       setSpotifyPlan(spotifyProduct());
       setSpotifyClientId(spotifyRememberedClientId());
+      setFreecadError("");
+      setFreecadServerOn(freecadConnected());
+      void refreshFreecad();
     }
   }, [inline, isOpen]);
 
@@ -183,6 +211,31 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
   };
   const dropGitHub = () => { disconnectGitHub(); setGithubUser(null); setGithubError(""); };
 
+  const connectFreecad = async () => {
+    setFreecadError("");
+    setFreecadBusy(true);
+    try {
+      const status = await freecadConnect();
+      setFreecadState(status);
+      await ensureFreeCadMcpServer();
+      setFreecadServerOn(true);
+      if (!status.rpcRunning) {
+        setFreecadError(t("plugins.freecadLaunchNoRpc"));
+      }
+    } catch (e) {
+      setFreecadError(e instanceof Error ? e.message : String(e));
+      reportError(e);
+    } finally {
+      setFreecadBusy(false);
+    }
+  };
+
+  const disconnectFreecad = () => {
+    removeFreeCadMcpServer();
+    setFreecadServerOn(false);
+    void freecadDisable().then(setFreecadState).catch(() => undefined);
+  };
+
   const content = view === "picker" ? (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 w-full items-start">
       {/* <p className="m-0 mb-1 text-[11px] leading-4 text-[var(--text-muted)]">
@@ -264,18 +317,37 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
           </span>
         </span>
       </button>
-      <button 
-      onClick = {()=> null}
-      className = "flex items-center gap-3 rounded-md bg-(--fill-0) px-3 py-2.5 text-left hover:bg-(--fill-2) w-50">
-        <img src = {freecad} className = "h-8 w-8 shrink-0"/>
-        <span className = "min-w-0 flex-1 text-[var(--text-primary)]">
-           FreeCad
-        <span className = "block turncate text-[12.5px] font-medium text-[var(--text-primary)]">
-              Manage your builds
+      <button
+        onClick={() => setView("freecad")}
+        className="flex items-center gap-3 rounded-md border-(--border) bg-(--fill-0) px-3 py-2.5 text-left transition hover:bg-(--fill-2) w-50"
+      >
+        <img src={freecadIcon} alt="" className="h-8 w-8 shrink-0" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[12.5px] font-medium text-[var(--text-primary)]">
+            FreeCAD
+          </span>
+          <span className="block truncate text-[10.5px] text-[var(--text-muted)]">
+            {freecadServerOn ? t("plugins.freecadConnected") : t("plugins.freecadBlurb")}
+          </span>
         </span>
-        </span>
+        {freecadServerOn && (
+          <span className="shrink-0 rounded border-(--border-strong) px-1.5 py-px text-[9px] uppercase tracking-wide text-[var(--success)]">
+            on
+          </span>
+        )}
       </button>
     </div>
+  ) : view === "freecad" ? (
+    <FreeCadSetup
+      status={freecadState}
+      error={freecadError}
+      busy={freecadBusy}
+      serverOn={freecadServerOn}
+      onConnect={() => void connectFreecad()}
+      onDisconnect={disconnectFreecad}
+      onRefresh={() => void refreshFreecad()}
+      onDownload={() => window.neoDesktop?.openExternal("https://www.freecad.org/downloads.php")}
+    />
   ) : view === "github" ? (
     <GitHubSetup token={githubToken} setToken={setGithubToken} user={githubUser} error={githubError} busy={githubBusy} onConnect={() => void submitGitHub()} onDisconnect={dropGitHub} />
   ) : view === "calendar" ? (
@@ -308,7 +380,7 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
   if (inline) {
     return (
       <div className="flex flex-col gap-3">
-        {(view === "gmail" || view === "spotify" || view === "calendar" || view === "github") && (
+        {(view === "gmail" || view === "spotify" || view === "calendar" || view === "github" || view === "freecad") && (
           <button
             onClick={() => setView("picker")}
             className="flex w-fit items-center gap-1.5 rounded-md px-2 py-1 -ml-2 text-[11.5px] text-[var(--text-secondary)] transition hover:bg-(--fill-2) hover:text-[var(--text-primary)]"
@@ -327,7 +399,7 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
       {/* Header */}
       <div className="flex items-center justify-between border-b border-(--border) px-5 py-4">
         <div className="flex items-center gap-2">
-          {(view === "gmail" || view === "spotify" || view === "calendar" || view === "github") ? (
+          {(view === "gmail" || view === "spotify" || view === "calendar" || view === "github" || view === "freecad") ? (
             <button
               onClick={() => setView("picker")}
               aria-label={t("plugins.backToPlugins")}
@@ -340,7 +412,7 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
           )}
           <div>
             <h2 className="m-0 text-[14px] font-semibold text-[var(--text-primary)]">
-              {view === "gmail" ? "Gmail" : view === "spotify" ? "Spotify" : view === "calendar" ? "Google Calendar" : view === "github" ? "GitHub" : t("plugins.title")}
+              {view === "gmail" ? "Gmail" : view === "spotify" ? "Spotify" : view === "calendar" ? "Google Calendar" : view === "github" ? "GitHub" : view === "freecad" ? "FreeCAD" : t("plugins.title")}
             </h2>
             <p className="m-0 text-[11.5px] text-[var(--text-muted)]">
               {view === "gmail"
@@ -355,7 +427,11 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
                   ? spotifyUser
                     ? t("plugins.connectedAs", { name: spotifyUser })
                     : t("plugins.connectSpotify")
-                  : t("plugins.connectExternal")}
+                  : view === "freecad"
+                    ? freecadServerOn
+                      ? t("plugins.freecadHeaderConnected")
+                      : t("plugins.freecadHeaderDisconnected")
+                    : t("plugins.connectExternal")}
             </p>
           </div>
         </div>
@@ -378,7 +454,9 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
             : view === "calendar" ? t("plugins.calendarHelp")
             : view === "spotify"
               ? t("plugins.spotifyFooter")
-              : t("plugins.moreSoon")}
+              : view === "freecad"
+                ? t("plugins.freecadFooter")
+                : t("plugins.moreSoon")}
         </span>
         <button
           onClick={() => onClose()}
@@ -423,6 +501,121 @@ function GitHubSetup(p: GitHubSetupProps) {
     {p.user ? <div className="flex items-center gap-2 rounded-md border border-(--border) bg-(--fill-1) px-3 py-2.5"><span className="flex-1 text-[12px]">Connected as {p.user}</span><button onClick={p.onDisconnect}>{"Disconnect"}</button></div> : <><label className="flex flex-col gap-1"><span className="text-[11px]">Personal access token</span><input type="password" value={p.token} onChange={e => p.setToken(e.target.value)} className={GMAIL_INPUT} placeholder="github_pat_…" autoComplete="off" /></label><button onClick={p.onConnect} disabled={p.busy} className="rounded-md bg-(--fill-2) px-3 py-1.5 disabled:opacity-50">{p.busy ? "Connecting…" : "Connect GitHub"}</button></>}
     {p.error && <div className="text-[11px] text-[var(--danger)]">{p.error}</div>}
   </div>;
+}
+
+interface FreeCadSetupProps {
+  status: FreeCadStatus | null;
+  error: string;
+  busy: boolean;
+  serverOn: boolean;
+  onConnect: () => void;
+  onDisconnect: () => void;
+  onRefresh: () => void;
+  onDownload: () => void;
+}
+
+function FreeCadSetup(p: FreeCadSetupProps) {
+  const { t } = useTranslation();
+  const native = Boolean(window.neoDesktop);
+  const found = Boolean(p.status?.executable);
+  const version = p.status?.addonVersion ? ` v${p.status.addonVersion}` : "";
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="m-0 text-[11px] leading-4 text-[var(--text-muted)]">
+        {t("plugins.freecadIntro")}
+      </p>
+
+      {!native ? (
+        <div className="rounded-md border border-(--border) px-2.5 py-2 text-[11px] leading-4 text-[var(--text-muted)]">
+          {t("plugins.freecadDesktopOnly")}
+        </div>
+      ) : (
+        <>
+          <div className="flex flex-col gap-1.5 rounded-md border border-(--border) bg-(--fill-1) px-3 py-2.5 text-[11.5px]">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[var(--text-muted)]">FreeCAD</span>
+              <span className={found ? "text-[var(--success)]" : "text-[var(--danger)]"}>
+                {found ? t("plugins.freecadDetected") : t("plugins.freecadNotFound")}
+              </span>
+            </div>
+            {found && (
+              <div className="truncate text-[10.5px] text-[var(--text-muted)]" title={p.status?.executable ?? ""}>
+                {p.status?.executable}
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[var(--text-muted)]">{t("plugins.freecadAddon")}</span>
+              <span className={p.status?.addonInstalled ? "text-[var(--success)]" : "text-[var(--text-muted)]"}>
+                {p.status?.addonInstalled
+                  ? `${t("plugins.freecadInstalled")}${version}`
+                  : t("plugins.freecadNotInstalled")}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[var(--text-muted)]">{t("plugins.freecadRpcBridge")}</span>
+              <span className={p.status?.rpcRunning ? "text-[var(--success)]" : "text-[var(--text-muted)]"}>
+                {p.status?.rpcRunning
+                  ? t("plugins.freecadRpcRunning", { address: "127.0.0.1:9875" })
+                  : t("plugins.freecadRpcStopped")}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[var(--text-muted)]">{t("plugins.freecadAgent")}</span>
+              <span className={p.serverOn ? "text-[var(--success)]" : "text-[var(--text-muted)]"}>
+                {p.serverOn ? t("plugins.freecadAgentConnected") : t("plugins.freecadAgentDisconnected")}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {!found ? (
+              <button
+                onClick={p.onDownload}
+                className="rounded-md bg-(--fill-2) px-3 py-1.5 text-[12px] text-[var(--text-primary)] transition hover:bg-(--fill-3)"
+              >
+                {t("plugins.freecadDownload")}
+              </button>
+            ) : p.serverOn ? (
+              <button
+                onClick={p.onDisconnect}
+                className="rounded-md border border-(--border-strong) px-3 py-1.5 text-[12px] text-[var(--text-secondary)] transition hover:bg-red-500/10 hover:text-[var(--danger)]"
+              >
+                {t("plugins.freecadDisconnect")}
+              </button>
+            ) : (
+              <button
+                onClick={p.onConnect}
+                disabled={p.busy}
+                className="rounded-md bg-(--fill-2) px-3 py-1.5 text-[12px] text-[var(--text-primary)] transition hover:bg-(--fill-3) disabled:opacity-50"
+              >
+                {p.busy ? t("plugins.freecadBusy") : t("plugins.freecadLaunchConnect")}
+              </button>
+            )}
+            <button
+              onClick={p.onRefresh}
+              className="rounded-md border border-(--border) px-2.5 py-1.5 text-[11.5px] text-[var(--text-secondary)] transition hover:bg-(--fill-2)"
+            >
+              {t("plugins.freecadRefresh")}
+            </button>
+          </div>
+
+          {p.status?.addonInstalled && !p.status?.rpcRunning && (
+            <p className="m-0 text-[10.5px] leading-4 text-[var(--text-muted)]">
+              {p.status.addonWasInstalled === false
+                ? t("plugins.freecadRestartHint")
+                : t("plugins.freecadStartingHint")}
+            </p>
+          )}
+        </>
+      )}
+
+      {p.error && (
+        <div className="rounded-md border border-(--danger) px-2.5 py-2 text-[11px] leading-4 text-[var(--danger)]">
+          {p.error}
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface CalendarSetupProps { clientId: string; setClientId: (v: string) => void; user: string | null; error: string; busy: boolean; onConnect: () => void; onDisconnect: () => void; }

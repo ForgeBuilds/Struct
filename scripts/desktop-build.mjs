@@ -103,6 +103,12 @@ if (!flags.bundleOnly) {
     console.error('[build] Embedded FreeLLMAPI build failed.')
     process.exit(built.status ?? 1)
   }
+  console.log('[build] Vendoring the FreeCAD MCP addon...')
+  const freecadBuilt = spawnSync('npm', ['run', 'build:freecad'], { cwd: root, stdio: 'inherit', shell: true })
+  if (freecadBuilt.status !== 0) {
+    console.error('[build] FreeCAD addon vendoring failed.')
+    process.exit(freecadBuilt.status ?? 1)
+  }
 }
 
 console.log('[build] Packaging with electron-builder...')

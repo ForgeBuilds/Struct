@@ -54,6 +54,7 @@ const { pipeline } = require('node:stream/promises')
 const llamacpp = require('./llamacpp.cjs')
 /* Embedded FreeLLMAPI router for the FreeLLMAPI provider preset. */
 const freellmapi = require('./freellmapi.cjs')
+const freecad = require('./freecad.cjs')
 
 /* ── Spotify OAuth loopback (Authorization Code + PKCE) ─────────────────────
  * Spotify only accepts HTTPS or loopback redirect URIs, so the consent
@@ -1381,6 +1382,12 @@ async function invoke(cmd, a) {
     await freeLLMAPIWindow.loadURL(`${url}/keys`)
     return url
   }
+  if (cmd === 'freecad_status') return freecad.status(app)
+  if (cmd === 'freecad_install_addon') return freecad.installAddon(app)
+  if (cmd === 'freecad_launch') return freecad.launch(app)
+  if (cmd === 'freecad_connect') return freecad.connect(app)
+  if (cmd === 'freecad_disable') return freecad.setAutoStart(app, false)
+  if (cmd === 'freecad_mcp_command') return freecad.mcpCommand(app)
   if (cmd === 'load_state') return readState(a.key)
   if (cmd === 'save_state') { if (typeof a.value !== 'string') throw new Error('State value must be a string'); return writeState(a.key, a.value) }
   if (cmd === 'fs_read_file') return readFile(String(a.path), 'utf8').catch((e) => { throw new Error('Failed to read ' + a.path + ': ' + e.message) })
