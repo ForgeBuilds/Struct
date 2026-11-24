@@ -185,7 +185,7 @@ const AccountSection = memo(function AccountSection({
   if (authLoading) {
     return (
       <p className="text-center text-[12px] text-[var(--text-muted)]">
-        Checking your session…
+        logging in...
       </p>
     );
   }

@@ -27,6 +27,7 @@ import gmailIcon from "../src/assets/images/gmail.webp";
 import robloxIcon from "../src/assets/images/roblox.webp";
 import spotifyIcon from "../src/assets/images/spotify.webp";
 import googleIcon from "../src/assets/images/googlecal.webp";
+import freecad from "../src/assets/images/fd.webp";
 import githubIcon from "../src/assets/images/github.png";
 interface Props {
   isOpen?: boolean;
@@ -261,6 +262,17 @@ export default function PluginsPanel({ isOpen = false, onClose = () => {}, inlin
           <span className="block truncate text-[10.5px] text-[var(--text-muted)]">
             {t("plugins.robloxBlurb")}
           </span>
+        </span>
+      </button>
+      <button 
+      onClick = {()=> null}
+      className = "flex items-center gap-3 rounded-md bg-(--fill-0) px-3 py-2.5 text-left hover:bg-(--fill-2) w-50">
+        <img src = {freecad} className = "h-8 w-8 shrink-0"/>
+        <span className = "min-w-0 flex-1 text-[var(--text-primary)]">
+           FreeCad
+        <span className = "block turncate text-[12.5px] font-medium text-[var(--text-primary)]">
+              Manage your builds
+        </span>
         </span>
       </button>
     </div>
